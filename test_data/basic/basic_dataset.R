@@ -1,26 +1,26 @@
 # Produce RData and Rds for basic testing
 
-num = c(1,2,3, Inf,NA,NaN)
-int = as.integer(num)
-char = c("a", "b", "c", "a", "", NA)
-fac = c( "james", "cecil","zoe", "amber", NA, "rob")
-log = c(TRUE, TRUE, FALSE, TRUE, FALSE, NA)
-tstamp1 = as.POSIXlt(num, origin = "2017-02-03 08:00:00", tz = "GMT")
-tstamp2 = as.POSIXct(num, origin = "2017-02-03 08:00:00", tz = "GMT")
+num <- c(1,2,3, Inf,NA,NaN)
+int <- as.integer(num)
+char <- c("a", "b", "c", "a", "", NA)
+fac <- c( "james", "cecil","zoe", "amber", NA, "rob")
+log <- c(TRUE, TRUE, FALSE, TRUE, FALSE, NA)
+tstamp1 <- as.POSIXlt(num, origin = "2017-02-03 08:00:00", tz = "GMT")
+tstamp2 <- as.POSIXct(num, origin = "2017-02-03 08:00:00", tz = "GMT")
 
-df1 = data.frame(num, int, char, fac, log, tstamp1, tstamp2)
-df1$char = as.character(df1$char)
+df1 <- data.frame(num, int, char, fac, log, tstamp1, tstamp2)
+df1$char <- as.character(df1$char)
 
-num2 = c(4,5,6,3,5,6)
-int2 = as.integer(num2)
-char2 = c("d", "e", "f", "d", "e", "f")
-fac2 = c("d", "e", "f", "d", "e", "f")
-log2 = c(TRUE, TRUE, FALSE, TRUE, FALSE, TRUE)
+num2 <- c(4,5,6,3,5,6)
+int2 <- as.integer(num2)
+char2 <- c("d", "e", "f", "d", "e", "f")
+fac2 <- c("d", "e", "f", "d", "e", "f")
+log2 <- c(TRUE, TRUE, FALSE, TRUE, FALSE, TRUE)
 
-df2 = data.frame(num2, int2, char2, fac2, log2)
-df2$char2 = as.character(df2$char2)
+df2 <- data.frame(num2, int2, char2, fac2, log2)
+df2$char2 <- as.character(df2$char2)
 
-mylist = list("one"=1)
+mylist <- list("one"=1)
 
 # save the RData file
 save(df1, df2, char, mylist, file = "two.RData")
