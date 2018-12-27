@@ -42,7 +42,8 @@ cdef int _handle_table(const char *name, void *ctx):
 cdef int _handle_column(const char *name, rdata_type_t type, void *data, long count, void *ctx):
     parser = <object>ctx
     try:
-        Parser.__handle_column(parser, name, type, data, count)
+        if parser.parse_current_table:
+            Parser.__handle_column(parser, name, type, data, count)
         return rdata_error_t.RDATA_OK
     except Exception as e:
         parser._error = e
@@ -62,7 +63,8 @@ cdef int _handle_column_name(const char *name, int index, void *ctx):
 cdef int _handle_text_value(const char *value, int index, void *ctx):
     parser = <object>ctx
     try:
-        Parser.__handle_text_value(parser, value, index)
+        if parser.parse_current_table:
+            Parser.__handle_text_value(parser, value, index)
         return rdata_error_t.RDATA_OK
     except Exception as e:
         parser._error = e
@@ -72,7 +74,8 @@ cdef int _handle_text_value(const char *value, int index, void *ctx):
 cdef int _handle_value_label(const char *value, int index, void *ctx):
     parser = <object>ctx
     try:
-        Parser.__handle_value_label(parser, value, index)
+        if parser.parse_current_table:
+            Parser.__handle_value_label(parser, value, index)
         return rdata_error_t.RDATA_OK
     except Exception as e:
         parser._error = e
@@ -84,6 +87,7 @@ cdef class Parser:
     cdef rdata_parser_t *_this
     cdef int _row_count
     cdef int _var_count
+    parse_current_table = True
 
     cpdef parse(self, path):
 
@@ -136,7 +140,7 @@ cdef class Parser:
         cdef double *doubles = <double*>data
         cdef int *ints = <int*>data
 
-        if type == rdata_type_t.RDATA_TYPE_REAL:
+        if type == rdata_type_t.RDATA_TYPE_REAL or type == rdata_type_t.RDATA_TYPE_TIMESTAMP:
             array = np.empty([count], dtype=np.float64)
             for i in range(count):
                 array[i] = doubles[i];
