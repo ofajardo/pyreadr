@@ -42,27 +42,8 @@ If you are running on a machine without admin rights, and you want to install ag
 pip install pyreadr --user
 ```
 
-Notice that at the moment we do not offer pre-compiled wheels yet, only source distribution. That means you will need
-cython and a C compiler installed.
-Wheels will come soon. 
-
-### From source distribution
-
-From this repository, in the folder dist, download the file pyreadr-x.x.x.tar.gz where x.x.x is 
-the version and do:
-
-```
-pip install pyreadr-x.x.x.tar.gz
-```
-
-If you don't have admin privileges on the machine do:
-
-```
-pip install pyreadr-x.x.x.tar.gz --user
-```
-
-You need a working C compiler and cython installed on your machine.
-
+We offer pre-compiled wheels for python 3.5, 3.6 and 3.7 for Windows,
+linux and macOs.
 
 ### From the latest sources
 
