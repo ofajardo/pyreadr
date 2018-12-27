@@ -1,0 +1,94 @@
+environment:
+
+  matrix:
+
+    # For Python versions available on Appveyor, see
+    # http://www.appveyor.com/docs/installed-software#python
+    # The list here is complete (excluding Python 2.6, which
+    # isn't covered by this document) at the time of writing.
+
+    #- PYTHON: C:\Python37
+    - PYTHON: C:\Python37-x64
+    #- PYTHON: C:\Python36
+    - PYTHON: C:\Python36-x64
+    #- PYTHON: C:\Python35
+    - PYTHON: C:\Python35-x64
+    #- PYTHON: C:\Python27
+    #- PYTHON: C:\Python27-x64
+
+install:
+  # We need wheel installed to build wheels
+  #- "%PYTHON%\\python.exe -m pip install wheel"
+  - cmd: echo "Using cmd"
+
+  # Prepend newly installed Python to the PATH of this build (this cannot be
+  # done from inside the powershell script as it would require to restart
+  # the parent CMD process).
+  - SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%
+
+  # Fix MSVC builds for 64-bit Python
+  # See
+  # http://stackoverflow.com/questions/32091593/cannot-install-windows-sdk-7-1-on-windows-10
+  - echo "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 > "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64/vcvars64.bat"
+
+  # Check that we have the expected version and architecture for Python
+  - python --version
+  - python -c "import struct; print(struct.calcsize('P') * 8)"
+
+  - python -m pip install --upgrade pip
+  # Pin wheel to 0.26 to avoid Windows ABI tag for built wheel
+  #- pip install wheel==0.26
+  - pip install wheel==0.26
+  - pip install setuptools
+  - pip install pandas
+  # Dependencies for package
+  - pip install Cython
+
+
+build_script:
+  # Build and install the wheel
+  - python setup.py bdist_wheel
+  - ps: |
+      # Upload artifact to Appveyor immediately after build
+      ls dist -r | Foreach-Object {
+          appveyor PushArtifact $_.FullName
+          pip install $_.FullName
+      }
+  - cd dist
+  - pip install --pre --no-index -f . pyreadr
+  - cd ..
+
+
+test_script:
+  # Put your test command here.
+  # If you don't need to build C extensions on 64-bit Python 3.3 or 3.4,
+  # you can remove "build.cmd" from the front of the command, as it's
+  # only needed to support those cases.
+  # Note that you must use the environment variable %PYTHON% to refer to
+  # the interpreter you're using - Appveyor does not do anything special
+  # to put the Python version you want to use on PATH.
+  #- "build.cmd %PYTHON%\\python.exe setup.py test"
+
+  # Run some tests
+  - mkdir tmp
+  - cd tmp
+  - python ../tests/test_basic.py
+  - cd ..
+
+
+after_test:
+  # This step builds your wheels.
+  # Again, you only need build.cmd if you're building C extensions for
+  # 64-bit Python 3.3/3.4. And you need to use %PYTHON% to get the correct
+  # interpreter
+  #- "build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"
+  - dir dist
+
+#artifacts:
+#  # bdist_wheel puts your built wheel in the dist directory
+#  - path: dist\*
+
+#on_success:
+#  You can use this step to upload your artifacts to a public website.
+#  See Appveyor's documentation for more details. Or you can simply
+#  access your wheels from the Appveyor "artifacts" tab for your build.

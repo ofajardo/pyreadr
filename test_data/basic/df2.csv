@@ -1,0 +1,7 @@
+"num2","int2","char2","fac2","log2"
+4,4,"d","d",TRUE
+5,5,"e","e",TRUE
+6,6,"f","f",FALSE
+3,3,"d","d",TRUE
+5,5,"e","e",FALSE
+6,6,"f","f",TRUE

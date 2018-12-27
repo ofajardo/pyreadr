@@ -1,0 +1,7 @@
+"num","int","char","fac","log","tstamp1","tstamp2"
+1,1,"a","james",TRUE,"2017-02-03 08:00:01","2017-02-03 08:00:01"
+2,2,"b","cecil",TRUE,"2017-02-03 08:00:02","2017-02-03 08:00:02"
+3,3,"c","zoe",FALSE,"2017-02-03 08:00:03","2017-02-03 08:00:03"
+Inf,NA,"a","amber",TRUE,NA,NA
+NA,NA,"",NA,FALSE,NA,NA
+NA,NA,NA,"rob",NA,NA,NA
