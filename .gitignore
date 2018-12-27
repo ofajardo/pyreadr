@@ -1,0 +1,7 @@
+.idea
+/pyreadr/librdata.c
+*.so
+*.pyd
+/build
+/pyreadr.egg-info
+/pyreadr/__pycache__
