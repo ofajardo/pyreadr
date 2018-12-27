@@ -1,1 +1,1 @@
-from .pyreadr import r_to_pandas, list_objects
+from .pyreadr import read_r, list_objects

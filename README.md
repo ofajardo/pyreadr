@@ -69,7 +69,7 @@ You need a working C compiler and cython.
 
 ## Basic Usage
 
-Pass the path to a RData or Rds file to the function r_to_pandas. It will return a dictionary 
+Pass the path to a RData or Rds file to the function read_r. It will return a dictionary 
 with object names as keys and pandas data frames as values.
 
 For example, in order to read a RData file:
@@ -77,7 +77,7 @@ For example, in order to read a RData file:
 ```python
 import pyreadr
 
-result = pyreadr.r_to_pandas('test_data/basic/two.RData')
+result = pyreadr.read_r('test_data/basic/two.RData')
 
 # done! let's see what we got
 print(result.keys()) # let's check what objects we got
@@ -90,7 +90,7 @@ which you can access with the key None:
 ```python
 import pyreadr
 
-result = pyreadr.r_to_pandas('test_data/basic/one.Rds')
+result = pyreadr.read_r('test_data/basic/one.Rds')
 
 # done! let's see what we got
 print(result.keys()) # let's check what objects we got: there is only None
@@ -102,18 +102,18 @@ You can also check the [Module documentation](https://ofajardo.github.io/pyreadr
 
 | Function in this package | Purpose |
 | ------------------- | ----------- |
-| r_to_pandas        | reads RData and Rds files |
+| read_r        | reads RData and Rds files |
 | list_objects       | list objects and column names contained in RData or Rds file |
 
 ## Reading selected objects
 
-You can use the argument use_objects of the function r_to_pandas to specify which objects
+You can use the argument use_objects of the function read_r to specify which objects
 should be read. 
 
 ```python
 import pyreadr
 
-result = pyreadr.r_to_pandas('test_data/basic/two.RData', use_objects=["df1"])
+result = pyreadr.read_r('test_data/basic/two.RData', use_objects=["df1"])
 
 # done! let's see what we got
 print(result.keys()) # let's check what objects we got, now only df1 is listed
@@ -146,18 +146,18 @@ was set by the user R uses the local timezone for display.
 
 As timezone information is not available from librdata, pyreadr display UTC time by default, which will not match the
 display in R. You can set explicitly some timezone (your local timezone for example) with the argument timezone for the
-function r_to_pandas
+function read_r
 
 ```python
 import pyreadr
 
-result = pyreadr.r_to_pandas('test_data/basic/two.RData', timezone='CET')
+result = pyreadr.read_r('test_data/basic/two.RData', timezone='CET')
 
 ```
 
 if you would like to just use your local timezone as R does, you can 
 get it with tzone (you need to install it first with pip) and pass the 
-information to r_to_pandas:
+information to read_r:
 
 ```python
 
@@ -165,7 +165,7 @@ import tzlocal
 import pyreadr
 
 my_timezone = tzlocal.get_localzone().zone
-result = pyreadr.r_to_pandas('test_data/basic/two.RData', timezone=my_timezone)
+result = pyreadr.read_r('test_data/basic/two.RData', timezone=my_timezone)
 
 ```
 

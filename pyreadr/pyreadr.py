@@ -6,7 +6,7 @@ from collections import OrderedDict
 from pyreadr._pyreadr_parser import PyreadrParser, ListObjectsParser
 
 
-def r_to_pandas(path, use_objects=None, timezone=None):
+def read_r(path, use_objects=None, timezone=None):
     """
     Read an R RData or Rds file into pandas data frames
 

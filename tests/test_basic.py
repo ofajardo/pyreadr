@@ -46,7 +46,7 @@ class PyReadRBasic(unittest.TestCase):
     def test_rdata_basic(self):
 
         rdata_path = os.path.join(self.basic_data_folder, "two.RData")
-        res = pyreadr.r_to_pandas(rdata_path)
+        res = pyreadr.read_r(rdata_path)
         self.assertListEqual(list(res.keys()), self.rdata_objects)
         self.assertTrue(self.df1.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
@@ -54,7 +54,7 @@ class PyReadRBasic(unittest.TestCase):
     def test_rds_basic(self):
 
         rds_path = os.path.join(self.basic_data_folder, "one.Rds")
-        res = pyreadr.r_to_pandas(rds_path)
+        res = pyreadr.read_r(rds_path)
         self.assertTrue(self.df1.equals(res[None]))
 
     def test_list_objects_rdata(self):
@@ -66,14 +66,14 @@ class PyReadRBasic(unittest.TestCase):
     def test_rdata_use_objects(self):
 
         rdata_path = os.path.join(self.basic_data_folder, "two.RData")
-        res = pyreadr.r_to_pandas(rdata_path, use_objects=self.use_objects)
+        res = pyreadr.read_r(rdata_path, use_objects=self.use_objects)
         self.assertListEqual(list(res.keys()), self.use_objects)
         self.assertTrue(self.df1.equals(res['df1']))
 
     def test_rdata_tzone(self):
 
         rdata_path = os.path.join(self.basic_data_folder, "tzone.RData")
-        res = pyreadr.r_to_pandas(rdata_path, timezone='CET')
+        res = pyreadr.read_r(rdata_path, timezone='CET')
         df3 = res["df3"]
         # there is no localization in the csv so, remove it for the comparison
         df3["tstampa"] = df3["tstampa"].dt.tz_localize(None)
