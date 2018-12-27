@@ -71,7 +71,7 @@ short_description = "Reads R RData and Rds files into pandas data frames."
 
 setup(
     name='pyreadr',
-    version='0.1.2',
+    version='0.1.3',
     ext_modules=cythonize([librdata]),
     packages=["pyreadr"],
     include_package_data=True,
@@ -88,7 +88,7 @@ setup(
     description=short_description,
     author="Otto Fajardo",
     author_email="pleasecontactviagithub@notvalid.com",
-    url="https://github.com/Roche/pyreadr",
+    url="https://github.com/ofajardo/pyreadr",
     download_url="https://pypi.org/project/pyreadr/#files",
     long_description=long_description,
     long_description_content_type="text/markdown"
