@@ -1,7 +1,9 @@
+# cython: c_string_type=str, c_string_encoding=utf8, language_level=3
 
 from enum import Enum
 import numpy as np
 import os.path
+from cython.operator cimport dereference as deref
 
 
 class DataType(Enum):
@@ -12,25 +14,42 @@ class DataType(Enum):
     TIMESTAMP  = rdata_type_t.RDATA_TYPE_TIMESTAMP
 
 
-cdef int _handle_open(const char *u8_path, void *io_ctx):
-    cdef int fd
-
-    path = u8_path.decode('utf-8')
-    if not os.path.isfile(path):
-        return -1
-
+cdef int _os_open(path, mode):
+    cdef int flags
     IF UNAME_SYSNAME == 'Windows':
         cdef Py_ssize_t length
         u16_path = PyUnicode_AsWideCharString(path, &length)
-        fd = _wsopen(u16_path, _O_RDONLY | _O_BINARY, _SH_DENYRD, 0)
-        assign_fd(io_ctx, fd)
-        return fd
+        if mode == 'r':
+            flags = _O_RDONLY | _O_BINARY
+        else:
+            flags = _O_WRONLY | _O_CREAT | _O_BINARY
+        return _wsopen(u16_path, flags, _SH_DENYRD, 0)
     ELSE:
-        return -1
+        if mode == 'r':
+            flags = O_RDONLY
+        else:
+            flags = O_WRONLY | O_CREAT | O_TRUNC
+        return open(path.encode('utf-8'), flags, 0644)
 
+
+cdef int _os_close(int fd):
+    IF UNAME_SYSNAME == 'Windows':
+        return _close(fd)
+    ELSE:
+        return close(fd)
+
+
+cdef int _handle_open(const char* path, void* io_ctx):
+    cdef unistd_io_ctx_t* ctx = <unistd_io_ctx_t*>io_ctx
+    cdef int fd
+    if not os.path.isfile(path):
+        return -1
+    fd = _os_open(path, 'r')
+    ctx.fd = fd
+    return fd
 
 cdef int _handle_table(const char *name, void *ctx):
-    parser = <object>ctx
+    parser = <Parser>ctx
     try:
         Parser.__handle_table(parser, name)
         return rdata_error_t.RDATA_OK
@@ -40,7 +59,7 @@ cdef int _handle_table(const char *name, void *ctx):
 
 
 cdef int _handle_column(const char *name, rdata_type_t type, void *data, long count, void *ctx):
-    parser = <object>ctx
+    parser = <Parser>ctx
     try:
         if parser.parse_current_table:
             Parser.__handle_column(parser, name, type, data, count)
@@ -51,7 +70,7 @@ cdef int _handle_column(const char *name, rdata_type_t type, void *data, long co
 
 
 cdef int _handle_column_name(const char *name, int index, void *ctx):
-    parser = <object>ctx
+    parser = <Parser>ctx
     try:
         Parser.__handle_column_name(parser, name, index)
         return rdata_error_t.RDATA_OK
@@ -61,7 +80,7 @@ cdef int _handle_column_name(const char *name, int index, void *ctx):
 
 
 cdef int _handle_text_value(const char *value, int index, void *ctx):
-    parser = <object>ctx
+    parser = <Parser>ctx
     try:
         if parser.parse_current_table:
             Parser.__handle_text_value(parser, value, index)
@@ -72,7 +91,7 @@ cdef int _handle_text_value(const char *value, int index, void *ctx):
 
 
 cdef int _handle_value_label(const char *value, int index, void *ctx):
-    parser = <object>ctx
+    parser = <Parser>ctx
     try:
         if parser.parse_current_table:
             Parser.__handle_value_label(parser, value, index)
@@ -85,6 +104,7 @@ cdef int _handle_value_label(const char *value, int index, void *ctx):
 cdef class Parser:
 
     cdef rdata_parser_t *_this
+    cdef int _fd
     cdef int _row_count
     cdef int _var_count
     parse_current_table = True
@@ -94,6 +114,7 @@ cdef class Parser:
         cdef rdata_error_t status
 
         self._this = rdata_parser_init();
+        self._fd = 0
         self._error = None
 
         IF UNAME_SYSNAME == 'Windows':  # custom file opener for windows *sigh*
@@ -112,7 +133,7 @@ cdef class Parser:
             if self._error is not None:
                 raise self._error
             else:
-                message = rdata_error_message(status).decode('utf-8', 'replace')
+                message = rdata_error_message(status)
                 raise ValueError(message)
 
     def handle_table(self, name):
@@ -134,7 +155,7 @@ cdef class Parser:
         if name == NULL:
             self.handle_table(None)
         else:
-            self.handle_table(name.decode('utf-8', 'replace'))
+            self.handle_table(name)
 
     cdef __handle_column(self, const char *name, rdata_type_t type, void *data, long count):
         cdef double *doubles = <double*>data
@@ -154,18 +175,116 @@ cdef class Parser:
         if name == NULL:
             new_name = None
         else:
-            new_name = name.decode('utf-8', 'replace')
+            new_name = name
         data_type = DataType(type)
         self.handle_column(new_name, data_type, array, count)
 
     cdef __handle_column_name(self, const char *name, int index):
-        self.handle_column_name(name.decode('utf-8', 'replace'), index)
+        self.handle_column_name(name, index)
 
     cdef __handle_text_value(self, const char *value, int index):
         if value != NULL:
-            self.handle_text_value(value.decode('utf-8', 'replace'), index)
+            self.handle_text_value(value, index)
         else:
-            self.handle_text_value("", index)
+            self.handle_text_value('', index)
 
     cdef __handle_value_label(self, const char *value, int index):
-        self.handle_value_label(value.decode('utf-8', 'replace'), index)
+        self.handle_value_label(value, index)
+
+
+cdef ssize_t _handle_write(const void *data, size_t len, void *ctx):
+    cdef int fd = deref(<int*>ctx)
+    IF UNAME_SYSNAME == 'Windows':
+        return _write(fd, data, len)
+    ELSE:
+        return write(fd, data, len)
+
+
+cdef class Column:
+    cdef rdata_column_t *_this
+
+    def add_level_labels(self, labels):
+        for label in labels:
+            rdata_column_add_factor(self._this, label.encode('utf-8'))
+
+
+cdef class Writer:
+
+    cdef object _format
+    cdef object _row_count
+    cdef rdata_writer_t *_writer
+    cdef int _fd
+    cdef int _current_column_no
+    cdef rdata_column_t* _current_column
+
+    def __init__(self):
+        self._format = None
+        self._row_count = 0
+        self._writer = NULL
+        self._fd = 0
+        self._current_column_no = -1
+        self._current_column = NULL
+
+    def open(self, path, format):
+        cdef rdata_file_format_t fmt;
+
+        if format == 'rds':
+            fmt = RDATA_SINGLE_OBJECT
+        elif format == 'rdata':
+            fmt = RDATA_WORKSPACE
+        else:
+            raise ValueError('Unsupported format')
+
+        self._writer = rdata_writer_init(_handle_write, fmt)
+        self._fd = _os_open(path, 'w')
+
+    def set_row_count(self, row_count):
+        self._row_count = row_count
+
+    def close(self):
+        if self._writer != NULL:
+            if self._current_column_no != -1:
+                rdata_end_column(self._writer, self._current_column)
+            rdata_end_table(self._writer, self._row_count, 'dataset')
+            rdata_end_file(self._writer)
+            _os_close(self._fd)
+
+    def insert_value(self, row_no, col_no, value):
+        cdef rdata_error_t status;
+
+        if self._current_column_no == -1:
+            rdata_begin_file(self._writer, &self._fd)
+            rdata_begin_table(self._writer, 'dataset');
+
+        if col_no != self._current_column_no:
+            if self._current_column_no != -1:
+                rdata_end_column(self._writer, self._current_column)
+            self._current_column = rdata_get_column(self._writer, col_no)
+            rdata_begin_column(self._writer, self._current_column, self._row_count)
+            self._current_column_no = col_no
+
+        status = RDATA_OK
+        if isinstance(value, int):
+            status = rdata_append_int32_value(self._writer, value)
+        elif isinstance(value, float):
+            status = rdata_append_real_value(self._writer, value)
+        elif isinstance(value, str):
+            status = rdata_append_string_value(self._writer, value.encode('utf-8'))
+        if status != RDATA_OK:
+            raise ValueError(rdata_error_message(status))
+
+    def add_column(self, name, dtype):
+        cdef rdata_type_t data_type
+        cdef rdata_column_t* column
+
+        if dtype is float:
+            data_type = RDATA_TYPE_REAL
+        elif dtype is str:
+            data_type = RDATA_TYPE_STRING
+        else:
+            data_type = RDATA_TYPE_INT32
+
+        column = rdata_add_column(self._writer, name.encode('utf-8'), data_type)
+        col = Column()
+        col._this = column
+        return col

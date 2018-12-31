@@ -4,22 +4,22 @@ from libc.stdint cimport int32_t
 from libc.stddef cimport wchar_t
 
 
-cdef extern from "<sys/types.h>":
+cdef extern from '<sys/types.h>':
     ctypedef long off_t
 
-cdef extern from "Python.h":
+cdef extern from 'Python.h':
     object PyByteArray_FromStringAndSize(const char *string, Py_ssize_t len)
 
-cdef extern from "libs/librdata/src/rdata.h":
+cdef extern from 'libs/librdata/src/rdata.h':
 
-    cdef enum rdata_type_t "rdata_type_e":
+    cdef enum rdata_type_t 'rdata_type_e':
         RDATA_TYPE_STRING
         RDATA_TYPE_INT32
         RDATA_TYPE_REAL
         RDATA_TYPE_LOGICAL
         RDATA_TYPE_TIMESTAMP
 
-    cdef enum rdata_error_t "rdata_error_e":
+    cdef enum rdata_error_t 'rdata_error_e':
         RDATA_OK
         RDATA_ERROR_OPEN
         RDATA_ERROR_SEEK
@@ -31,9 +31,10 @@ cdef extern from "libs/librdata/src/rdata.h":
         RDATA_ERROR_FACTOR
         RDATA_ERROR_UNSUPPORTED_COMPRESSION
 
-    cdef enum rdata_file_format_t "rdata_file_format_t":
+    cdef enum rdata_file_format_s 'rdata_file_format_t':
         RDATA_WORKSPACE
         RDATA_SINGLE_OBJECT
+    ctypedef rdata_file_format_s rdata_file_format_t
 
     const char *rdata_error_message(rdata_error_t error_code);
 
@@ -50,10 +51,11 @@ cdef extern from "libs/librdata/src/rdata.h":
     #ELSE:
     ctypedef off_t rdata_off_t;
 
-    cdef enum rdata_io_flags_t:
+    cdef enum rdata_io_flags_e 'rdata_io_flags_e':
         RDATA_SEEK_SET
         RDATA_SEEK_CUR
         RDATA_SEEK_END
+    ctypedef rdata_io_flags_e rdata_io_flags_t
 
     ctypedef int (*rdata_open_handler)(const char *path, void *io_ctx);
     ctypedef int (*rdata_close_handler)(void *io_ctx);
@@ -61,10 +63,10 @@ cdef extern from "libs/librdata/src/rdata.h":
     ctypedef ssize_t (*rdata_read_handler)(void *buf, size_t nbyte, void *io_ctx);
     ctypedef rdata_error_t (*rdata_update_handler)(long file_size, rdata_progress_handler progress_handler, void *user_ctx, void *io_ctx);
 
-    cdef struct rdata_io_t "rdata_io_s":
+    cdef struct rdata_io_t 'rdata_io_s':
         pass
 
-    cdef struct rdata_parser_t "rdata_parser_s":
+    cdef struct rdata_parser_t 'rdata_parser_s':
         pass
 
     rdata_parser_t *rdata_parser_init();
@@ -90,10 +92,10 @@ cdef extern from "libs/librdata/src/rdata.h":
     # // Write API
     ctypedef ssize_t (*rdata_data_writer)(const void *data, size_t len, void *ctx);
 
-    cdef struct rdata_column_t "rdata_column_s":
+    cdef struct rdata_column_t 'rdata_column_s':
         pass
 
-    cdef struct rdata_writer_t "rdata_writer_s":
+    cdef struct rdata_writer_t 'rdata_writer_s':
         pass
 
     rdata_writer_t *rdata_writer_init(rdata_data_writer write_callback, rdata_file_format_t format);
@@ -120,28 +122,42 @@ cdef extern from "libs/librdata/src/rdata.h":
     rdata_error_t rdata_end_table(rdata_writer_t *writer, int32_t row_count, const char *datalabel);
     rdata_error_t rdata_end_file(rdata_writer_t *writer);
 
-    IF UNAME_SYSNAME == 'Windows':
+cdef extern from 'libs/librdata/src/rdata_io_unistd.h':
+    cdef struct unistd_io_ctx_t 'unistd_io_ctx_s':
+        int fd
 
-        cdef extern from "Python.h":
-            wchar_t* PyUnicode_AsWideCharString(object, Py_ssize_t *)
+IF UNAME_SYSNAME == 'Windows':
 
-        cdef extern from "<fcntl.h>":
-            int _wsopen(const wchar_t *filename, int oflag, int shflag, int pmode)
-            cdef int _O_RDONLY
-            cdef int _O_BINARY
+    cdef extern from 'Python.h':
+        wchar_t* PyUnicode_AsWideCharString(object, Py_ssize_t *)
 
-        cdef extern from "<share.h>":
-            cdef int _SH_DENYRW  # Denies read and write access to a file.
-            cdef int _SH_DENYWR  # Denies write access to a file.
-            cdef int _SH_DENYRD  # Denies read access to a file.
-            cdef int _SH_DENYNO
+    cdef extern from '<fcntl.h>':
+        int _wsopen(const wchar_t *filename, int oflag, int shflag, int pmode)
+        cdef int _O_RDONLY
+        cdef int _O_BINARY
+        cdef int _O_CREAT
+        cdef int _O_WRONLY
 
-        cdef extern from *:
-            """
-            typedef struct unistd_io_ctx_s {
-                int               fd;
-            } unistd_io_ctx_t;
+    cdef extern from '<io.h>':
+        cdef int _close(int fd)
+        ssize_t _write(int fd, const void *buf, size_t nbyte)
 
-            void assign_fd(void *io_ctx, int fd) { ((unistd_io_ctx_t*)io_ctx)->fd = fd; }
-            """
-            void assign_fd(void *io_ctx, int fd)
+    cdef extern from '<share.h>':
+        cdef int _SH_DENYRW  # Denies read and write access to a file.
+        cdef int _SH_DENYWR  # Denies write access to a file.
+        cdef int _SH_DENYRD  # Denies read access to a file.
+        cdef int _SH_DENYNO
+
+ELSE:
+    cdef extern from '<sys/stat.h>':
+        int open(const char *path, int oflag, int mode)
+
+    cdef extern from '<unistd.h>':
+        int close(int fd)
+        ssize_t write(int fd, const void *buf, size_t nbyte)
+
+    cdef extern from '<fcntl.h>':
+        cdef int O_WRONLY
+        cdef int O_RDONLY
+        cdef int O_CREAT
+        cdef int O_TRUNC
