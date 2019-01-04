@@ -38,6 +38,10 @@ def get_pyreadr_column_types(df):
     has_missing_values = [False] * len(columns)
     for indx, (col_name, col_type) in enumerate(zip(columns, types)):
         
+        #recover original type for categories
+        if type(col_type) is pd.core.dtypes.dtypes.CategoricalDtype:
+            col_type = np.asarray(df[col_name]).dtype
+        
         if col_type in int_types:
             result[col_name] = "INTEGER"
         elif col_type in float_types:

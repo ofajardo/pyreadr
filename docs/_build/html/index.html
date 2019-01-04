@@ -198,6 +198,50 @@ therefore timestamps are displayed in UTC, unless this parameter is set.</li>
 </table>
 </dd></dl>
 
+<dl class="function">
+<dt id="pyreadr.pyreadr.write_rdata">
+<code class="descclassname">pyreadr.pyreadr.</code><code class="descname">write_rdata</code><span class="sig-paren">(</span><em>path</em>, <em>df</em>, <em>df_name='dataset'</em>, <em>dateformat='%Y-%m-%d'</em>, <em>datetimeformat='%Y-%m-%d %H:%M:%S'</em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rdata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write a single pandas data frame to a rdata file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</li>
+<li><strong>df</strong> (<em>pandas data frame</em>) – the dataframe to write</li>
+<li><strong>df_name</strong> (<em>str</em>) – name for the R dataframe object, cannot be empty string. If
+not supplied will default to “dataset”</li>
+<li><strong>dateformat</strong> (<em>str</em>) – string to format datetime.date objects.
+By default “%Y-%m-%d”.</li>
+<li><strong>datetimeformat</strong> (<em>str</em>) – string to format datetime like objects. By default “%Y-%m-%d %H:%M:%S”.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="pyreadr.pyreadr.write_rds">
+<code class="descclassname">pyreadr.pyreadr.</code><code class="descname">write_rds</code><span class="sig-paren">(</span><em>path</em>, <em>df</em>, <em>dateformat='%Y-%m-%d'</em>, <em>datetimeformat='%Y-%m-%d %H:%M:%S'</em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write a single pandas data frame to a rds file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</li>
+<li><strong>df</strong> (<em>pandas data frame</em>) – the dataframe to write</li>
+<li><strong>dateformat</strong> (<em>str</em>) – string to format datetime.date objects.
+By default “%Y-%m-%d”.</li>
+<li><strong>datetimeformat</strong> (<em>str</em>) – string to format datetime like objects. By default “%Y-%m-%d %H:%M:%S”.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 <div class="section" id="indices-and-tables">
 <h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>

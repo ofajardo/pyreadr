@@ -46,11 +46,13 @@ class PyReadRBasic(unittest.TestCase):
         self.use_objects = ["df1"]
         
         t = datetime.datetime(1960,1,1)
-        sec = [np.NaN] * 7
-        colnames = ["char", "int", "num", "log", "date", "datetime", "object"]
-        df_out = pd.DataFrame([["a", 1, 2.2, True, t, t.date(), t.time()], sec], columns = colnames)
+        sec = [np.NaN] * 8
+        sec[7] = 2
+        colnames = ["char", "int", "num", "log", "date", "datetime", "object", "categ"]
+        df_out = pd.DataFrame([["a", 1, 2.2, True, t, t.date(), t.time(), 1], sec], columns = colnames)
         df_out["int"] = df_out["int"].astype("object")
         df_out.iloc[0, 1] = np.int32(df_out.iloc[0, 1])
+        df_out["categ"] = df_out["categ"].astype("category")
         self.df_out = df_out
 
     def test_rdata_basic(self):
