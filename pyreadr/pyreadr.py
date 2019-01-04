@@ -3,7 +3,10 @@
 """
 from collections import OrderedDict
 
-from pyreadr._pyreadr_parser import PyreadrParser, ListObjectsParser
+import pandas as pd
+
+from ._pyreadr_parser import PyreadrParser, ListObjectsParser
+from ._pyreadr_writer import PyreadrWriter
 
 
 def read_r(path, use_objects=None, timezone=None):
@@ -62,3 +65,63 @@ def list_objects(path):
     parser = ListObjectsParser()
     parser.parse(path)
     return parser.object_list
+    
+    
+def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S"):
+    """
+    Write a single pandas data frame to a rdata file.
+
+    Parameters
+    ----------
+        path : str
+            path to the file. The string is assumed to be utf-8 encoded.
+        df : pandas data frame
+            the dataframe to write
+        df_name : str
+            name for the R dataframe object, cannot be empty string. If 
+            not supplied will default to "dataset"
+        dateformat : str
+            string to format datetime.date objects. 
+            By default "%Y-%m-%d".
+        datetimeformat : str
+            string to format datetime like objects. By default "%Y-%m-%d %H:%M:%S".
+    """
+    
+    if not df_name:
+        msg = "df_name must be a valid string"
+        raise Exception(msg)
+        
+    if not isinstance(df, pd.DataFrame):
+        msg = "df must be a pandas data frame"
+        raise Exception(msg)
+    
+    file_format = "rdata"
+    writer = PyreadrWriter()
+    writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat)
+    
+def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S"):
+    """
+    Write a single pandas data frame to a rds file.
+
+    Parameters
+    ----------
+        path : str
+            path to the file. The string is assumed to be utf-8 encoded.
+        df : pandas data frame
+            the dataframe to write
+        dateformat : str
+            string to format datetime.date objects. 
+            By default "%Y-%m-%d".
+        datetimeformat : str
+            string to format datetime like objects. By default "%Y-%m-%d %H:%M:%S".
+    """
+    
+    if not isinstance(df, pd.DataFrame):
+        msg = "df must be a pandas data frame"
+        raise Exception(msg)
+    
+    file_format = "rds"
+    df_name="" # this is irrelevant in this case, but we need to pass something
+    writer = PyreadrWriter()
+    writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat)
+

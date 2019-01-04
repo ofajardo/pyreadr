@@ -216,6 +216,7 @@ cdef class Writer:
     cdef int _fd
     cdef int _current_column_no
     cdef rdata_column_t* _current_column
+    cdef bytes _table_name 
 
     def __init__(self):
         self._format = None
@@ -224,6 +225,7 @@ cdef class Writer:
         self._fd = 0
         self._current_column_no = -1
         self._current_column = NULL
+        self._table_name = b""
 
     def open(self, path, format):
         cdef rdata_file_format_t fmt;
@@ -240,22 +242,25 @@ cdef class Writer:
 
     def set_row_count(self, row_count):
         self._row_count = row_count
+        
+    def set_table_name(self, name):
+        self._table_name = name.encode("utf-8")
 
     def close(self):
         if self._writer != NULL:
             if self._current_column_no != -1:
                 rdata_end_column(self._writer, self._current_column)
-            rdata_end_table(self._writer, self._row_count, 'dataset')
+            rdata_end_table(self._writer, self._row_count, self._table_name)
             rdata_end_file(self._writer)
             _os_close(self._fd)
 
-    def insert_value(self, row_no, col_no, value):
+    def insert_value(self, row_no, col_no, value, dtype):
         cdef rdata_error_t status;
 
         if self._current_column_no == -1:
             rdata_begin_file(self._writer, &self._fd)
-            rdata_begin_table(self._writer, 'dataset');
-
+            rdata_begin_table(self._writer, self._table_name);
+            
         if col_no != self._current_column_no:
             if self._current_column_no != -1:
                 rdata_end_column(self._writer, self._current_column)
@@ -264,27 +269,39 @@ cdef class Writer:
             self._current_column_no = col_no
 
         status = RDATA_OK
-        if isinstance(value, int):
-            status = rdata_append_int32_value(self._writer, value)
-        elif isinstance(value, float):
+        
+        if dtype == "NUMERIC":
             status = rdata_append_real_value(self._writer, value)
-        elif isinstance(value, str):
+        elif dtype == "CHARACTER":
             status = rdata_append_string_value(self._writer, value.encode('utf-8'))
+        elif dtype == "INTEGER":
+            status = rdata_append_int32_value(self._writer, value)
+        elif dtype == "LOGICAL":
+            status = rdata_append_logical_value(self._writer, value);
+        else:
+            raise Exception("Unknown data type")
+        
         if status != RDATA_OK:
             raise ValueError(rdata_error_message(status))
+            
 
     def add_column(self, name, dtype):
         cdef rdata_type_t data_type
         cdef rdata_column_t* column
 
-        if dtype is float:
+        if dtype == "NUMERIC":
             data_type = RDATA_TYPE_REAL
-        elif dtype is str:
+        elif dtype == "CHARACTER":
             data_type = RDATA_TYPE_STRING
-        else:
+        elif dtype == "INTEGER":
             data_type = RDATA_TYPE_INT32
+        elif dtype == "LOGICAL":
+            data_type = RDATA_TYPE_LOGICAL
+        else:
+            raise Exception("Unknown data type: %s" % dtype)
 
         column = rdata_add_column(self._writer, name.encode('utf-8'), data_type)
         col = Column()
         col._this = column
         return col
+        
