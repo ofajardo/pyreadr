@@ -1,5 +1,6 @@
 import unittest
 import os
+import datetime
 
 import pandas as pd
 import numpy as np
@@ -13,6 +14,7 @@ class PyReadRBasic(unittest.TestCase):
         self.parent_folder = os.path.split(self.script_folder)[0]
         self.data_folder = os.path.join(self.parent_folder, "test_data")
         self.basic_data_folder = os.path.join(self.data_folder, "basic")
+        self.write_data_folder = os.path.join(self.data_folder, "write")
 
         df1_dtypes = {'num': np.float64,
                       'int': np.object,
@@ -42,6 +44,16 @@ class PyReadRBasic(unittest.TestCase):
         {"object_name":"df2", "columns":['num2', 'int2', 'char2', 'fac2', 'log2']},
         {"object_name":"char", "columns":[]}]
         self.use_objects = ["df1"]
+        
+        t = datetime.datetime(1960,1,1)
+        sec = [np.NaN] * 8
+        sec[7] = 2
+        colnames = ["char", "int", "num", "log", "date", "datetime", "object", "categ"]
+        df_out = pd.DataFrame([["a", 1, 2.2, True, t, t.date(), t.time(), 1], sec], columns = colnames)
+        df_out["int"] = df_out["int"].astype("object")
+        df_out.iloc[0, 1] = np.int32(df_out.iloc[0, 1])
+        df_out["categ"] = df_out["categ"].astype("category")
+        self.df_out = df_out
 
     def test_rdata_basic(self):
 
@@ -79,7 +91,23 @@ class PyReadRBasic(unittest.TestCase):
         df3["tstampa"] = df3["tstampa"].dt.tz_localize(None)
         df3["tstampb"] = df3["tstampb"].dt.tz_localize(None)
         self.assertTrue(self.df3.equals(res['df3']))
-
+        
+    def test_write_rdata(self):
+        
+        path = os.path.join(self.write_data_folder, "test.RData")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rdata(path, self.df_out)
+        self.assertTrue(os.path.isfile(path))
+        
+    def test_write_rds(self):
+        
+        path = os.path.join(self.write_data_folder, "test.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, self.df_out)
+        self.assertTrue(os.path.isfile(path))
+        
 
 if __name__ == '__main__':
 

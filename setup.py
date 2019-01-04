@@ -8,16 +8,11 @@ import setuptools
 import platform
 import glob
 
-#from distutils.core import setup
-#from distutils.extension import Extension
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 
-
 librdata_source_files = [ ]
 librdata_source_files += glob.glob('pyreadr/libs/librdata/src/*.c')
-print(librdata_source_files)
-#librdata_source_files += glob.glob('src/*.c')
 librdata_source_files += [ 'pyreadr/librdata.pyx' ]
 
 library_dirs = [ ]
@@ -29,7 +24,6 @@ data_files = []
 
 if platform.system() == 'Darwin':
     pass
-    #libraries.append('iconv')
 elif platform.system() == 'Windows':
     include_dirs.append(".")
     include_dirs.append('pyreadr')
@@ -37,8 +31,6 @@ elif platform.system() == 'Windows':
     include_dirs.append('pyreadr/libs/librdata')
     library_dirs.append('pyreadr/libs/librdata')
     
-    #libraries.append('libiconv-static')
-    #libraries.append('libz-static')
     data_folder = "win_libs/64bit/"
     library_dirs.append(data_folder)
     data_files = [("",[data_folder + "zlib.dll"])]
@@ -58,20 +50,20 @@ librdata = Extension(
     extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args)
 
-long_description = """ A Python package to read R RData and Rds files
-into pandas data frames. It does not need to have R or other external
+long_description = """ A Python package to read and write R RData and Rds files
+into/from pandas data frames. It does not need to have R or other external
 dependencies installed.
 It is based on the C library librdata and
-the cython wrapper jamovi-readstat.<br>
+a modified version of the cython wrapper jamovi-readstat.<br>
 Please visit out project home page for more information:<br>
 https://github.com/ofajardo/pyreadr
 """
 
-short_description = "Reads R RData and Rds files into pandas data frames."
+short_description = "Reads/writes R RData and Rds files into/from pandas data frames."
 
 setup(
     name='pyreadr',
-    version='0.1.4',
+    version='0.1.5',
     ext_modules=cythonize([librdata]),
     packages=["pyreadr"],
     include_package_data=True,
