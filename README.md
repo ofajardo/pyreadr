@@ -9,7 +9,7 @@ This module is based on the [librdata](https://github.com/WizardMac/librdata) C 
 [Evan Miller](https://www.evanmiller.org/) and a modified version of the cython wrapper around 
 librdata
 [jamovi-readstat](https://github.com/jamovi/jamovi-readstat)
-by the Jamovi team.
+by the [Jamovi](https://www.jamovi.org/) team.
 
 Detailed documentation on all available methods is in the 
 [Module documentation](https://ofajardo.github.io/pyreadr/)
@@ -223,7 +223,7 @@ and POSIXlt), logical atomic vectors. Factors are also supported.
 Tibbles are also supported.
 
 Atomic vectors as described before can also be directly read, but as librdata
-does not give the information of the type of object it parsed, therefore everything
+does not give the information of the type of object it parsed everything
 is translated to a pandas data frame.
 
 ### More on writing files
@@ -273,8 +273,8 @@ any empty string in pandas will be transformed into NA in R.
 
 ## Known limitations
 
-* As explained before, altough atomic vectors as described before can also be directly read, but as librdata
-does not give the information of the type of object it parsed, therefore everything
+* As explained before, although atomic vectors can also be directly read, as librdata
+does not give the information of the type of object it parsed everything
 is translated to a pandas data frame.
 
 * When reading missing values in character vectors librdata gives empty strings. 
@@ -291,7 +291,14 @@ thefore the display of the tiemstamps in R and in pandas may differ.
 the dimensions, therefore those cannot be arranged properly multidimensional
 numpy arrays. They are translated to pandas data frames with one single column.
 
-* Lists are not read. Other objects are probably not either.
+* Lists are not read.
+
+* Objects that depend on non base R packages (Bioconductor for example) cannot be read.
+The error code in this case is a bit obscure:
+
+```python
+ValueError: Unable to read from file
+```
 
 * Data frames with special values like arrays, matrices and other data frames
 are not supported
