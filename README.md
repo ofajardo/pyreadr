@@ -309,8 +309,7 @@ for rdata files are not supported.
 
 ## Change Log
 
-A log with the changes for each version can be found [here]((https://github.com/ofajaro/pyreadr/blob/master/change_log.md))
-
+A log with the changes for each version can be found [here](https://github.com/ofajardo/pyreadr/blob/write_support/change_log.md)
 ## People
 
 Otto Fajardo - author, maintainer
