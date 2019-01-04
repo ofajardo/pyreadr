@@ -14,6 +14,24 @@ by the [Jamovi](https://www.jamovi.org/) team.
 Detailed documentation on all available methods is in the 
 [Module documentation](https://ofajardo.github.io/pyreadr/)
 
+## Table of Contents
+
+- [Dependencies](#dependencies)
+- [Installation](#installation)
+  * [Using pip](#using-pip)
+  * [From the latest sources](#from-the-latest-sources)
+- [Usage](#usage)
+  * [Basic Usage: reading files](#basic-usage--reading-files)
+  * [Basic Usage: writing files](#basic-usage--writing-files)
+  * [Reading selected objects](#reading-selected-objects)
+  * [List objects and column names](#list-objects-and-column-names)
+  * [Reading timestamps and timezones](#reading-timestamps-and-timezones)
+  * [What objects can be read](#what-objects-can-be-read)
+  * [More on writing files](#more-on-writing-files)
+- [Known limitations](#known-limitations)
+- [Change Log](#change-log)
+- [People](#people)
+
 ## Dependencies
 
 The module depends on pandas, which you normally have installed if you got Anaconda (highly recommended.) If creating
@@ -309,9 +327,9 @@ for rdata files are not supported.
 
 ## Change Log
 
-A log with the changes for each version can be found [here]((https://github.com/ofajaro/pyreadr/blob/master/change_log.md))
-
+A log with the changes for each version can be found [here](https://github.com/ofajardo/pyreadr/blob/write_support/change_log.md)
 ## People
 
 Otto Fajardo - author, maintainer
+
 [Jonathon Love](https://jona.thon.love/) - contributor (original cython wrapper from jamovi-readstat)
