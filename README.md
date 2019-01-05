@@ -134,7 +134,6 @@ Pyreadr allows you to write one single pandas data frame into a single R datafra
 and store it into a RData or Rds file. Other python or R object types 
 are not supported. Writing more than one object is not supported.
 
-The operation is simple. For RData files:
 
 ```python
 import pyreadr
@@ -202,10 +201,10 @@ print(object_list) # let's check what objects we got and what columns those have
 ### Reading timestamps and timezones
 
 R datetime objects (POSIXct and POSIXlt) are internally stored as UTC timestamps, and may have additional timezone
-information if the user set it explicitly. librdata cannot retrieve that timezone information. If no timezone information
+information if the user set it explicitly. If no timezone information
 was set by the user R uses the local timezone for display. 
 
-As timezone information is not available from librdata, pyreadr display UTC time by default, which will not match the
+librdata cannot retrieve that timezone information, therefore pyreadr display UTC time by default, which will not match the
 display in R. You can set explicitly some timezone (your local timezone for example) with the argument timezone for the
 function read_r
 
@@ -217,7 +216,7 @@ result = pyreadr.read_r('test_data/basic/two.RData', timezone='CET')
 ```
 
 if you would like to just use your local timezone as R does, you can 
-get it with tzone (you need to install it first with pip) and pass the 
+get it with tzlocal (you need to install it first with pip) and pass the 
 information to read_r:
 
 ```python
@@ -230,10 +229,10 @@ result = pyreadr.read_r('test_data/basic/two.RData', timezone=my_timezone)
 
 ```
 
-If you have control over the data in R, a good option is to transform
+If you have control over the data in R, a good option to avoid all of this is to transform
 the POSIX object to character, then transform it to a datetime in python.
 
-### What objects can be read
+### What objects can be read and written
 
 Data frames composed of character, numeric (double), integer, timestamp (POSIXct 
 and POSIXlt), logical atomic vectors. Factors are also supported.
@@ -243,6 +242,8 @@ Tibbles are also supported.
 Atomic vectors as described before can also be directly read, but as librdata
 does not give the information of the type of object it parsed everything
 is translated to a pandas data frame.
+
+Only single pandas data frames can be written into R data frames.
 
 ### More on writing files
 
@@ -260,8 +261,8 @@ followed:
 | any other object    | character |
 | empty string        | NA        |
 | column all missing  | logical   |
+| column with mixed types | character |
 
-A few interesting points:
 
 * datetime and date objects are translated to character to avoid problems
 with timezones. These characters can be easily translated back to POSIXct/lt in R
@@ -279,6 +280,9 @@ In the other hand, pandas category level information is lost in the process.
 
 * Any other object is transformed to a character using the str representation
 of the object.
+
+* Columns with mixed types are translated to character. This does not apply to column
+cotaining np.nan, where the missing values are correctly translated.
 
 * R integers are 32 bit. Therefore python 64 bit integer have to be 
 promoted to numeric in order to fit.
@@ -325,11 +329,16 @@ are not supported
 R data frame. Other data types are not supported. Multiple data frames
 for rdata files are not supported.
 
+* RData and Rds files produced by R are heavily optimized and compressed. Files produced
+by pyreadr are pretty bulky in comparison. Pyreadr writing is a relative slow operation
+compared to doint it in R.
+
 ## Change Log
 
 A log with the changes for each version can be found [here](https://github.com/ofajardo/pyreadr/blob/write_support/change_log.md)
+
 ## People
 
 Otto Fajardo - author, maintainer
 
-[Jonathon Love](https://jona.thon.love/) - contributor (original cython wrapper from jamovi-readstat)
+[Jonathon Love](https://jona.thon.love/) - contributor (original cython wrapper from jamovi-readstat and msvc compatible librdata)

@@ -1,3 +1,7 @@
+"""
+@author: Otto Fajardo
+"""
+
 from collections import OrderedDict
 import datetime
 
@@ -180,22 +184,3 @@ class PyreadrWriter(Writer):
                 self.insert_value(row_indx, indx, val, curtype)
             
         self.close()
-
-
-
-#path = "test1.RData"
-#file_format = "rdata"
-#df_name = "dataset"
-#datetimeformat = "%B"
-#dateformat = "%B"
-
-#t = datetime.datetime(1960,1,1)
-#sec = [np.NaN] * 7
-#df = pd.DataFrame([["a", 1, 2.2, True, t, t.date(), t.time()], sec])
-#df[1][0] = df[1][0].astype(np.int32)
-
-    
-#w = PyreadrWriter()
-#w.write_r(path, file_format, df, df_name, dateformat, datetimeformat)
-
-

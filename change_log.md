@@ -3,4 +3,4 @@
 * writing support added.
 
 # 0.1.4 (github and pypi 2018.12.28)
-* First public stable release.
+* First stable release.
