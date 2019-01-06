@@ -4,6 +4,7 @@
 import unittest
 import os
 import datetime
+import warnings
 
 import pandas as pd
 import numpy as np
@@ -30,8 +31,8 @@ class PyReadRBasic(unittest.TestCase):
                       'fac2': 'category',
                       'log2': np.bool}
 
-        df1 = pd.read_csv(os.path.join(self.basic_data_folder, "df1.csv"), dtype=df1_dtypes, parse_dates=[5, 6])
-        df1.loc[pd.isna(df1['char']), 'char'] = ""
+        df1 = pd.read_csv(os.path.join(self.basic_data_folder, "df1.csv"), dtype=df1_dtypes, parse_dates=[5, 6],
+                          keep_default_na=False, na_values=["NA"])
         df1.loc[df1['int'].notnull(), 'int'] = df1.loc[df1['int'].notnull(), 'int'].astype(np.int32)
 
         df2 = pd.read_csv(os.path.join(self.basic_data_folder, "df2.csv"), dtype=df2_dtypes)
@@ -43,16 +44,16 @@ class PyReadRBasic(unittest.TestCase):
         self.df3 = df3
 
         self.rdata_objects = ['df1', 'df2', 'char']
-        self.rdata_objects_description = [{"object_name":"df1", "columns":['num', 'int', 'char', 'fac', 'log', 'tstamp1', 'tstamp2']},
-        {"object_name":"df2", "columns":['num2', 'int2', 'char2', 'fac2', 'log2']},
-        {"object_name":"char", "columns":[]}]
+        self.rdata_objects_description = [{"object_name": "df1", "columns": ['num', 'int', 'char', 'fac', 'log', 'tstamp1', 'tstamp2']},
+            {"object_name": "df2", "columns": ['num2', 'int2', 'char2', 'fac2', 'log2']},
+            {"object_name": "char", "columns": []}]
         self.use_objects = ["df1"]
         
-        t = datetime.datetime(1960,1,1)
+        t = datetime.datetime(1960, 1, 1)
         sec = [np.NaN] * 8
         sec[7] = 2
         colnames = ["char", "int", "num", "log", "date", "datetime", "object", "categ"]
-        df_out = pd.DataFrame([["a", 1, 2.2, True, t, t.date(), t.time(), 1], sec], columns = colnames)
+        df_out = pd.DataFrame([["a", 1, 2.2, True, t, t.date(), t.time(), 1], sec], columns=colnames)
         df_out["int"] = df_out["int"].astype("object")
         df_out.iloc[0, 1] = np.int32(df_out.iloc[0, 1])
         df_out["categ"] = df_out["categ"].astype("category")
@@ -63,6 +64,8 @@ class PyReadRBasic(unittest.TestCase):
         rdata_path = os.path.join(self.basic_data_folder, "two.RData")
         res = pyreadr.read_r(rdata_path)
         self.assertListEqual(list(res.keys()), self.rdata_objects)
+        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(self.df1.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
 
@@ -125,5 +128,5 @@ if __name__ == '__main__':
 
     print("package location:", pyreadr.__file__)
 
+    # unittest.main(warnings="ignore") # this would ignore all kind of warnings (not good)
     unittest.main()
-

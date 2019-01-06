@@ -11,15 +11,15 @@ import glob
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 
-librdata_source_files = [ ]
+librdata_source_files = []
 librdata_source_files += glob.glob('pyreadr/libs/librdata/src/*.c')
-librdata_source_files += [ 'pyreadr/librdata.pyx' ]
+librdata_source_files += ['pyreadr/librdata.pyx']
 
-library_dirs = [ ]
-libraries = [ ]
-include_dirs = [ ]
-extra_link_args = [ ]
-extra_compile_args = [ '-DHAVE_ZLIB' ]
+library_dirs = []
+libraries = []
+include_dirs = []
+extra_link_args = []
+extra_compile_args = ['-DHAVE_ZLIB']
 data_files = []
 
 if platform.system() == 'Darwin':
@@ -33,7 +33,7 @@ elif platform.system() == 'Windows':
     
     data_folder = "win_libs/64bit/"
     library_dirs.append(data_folder)
-    data_files = [("",[data_folder + "zlib.dll"])]
+    data_files = [("", [data_folder + "zlib.dll"])]
     libraries.append('z')
 elif platform.system() == 'Linux':
     libraries.append('z')
@@ -63,7 +63,7 @@ short_description = "Reads/writes R RData and Rds files into/from pandas data fr
 
 setup(
     name='pyreadr',
-    version='0.1.5',
+    version='0.1.6',
     ext_modules=cythonize([librdata]),
     packages=["pyreadr"],
     include_package_data=True,

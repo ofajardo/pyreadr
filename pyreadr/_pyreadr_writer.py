@@ -42,7 +42,7 @@ def get_pyreadr_column_types(df):
     has_missing_values = [False] * len(columns)
     for indx, (col_name, col_type) in enumerate(zip(columns, types)):
         
-        #recover original type for categories
+        # recover original type for categories
         if type(col_type) is pd.core.dtypes.dtypes.CategoricalDtype:
             col_type = np.asarray(df[col_name]).dtype
         
@@ -65,7 +65,7 @@ def get_pyreadr_column_types(df):
                 col = df[col_name].dropna()
                 if len(col):
                     curtype = type(col[0])
-                    equal = col.apply(lambda x: type(x)==curtype)
+                    equal = col.apply(lambda x: type(x) == curtype)
                     if not np.all(equal):
                         result[col_name] = "OBJECT"
                         continue
@@ -74,7 +74,7 @@ def get_pyreadr_column_types(df):
                     continue
             else:
                 curtype = type(df[col_name][0])
-                equal = df[col_name].apply(lambda x: type(x)==curtype)
+                equal = df[col_name].apply(lambda x: type(x) == curtype)
                 if not np.all(equal):
                     result[col_name] = "OBJECT"
                     continue
@@ -98,6 +98,7 @@ def get_pyreadr_column_types(df):
             # generic object
             result[col_name] = "OBJECT"
     return result, has_missing_values
+
     
 def pyreadr_types_to_librdata_types(pyreadr_types):
     """
@@ -111,7 +112,7 @@ def pyreadr_types_to_librdata_types(pyreadr_types):
     return result
 
 
-def transform_data(pdSeries, dtype, has_missing, dateformat, datetimeformat):
+def transform_data(pd_series, dtype, has_missing, dateformat, datetimeformat):
     """
     Get a column (pd.Series), pyreadr type (dtype) and boolean indicating
     wheter there are missing values and transform the values to values
@@ -120,36 +121,43 @@ def transform_data(pdSeries, dtype, has_missing, dateformat, datetimeformat):
     datetimes to strings.
     """
 
+    # for all character an empty string will be transformed to NA instead of staying as emtpy string.
+    # passing a C NULL would be the same, for now we are changing np.nan and pandas NaT to empty string.
+    # if in the future the API changes so that empty string does
+    # not produce a NA, we can leave the np.nan here and in librdata.pyx (insert_value) change value to NULL if np.nan
+    # or NaT
+
     if dtype == "INTEGER":
         if has_missing:
-            pdSeries.loc[pd.isna(pdSeries)] = librdata_min_integer
-        pdSeries = pdSeries.astype(np.int32)
+            pd_series.loc[pd.isna(pd_series)] = librdata_min_integer
+        pd_series = pd_series.astype(np.int32)
     elif dtype == "NUMERIC":
         pass
     elif dtype == "LOGICAL":
         if has_missing:
-            pdSeries.loc[pd.isna(pdSeries)] = librdata_min_integer
-        pdSeries = pdSeries.astype(np.int32)
+            pd_series.loc[pd.isna(pd_series)] = librdata_min_integer
+        pd_series = pd_series.astype(np.int32)
     elif dtype == "CHARACTER": 
         if has_missing:
-            pdSeries.loc[pd.isna(pdSeries)] = ""
+            pd_series.loc[pd.isna(pd_series)] = ""
     elif dtype == "OBJECT":
         if has_missing:
-            pdSeries.loc[pd.isna(pdSeries)] = ""
-        pdSeries = pdSeries.apply(lambda x: str(x))
+            pd_series.loc[pd.isna(pd_series)] = ""
+        pd_series = pd_series.apply(lambda x: str(x))
     elif dtype == "DATE": 
-        pdSeries.loc[pd.notnull(pdSeries)] = pdSeries.loc[pd.notnull(pdSeries)].apply(lambda x: x.strftime(dateformat))
+        pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(dateformat))
         if has_missing:
-            pdSeries.loc[pd.isna(pdSeries)] = ""
+            pd_series.loc[pd.isna(pd_series)] = ""
     elif dtype == "DATETIME":
-        pdSeries.loc[pd.notnull(pdSeries)] = pdSeries.loc[pd.notnull(pdSeries)].apply(lambda x: x.strftime(datetimeformat))
+        pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(datetimeformat))
         if has_missing:
-            pdSeries.loc[pd.isna(pdSeries)] = ""
+            pd_series.loc[pd.isna(pd_series)] = ""
     else:
         msg = "Unkown pyreadr data type"
         raise Exception(msg)
         
-    return pdSeries
+    return pd_series
+
 
 class PyreadrWriter(Writer):
     

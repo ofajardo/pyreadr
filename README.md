@@ -164,7 +164,6 @@ print(dataset2)
 
 ```
 
-
 ### Reading selected objects
 
 You can use the argument use_objects of the function read_r to specify which objects
@@ -232,6 +231,9 @@ result = pyreadr.read_r('test_data/basic/two.RData', timezone=my_timezone)
 If you have control over the data in R, a good option to avoid all of this is to transform
 the POSIX object to character, then transform it to a datetime in python.
 
+When writing these kind of objects pyreadr transforms them to characters. Those can be easily
+transformed back to POSIX with as.POSIXct/lt (see later).
+
 ### What objects can be read and written
 
 Data frames composed of character, numeric (double), integer, timestamp (POSIXct 
@@ -290,20 +292,17 @@ promoted to numeric in order to fit.
 * A pandas column containing only missing values is transformed to logical,
 following R's behavior.
 
-* librdata represents character missing values as an empty string. Therefore
-any empty string in pandas will be transformed into NA in R.
+* librdata writes emtpy strings as NA values. np.nan in pandas object columns are also translated
+to empty strings.
+
+* librdata writes Numeric missing values as NaN instead of NA. In pandas we only have np.nan both as 
+NaN and missing value representation, and it will always be written as NaN in R.
 
 ## Known limitations
 
 * As explained before, although atomic vectors can also be directly read, as librdata
 does not give the information of the type of object it parsed everything
 is translated to a pandas data frame.
-
-* When reading missing values in character vectors librdata gives empty strings. 
-Those cannot be distinguished from a valid empty string, therefore pyreadr
-gives back just an empty string and not a np.nan value. The inverse problem
-also exists: when writing an empty string will be transformed to a NA missing
-value.
 
 * POSIXct and POSIXlt objects in R are stored internally as UTC timestamps and may have
 in addition time zone information. librdata does not return time zone information and
@@ -319,11 +318,15 @@ numpy arrays. They are translated to pandas data frames with one single column.
 The error code in this case is a bit obscure:
 
 ```python
-ValueError: Unable to read from file
+"ValueError: Unable to read from file"
 ```
 
 * Data frames with special values like arrays, matrices and other data frames
-are not supported
+are not supported.
+
+* When writing an empty string will be transformed to a NA missing
+value and not an empty string as it should be. Numeric missing values are translated
+to NaN instead of NA.
 
 * Writing is supported only for a single pandas data frame to a single
 R data frame. Other data types are not supported. Multiple data frames

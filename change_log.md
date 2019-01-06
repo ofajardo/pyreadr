@@ -1,3 +1,7 @@
+# 0.1.6 (github and pypi 2019.01.06)
+
+* fixed distinguishing between empty string and NA when reading. 
+
 # 0.1.5 (github and pypi 2019.01.05)
 
 * writing support added.

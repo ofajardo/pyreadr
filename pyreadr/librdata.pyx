@@ -2,6 +2,7 @@
 
 from enum import Enum
 import numpy as np
+import pandas as pd
 import os.path
 from cython.operator cimport dereference as deref
 
@@ -186,7 +187,7 @@ cdef class Parser:
         if value != NULL:
             self.handle_text_value(value, index)
         else:
-            self.handle_text_value('', index)
+            self.handle_text_value(np.nan, index)
 
     cdef __handle_value_label(self, const char *value, int index):
         self.handle_value_label(value, index)
@@ -273,6 +274,8 @@ cdef class Writer:
         if dtype == "NUMERIC":
             status = rdata_append_real_value(self._writer, value)
         elif dtype == "CHARACTER":
+            # in the case of character we could also pass NULL as value to become R's NA
+            # right now passing an empty string has the same effect
             status = rdata_append_string_value(self._writer, value.encode('utf-8'))
         elif dtype == "INTEGER":
             status = rdata_append_int32_value(self._writer, value)

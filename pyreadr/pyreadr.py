@@ -98,7 +98,8 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
     file_format = "rdata"
     writer = PyreadrWriter()
     writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat)
-    
+
+
 def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S"):
     """
     Write a single pandas data frame to a rds file.
@@ -121,7 +122,6 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
         raise Exception(msg)
     
     file_format = "rds"
-    df_name="" # this is irrelevant in this case, but we need to pass something
+    df_name = ""   # this is irrelevant in this case, but we need to pass something
     writer = PyreadrWriter()
     writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat)
-
