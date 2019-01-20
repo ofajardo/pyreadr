@@ -324,7 +324,7 @@ are not supported.
 data. That means you need more free RAM than the decompress file ocuppies
 in memory. RData and Rds files are highly compressed: they can occupy
 in memory easily 40 or even more times in memory as in disk. Take it into
-account in case you get a "Unable to allocate RAM" error.
+account in case you get a "Unable to allocate memory" error (see [this](https://github.com/ofajardo/pyreadr/issues/3) )
 
 * When writing numeric missing values are translated
 to NaN instead of NA.
