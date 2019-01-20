@@ -320,6 +320,12 @@ The error code in this case is a bit obscure:
 * Data frames with special values like arrays, matrices and other data frames
 are not supported.
 
+* librdata first de-compresses the file in memory and then extracts the
+data. That means you need more free RAM than the decompress file ocuppies
+in memory. RData and Rds files are highly compressed: they can occupy
+in memory easily 40 or even more times in memory as in disk. Take it into
+account in case you get a "Unable to allocate RAM" error.
+
 * When writing numeric missing values are translated
 to NaN instead of NA.
 
