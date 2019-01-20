@@ -276,7 +276,10 @@ cdef class Writer:
         elif dtype == "CHARACTER":
             # in the case of character we could also pass NULL as value to become R's NA
             # right now passing an empty string has the same effect
-            status = rdata_append_string_value(self._writer, value.encode('utf-8'))
+            if pd.isnull(value):
+                status = rdata_append_string_value(self._writer, NULL)
+            else:
+                status = rdata_append_string_value(self._writer, value.encode('utf-8'))
         elif dtype == "INTEGER":
             status = rdata_append_int32_value(self._writer, value)
         elif dtype == "LOGICAL":

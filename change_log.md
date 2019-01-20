@@ -1,3 +1,8 @@
+# 0.1.7 (github and pypi 2019.01.19)
+
+* fixed distinguishing between empty string and NaN/NaT/None when writing. 
+* librdata src updated to latest sources as 2019.01.19
+
 # 0.1.6 (github and pypi 2019.01.06)
 
 * fixed distinguishing between empty string and NA when reading. 

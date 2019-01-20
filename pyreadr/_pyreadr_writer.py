@@ -121,12 +121,6 @@ def transform_data(pd_series, dtype, has_missing, dateformat, datetimeformat):
     datetimes to strings.
     """
 
-    # for all character an empty string will be transformed to NA instead of staying as emtpy string.
-    # passing a C NULL would be the same, for now we are changing np.nan and pandas NaT to empty string.
-    # if in the future the API changes so that empty string does
-    # not produce a NA, we can leave the np.nan here and in librdata.pyx (insert_value) change value to NULL if np.nan
-    # or NaT
-
     if dtype == "INTEGER":
         if has_missing:
             pd_series.loc[pd.isna(pd_series)] = librdata_min_integer
@@ -137,21 +131,14 @@ def transform_data(pd_series, dtype, has_missing, dateformat, datetimeformat):
         if has_missing:
             pd_series.loc[pd.isna(pd_series)] = librdata_min_integer
         pd_series = pd_series.astype(np.int32)
-    elif dtype == "CHARACTER": 
-        if has_missing:
-            pd_series.loc[pd.isna(pd_series)] = ""
+    elif dtype == "CHARACTER":
+        pass
     elif dtype == "OBJECT":
-        if has_missing:
-            pd_series.loc[pd.isna(pd_series)] = ""
-        pd_series = pd_series.apply(lambda x: str(x))
+        pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: str(x))
     elif dtype == "DATE": 
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(dateformat))
-        if has_missing:
-            pd_series.loc[pd.isna(pd_series)] = ""
     elif dtype == "DATETIME":
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(datetimeformat))
-        if has_missing:
-            pd_series.loc[pd.isna(pd_series)] = ""
     else:
         msg = "Unkown pyreadr data type"
         raise Exception(msg)

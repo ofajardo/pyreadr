@@ -52,8 +52,11 @@ class PyReadRBasic(unittest.TestCase):
         t = datetime.datetime(1960, 1, 1)
         sec = [np.NaN] * 8
         sec[7] = 2
-        colnames = ["char", "int", "num", "log", "date", "datetime", "object", "categ"]
-        df_out = pd.DataFrame([["a", 1, 2.2, True, t, t.date(), t.time(), 1], sec], columns=colnames)
+        third = [np.NaN] * 8
+        third[7] = 3
+        third[0] = ""
+        colnames = ["char", "int", "num", "log", "datetime", "date", "object", "categ"]
+        df_out = pd.DataFrame([["a", 1, 2.2, True, t, t.date(), t.time(), 1], sec, third], columns=colnames)
         df_out["int"] = df_out["int"].astype("object")
         df_out.iloc[0, 1] = np.int32(df_out.iloc[0, 1])
         df_out["categ"] = df_out["categ"].astype("category")
@@ -105,6 +108,13 @@ class PyReadRBasic(unittest.TestCase):
             os.remove(path)
         pyreadr.write_rdata(path, self.df_out)
         self.assertTrue(os.path.isfile(path))
+        #res = pyreadr.read_r(path)
+        #d = res["dataset"]
+        #d['datetime'].loc[pd.isna(d['datetime'])] = pd.NaT
+        #d['datetime'] = d['datetime'].to_timestamp()
+        #d['categ'] = d['categ'].astype(int)
+        #d['categ'] = d['categ'].astype('category')
+        #self.assertTrue(self.df_out.equals(d))
         
     def test_write_rds(self):
         

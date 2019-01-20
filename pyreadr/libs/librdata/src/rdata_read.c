@@ -414,18 +414,7 @@ static rdata_error_t init_z_stream(rdata_ctx_t *ctx) {
         goto cleanup;
     }
 
-#if HAVE_APPLE_COMPRESSION
-    ctx->compression_strm = calloc(1, sizeof(compression_stream));
-
-    if (compression_stream_init(ctx->compression_strm,
-                COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB) == COMPRESSION_STATUS_ERROR) {
-        retval = RDATA_ERROR_MALLOC;
-        goto cleanup;
-    }
-
-    ctx->compression_strm->src_ptr = ctx->strm_buffer;
-    ctx->compression_strm->src_size = bytes_read;
-#elif HAVE_ZLIB
+#if HAVE_ZLIB
     ctx->z_strm = calloc(1, sizeof(z_stream));
     ctx->z_strm->next_in = ctx->strm_buffer;
     ctx->z_strm->avail_in = bytes_read;

@@ -261,7 +261,6 @@ followed:
 | datetime, date      | character |
 | category            | depends on the original dtype |
 | any other object    | character |
-| empty string        | NA        |
 | column all missing  | logical   |
 | column with mixed types | character |
 
@@ -292,9 +291,6 @@ promoted to numeric in order to fit.
 * A pandas column containing only missing values is transformed to logical,
 following R's behavior.
 
-* librdata writes emtpy strings as NA values. np.nan in pandas object columns are also translated
-to empty strings.
-
 * librdata writes Numeric missing values as NaN instead of NA. In pandas we only have np.nan both as 
 NaN and missing value representation, and it will always be written as NaN in R.
 
@@ -324,16 +320,15 @@ The error code in this case is a bit obscure:
 * Data frames with special values like arrays, matrices and other data frames
 are not supported.
 
-* When writing an empty string will be transformed to a NA missing
-value and not an empty string as it should be. Numeric missing values are translated
+* When writing numeric missing values are translated
 to NaN instead of NA.
 
 * Writing is supported only for a single pandas data frame to a single
 R data frame. Other data types are not supported. Multiple data frames
 for rdata files are not supported.
 
-* RData and Rds files produced by R are heavily optimized and compressed. Files produced
-by pyreadr are pretty bulky in comparison. Pyreadr writing is a relative slow operation
+* RData and Rds files produced by R are (by default) compressed. Files produced
+by pyreadr are not compressed and therefore pretty bulky in comparison. Pyreadr writing is a relative slow operation
 compared to doint it in R.
 
 ## Change Log

@@ -64,7 +64,7 @@ ssize_t unistd_read_handler(void *buf, size_t nbyte, void *io_ctx) {
     return out;
 }
 
-rdata_error_t unistd_update_handler(long file_size,
+rdata_error_t unistd_update_handler(long file_size, 
         rdata_progress_handler progress_handler, void *user_ctx,
         void *io_ctx) {
     if (!progress_handler)
