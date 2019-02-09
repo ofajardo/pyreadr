@@ -1,3 +1,7 @@
+# 0.1.8 (github and pypi 2019.02.09, conda )
+* setup.py fixed to build on conda-forge.
+* conda forge package released
+
 # 0.1.7 (github and pypi 2019.01.19)
 
 * fixed distinguishing between empty string and NaN/NaT/None when writing. 

@@ -23,14 +23,13 @@ class PyReadRBasic(unittest.TestCase):
         df1_dtypes = {'num': np.float64,
                       'int': np.object,
                       'char': np.object,
-                      'fac': 'category',
-                      'log': np.bool}
+                      'fac': 'category'}
+                      
         df2_dtypes = {'num2': np.float64,
                       'int2': np.int32,
                       'char2': np.object,
-                      'fac2': 'category',
-                      'log2': np.bool}
-
+                      'fac2': 'category'}
+                      
         df1 = pd.read_csv(os.path.join(self.basic_data_folder, "df1.csv"), dtype=df1_dtypes, parse_dates=[5, 6],
                           keep_default_na=False, na_values=["NA"])
         df1.loc[df1['int'].notnull(), 'int'] = df1.loc[df1['int'].notnull(), 'int'].astype(np.int32)
