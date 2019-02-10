@@ -19,6 +19,7 @@ Detailed documentation on all available methods is in the
 - [Dependencies](#dependencies)
 - [Installation](#installation)
   * [Using pip](#using-pip)
+  * [Using conda](#using-conda)
   * [From the latest sources](#from-the-latest-sources)
 - [Usage](#usage)
   * [Basic Usage: reading files](#basic-usage--reading-files)
@@ -63,6 +64,17 @@ pip install pyreadr --user
 
 We offer pre-compiled wheels for python 3.5, 3.6 and 3.7 for Windows,
 linux and macOs.
+
+### Using conda
+
+The package is also available in [conda-forge](https://anaconda.org/conda-forge/pyreadr) 
+for windows, mac and linux 64 bit, python 3.6 and 3.7. only.
+
+In order to install:
+
+```
+conda install -c conda-forge pyreadr 
+```
 
 ### From the latest sources
 
