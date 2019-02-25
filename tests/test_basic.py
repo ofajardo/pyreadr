@@ -9,6 +9,7 @@ import warnings
 import pandas as pd
 import numpy as np
 
+import pyreadr
 
 class PyReadRBasic(unittest.TestCase):
 
@@ -76,6 +77,17 @@ class PyReadRBasic(unittest.TestCase):
         rds_path = os.path.join(self.basic_data_folder, "one.Rds")
         res = pyreadr.read_r(rds_path)
         self.assertTrue(self.df1.equals(res[None]))
+
+    def test_rds_matrix(self):
+        matrix = pd.DataFrame(np.array([[*range(1, 4)], [*range(4, 7)], [*range(7, 10)]]),
+                              index=['X', 'Y', 'Z'],
+                              columns=['A', 'B', 'C'])
+
+        rds_path = os.path.join(self.basic_data_folder, "two.Rds")
+        self.assertTrue(os.path.exists(rds_path))
+        res = pyreadr.read_r(rds_path)
+
+        self.assertTrue(matrix.equals(res[None]))
 
     def test_list_objects_rdata(self):
 

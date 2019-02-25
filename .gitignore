@@ -1,7 +1,15 @@
+# IDE
 .idea
+
+# Cython/C/C++
 /pyreadr/librdata.c
 *.so
 *.pyd
+
+# build
 /build
+/dist
 /pyreadr.egg-info
-/pyreadr/__pycache__
+
+# pycaches
+__pycache__
