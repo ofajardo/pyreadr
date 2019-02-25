@@ -41,3 +41,6 @@ save(df3, file = "tzone.RData")
 df3$tstampa <- as.character(df3$tstampa)
 df3$tstampb <- as.character(df3$tstampb)
 write.csv(df3 ,file="df3.csv", row.names=FALSE)
+
+matrix_data <- matrix(1:9, nrow = 3, dimnames = list(c("X","Y","Z"), c("A","B","C")))
+saveRDS(matrix_data, "two.Rds")
