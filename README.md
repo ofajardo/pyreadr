@@ -14,6 +14,10 @@ by the [Jamovi](https://www.jamovi.org/) team.
 Detailed documentation on all available methods is in the 
 [Module documentation](https://ofajardo.github.io/pyreadr/)
 
+If you would like to read SPSS, SAS or STATA files into python in an easy way,
+take a look to [pyreadstat](https://github.com/Roche/pyreadstat), a wrapper
+around the C library [ReadStat](https://github.com/WizardMac/ReadStat)
+
 ## Table of Contents
 
 - [Dependencies](#dependencies)
