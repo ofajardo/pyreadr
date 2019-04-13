@@ -1,0 +1,28 @@
+Differences between jamovi librdata and normal librdata:
+
+* rdata_io_unistd.c:
+
+in original, line 4:
+#include <unistd.h>
+
+#ifndef _MSC_VER
+#include <unistd.h>
+#endif
+
+in original, line 17:
+#if defined _WIN32 || defined _AIX
+
+#ifdef _MSC_VER
+#define lseek _lseek
+#elif defined _WIN32 || defined _AIX
+
+* rdata.h
+
+in original, line 42
+
+#if defined _WIN32 || defined __CYGWIN__
+
+#ifdef _MSC_VER
+typedef off_t rdata_off_t;
+typedef __int64 ssize_t;
+#elif defined _WIN32 || defined __CYGWIN__
