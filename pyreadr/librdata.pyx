@@ -6,6 +6,8 @@ import pandas as pd
 import os.path
 from cython.operator cimport dereference as deref
 
+from .custom_errors import PyreadrError, LibrdataError
+
 
 class DataType(Enum):
     CHARACTER  = rdata_type_t.RDATA_TYPE_STRING
@@ -135,7 +137,7 @@ cdef class Parser:
                 raise self._error
             else:
                 message = rdata_error_message(status)
-                raise ValueError(message)
+                raise LibrdataError(message)
 
     def handle_table(self, name):
         pass
@@ -236,7 +238,7 @@ cdef class Writer:
         elif format == 'rdata':
             fmt = RDATA_WORKSPACE
         else:
-            raise ValueError('Unsupported format')
+            raise PyreadrError('Unsupported format')
 
         self._writer = rdata_writer_init(_handle_write, fmt)
         self._fd = _os_open(path, 'w')
@@ -285,10 +287,10 @@ cdef class Writer:
         elif dtype == "LOGICAL":
             status = rdata_append_logical_value(self._writer, value);
         else:
-            raise Exception("Unknown data type")
+            raise PyreadrError("Unknown data type")
         
         if status != RDATA_OK:
-            raise ValueError(rdata_error_message(status))
+            raise LibrdataError(rdata_error_message(status))
             
 
     def add_column(self, name, dtype):
@@ -304,7 +306,7 @@ cdef class Writer:
         elif dtype == "LOGICAL":
             data_type = RDATA_TYPE_LOGICAL
         else:
-            raise Exception("Unknown data type: %s" % dtype)
+            raise PyreadrError("Unknown data type: %s" % dtype)
 
         column = rdata_add_column(self._writer, name.encode('utf-8'), data_type)
         col = Column()

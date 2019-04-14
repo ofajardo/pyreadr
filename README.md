@@ -336,6 +336,12 @@ The error code in this case is a bit obscure:
 * Data frames with special values like arrays, matrices and other data frames
 are not supported.
 
+* The max size of a numeric vector is 2**32 bytes (4GB), meaning 2**30
+elements for an Integer vector or 2**29 elements for a Double Vector. If
+a vector in the dataframe is longer than this limit, a   
+"Unable to allocate memory" error (see [this](https://github.com/ofajardo/pyreadr/issues/3) )
+will arise.
+
 * librdata first de-compresses the file in memory and then extracts the
 data. That means you need more free RAM than the decompress file ocuppies
 in memory. RData and Rds files are highly compressed: they can occupy

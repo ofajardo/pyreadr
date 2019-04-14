@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 
 from .librdata import Parser
+from .custom_errors import PyreadrError
+
 
 
 class Table:
@@ -51,7 +53,7 @@ class Table:
             normal = self.column_names.get(indx)
             special = self.column_names_special.get(indx)
             if normal and special:
-                raise Exception("Both normal and special names for column index %d" % indx)
+                raise PyreadrError("Both normal and special names for column index %d" % indx)
             final = normal if normal else special
             final_names[indx] = final
         self.final_names = final_names

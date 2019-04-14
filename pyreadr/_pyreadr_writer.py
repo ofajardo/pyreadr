@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .librdata import Writer
+from .custom_errors import PyreadrError
 
 
 # configuration
@@ -141,7 +142,7 @@ def transform_data(pd_series, dtype, has_missing, dateformat, datetimeformat):
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(datetimeformat))
     else:
         msg = "Unkown pyreadr data type"
-        raise Exception(msg)
+        raise PyreadrError(msg)
         
     return pd_series
 

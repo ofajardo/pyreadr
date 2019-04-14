@@ -1,3 +1,7 @@
+# 0.1.9 (github and pypi 2019.04.21,conda: )
+* librdata source updated to b7ca1252b670d60a6e8d3c8ce6fcc8ab3b43d6ab
+  fixes #3.
+
 # 0.1.8 (github and pypi 2019.02.09, conda )
 * setup.py fixed to build on conda-forge.
 * conda forge package released

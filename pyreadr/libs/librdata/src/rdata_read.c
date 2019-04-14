@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <math.h>
+#include <limits.h>
 
 #if HAVE_BZIP2
 #include <bzlib.h>
@@ -31,7 +32,7 @@
 #define RDATA_ATOM_LEN 128
 
 #define STREAM_BUFFER_SIZE   65536
-#define MAX_BUFFER_SIZE    (1<<24)
+#define MAX_BUFFER_SIZE      UINT_MAX
 
 typedef struct rdata_atom_table_s {
     int   count;

@@ -7,6 +7,7 @@ import pandas as pd
 
 from ._pyreadr_parser import PyreadrParser, ListObjectsParser
 from ._pyreadr_writer import PyreadrWriter
+from .custom_errors import PyreadrError
 
 
 def read_r(path, use_objects=None, timezone=None):
@@ -89,11 +90,11 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
     
     if not df_name:
         msg = "df_name must be a valid string"
-        raise Exception(msg)
+        raise PyreadrError(msg)
         
     if not isinstance(df, pd.DataFrame):
         msg = "df must be a pandas data frame"
-        raise Exception(msg)
+        raise PyreadrError(msg)
     
     file_format = "rdata"
     writer = PyreadrWriter()
@@ -119,7 +120,7 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
     
     if not isinstance(df, pd.DataFrame):
         msg = "df must be a pandas data frame"
-        raise Exception(msg)
+        raise PyreadrError(msg)
     
     file_format = "rds"
     df_name = ""   # this is irrelevant in this case, but we need to pass something
