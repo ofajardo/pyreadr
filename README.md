@@ -16,7 +16,11 @@ Detailed documentation on all available methods is in the
 
 If you would like to read SPSS, SAS or STATA files into python in an easy way,
 take a look to [pyreadstat](https://github.com/Roche/pyreadstat), a wrapper
-around the C library [ReadStat](https://github.com/WizardMac/ReadStat)
+around the C library [ReadStat](https://github.com/WizardMac/ReadStat).
+
+Moving from R to Python and fighting against indentation issues? Missing curly braces? Missing the <- operator
+for assignment? Then try [PytwisteR](https://github.com/ofajardo/pytwister)! Python with a twist of R! 
+(note: it works, but it's only a joke)
 
 ## Table of Contents
 
