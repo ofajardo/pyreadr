@@ -1,6 +1,6 @@
 ---
 name: pyreadr issue
-about: Describe this issue template's purpose here.
+about: Report a bug, request a feature, etc.
 title: ''
 labels: ''
 assignees: ''
