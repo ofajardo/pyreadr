@@ -22,7 +22,7 @@ extra_link_args = []
 extra_compile_args = ['-DHAVE_ZLIB']
 data_files = []
 data_folder = "win_libs/64bit/"
-data_files = [("", [data_folder + "zlib.dll"], [data_folder + "libiconv-2.dll"])]
+data_files = [("", [data_folder + "zlib.dll"]), ("",[data_folder + "libiconv-2.dll"])]
 
 if platform.system() == 'Darwin':
     pass
