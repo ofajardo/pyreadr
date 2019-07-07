@@ -121,7 +121,7 @@ static ssize_t read_st_bzip2(rdata_ctx_t *ctx, void *buffer, size_t len) {
     int result = BZ_OK;
     while (1) {
         ssize_t start_out = ctx->bz_strm->total_out_lo32 + 
-            ((long)ctx->bz_strm->total_out_hi32 << 32);
+            ((ssize_t)ctx->bz_strm->total_out_hi32 << 32LL);
 
         ctx->bz_strm->next_out = (char *)buffer + bytes_written;
         ctx->bz_strm->avail_out = len - bytes_written;
@@ -134,7 +134,7 @@ static ssize_t read_st_bzip2(rdata_ctx_t *ctx, void *buffer, size_t len) {
         }
 
         bytes_written += ctx->bz_strm->total_out_lo32 + 
-            ((long)ctx->bz_strm->total_out_hi32 << 32) - start_out;
+            ((ssize_t)ctx->bz_strm->total_out_hi32 << 32LL) - start_out;
         
         if (result == BZ_STREAM_END)
             break;
@@ -628,7 +628,7 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
         retval = RDATA_ERROR_READ;
         goto cleanup;
     }
-    if (strncmp("RDX2\n", header_line, sizeof(header_line)) == 0) {
+    if (memcmp("RDX", header_line, 3) == 0 && header_line[4] == '\n') {
         is_rdata = 1;
     } else {
         reset_stream(ctx);
@@ -643,6 +643,19 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
         v2_header.format_version = byteswap4(v2_header.format_version);
         v2_header.writer_version = byteswap4(v2_header.writer_version);
         v2_header.reader_version = byteswap4(v2_header.reader_version);
+    }
+
+    if (is_rdata && v2_header.format_version != header_line[3] - '0') {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+
+    if (v2_header.format_version == 3) {
+        char encoding[64];
+        retval = read_character_string(encoding, sizeof(encoding), ctx);
+        if (retval != RDATA_OK)
+            goto cleanup;
+        /* TODO recode unmarked strings with this source encoding */
     }
     
     if (is_rdata) {

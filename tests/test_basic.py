@@ -70,10 +70,32 @@ class PyReadRBasic(unittest.TestCase):
         warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(self.df1.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
+        
+    def test_rdata_basic_r36(self):
+        """
+        same test but data saved with R 3.6.1
+        """
+
+        rdata_path = os.path.join(self.basic_data_folder, "two_r36.RData")
+        res = pyreadr.read_r(rdata_path)
+        self.assertListEqual(list(res.keys()), self.rdata_objects)
+        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        self.assertTrue(self.df1.equals(res['df1']))
+        self.assertTrue(self.df2.equals(res['df2']))
 
     def test_rds_basic(self):
 
         rds_path = os.path.join(self.basic_data_folder, "one.Rds")
+        res = pyreadr.read_r(rds_path)
+        self.assertTrue(self.df1.equals(res[None]))
+        
+    def test_rds_basic_r36(self):
+        """
+        same test but data saved with R 3.6.1
+        """
+
+        rds_path = os.path.join(self.basic_data_folder, "one_r36.Rds")
         res = pyreadr.read_r(rds_path)
         self.assertTrue(self.df1.equals(res[None]))
 
