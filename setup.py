@@ -21,8 +21,7 @@ include_dirs = []
 extra_link_args = []
 extra_compile_args = ['-DHAVE_ZLIB']
 data_files = []
-data_folder = "win_libs/64bit/"
-data_files = [("", [data_folder + "zlib.dll"])]
+data_folder = ""
 
 if platform.system() == 'Darwin':
     pass
@@ -32,7 +31,8 @@ elif platform.system() == 'Windows':
     include_dirs.append('pyreadr/libs/zlib')
     include_dirs.append('pyreadr/libs/librdata')
     library_dirs.append('pyreadr/libs/librdata')
-    
+    data_folder = "win_libs/64bit/"
+    data_files = [("", [data_folder + "zlib.dll"])]
     library_dirs.append(data_folder)
     libraries.append('z')
 elif platform.system() == 'Linux':

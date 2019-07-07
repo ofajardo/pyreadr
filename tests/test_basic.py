@@ -60,6 +60,8 @@ class PyReadRBasic(unittest.TestCase):
         df_out.iloc[0, 1] = np.int32(df_out.iloc[0, 1])
         df_out["categ"] = df_out["categ"].astype("category")
         self.df_out = df_out
+        
+        self.df_international_win = pd.read_csv(os.path.join(self.basic_data_folder, "international_win.csv"))
 
     def test_rdata_basic(self):
 
@@ -144,6 +146,22 @@ class PyReadRBasic(unittest.TestCase):
             os.remove(path)
         pyreadr.write_rds(path, self.df_out)
         self.assertTrue(os.path.isfile(path))
+        
+    def test_rdata_international_win(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "international.Rdata")
+        res = pyreadr.read_r(rdata_path)
+        df = res['df']
+        df.a = df.a.astype('object')
+        self.assertTrue(self.df_international_win.equals(df))
+        
+    def test_rds_international_win(self):
+
+        rds_path = os.path.join(self.basic_data_folder, "international.rds")
+        res = pyreadr.read_r(rds_path)
+        df = res[None]
+        df.a = df.a.astype('object')
+        self.assertTrue(self.df_international_win.equals(df))
         
 
 if __name__ == '__main__':

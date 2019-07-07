@@ -1,3 +1,9 @@
+# 0.2.0 ()
+* librdata source updated to 615dee09955b318ce128e0bfcc9d50aa3c9b7b7c 
+  fixes #10 and reading files produced on windows with non ascii characters in content.
+* Manifest file changed to include windows dll and those are taken from setup.py
+  for unix, this fixes installation error messages on macos when using brew.
+
 # 0.1.9 (github and pypi 2019.04.21,conda: )
 * librdata source updated to b7ca1252b670d60a6e8d3c8ce6fcc8ab3b43d6ab
   fixes #3.
