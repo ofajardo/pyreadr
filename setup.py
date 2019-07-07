@@ -22,7 +22,7 @@ extra_link_args = []
 extra_compile_args = ['-DHAVE_ZLIB']
 data_files = []
 data_folder = "win_libs/64bit/"
-data_files = [("", [data_folder + "zlib.dll"])]
+data_files = [("", [data_folder + "zlib.dll"], [data_folder + "libiconv-2.dll"])]
 
 if platform.system() == 'Darwin':
     pass
@@ -31,10 +31,12 @@ elif platform.system() == 'Windows':
     include_dirs.append('pyreadr')
     include_dirs.append('pyreadr/libs/zlib')
     include_dirs.append('pyreadr/libs/librdata')
+    include_dirs.append('pyreadr/libs/iconv')
     library_dirs.append('pyreadr/libs/librdata')
     
     library_dirs.append(data_folder)
     libraries.append('z')
+    libraries.append('iconv')
 elif platform.system() == 'Linux':
     libraries.append('z')
 else:
@@ -63,7 +65,7 @@ short_description = "Reads/writes R RData and Rds files into/from pandas data fr
 
 setup(
     name='pyreadr',
-    version='0.1.9',
+    version='0.2.0',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=True,
