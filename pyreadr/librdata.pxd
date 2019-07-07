@@ -1,3 +1,4 @@
+# cython: c_string_type=str, c_string_encoding=utf8, language_level=3
 
 from libc.time cimport time_t
 from libc.stdint cimport int32_t
