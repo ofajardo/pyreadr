@@ -1,4 +1,4 @@
-# 0.2.0 ()
+# 0.2.0 (github, pypi and conda: 2019.07.08)
 * librdata source updated to 615dee09955b318ce128e0bfcc9d50aa3c9b7b7c 
   fixes #10 and reading files produced on windows with non ascii characters in content.
 * Manifest file changed to include windows dll and those are taken from setup.py
