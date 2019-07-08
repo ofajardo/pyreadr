@@ -33,13 +33,13 @@ elif platform.system() == 'Windows':
     include_dirs.append('pyreadr/libs/iconv')
     library_dirs.append('pyreadr/libs/librdata')
     
-    library_dirs.append(data_folder)
-    libraries.append('z')
-    libraries.append('iconv')
-    
     data_folder = "win_libs/64bit/"
     data_files = [("", [data_folder + "zlib.dll", data_folder + "iconv.dll",
                         data_folder + "charset.dll", data_folder + "iconv.lib"])]
+                        
+    library_dirs.append(data_folder)
+    libraries.append('z')
+    libraries.append('iconv')
     
 elif platform.system() == 'Linux':
     libraries.append('z')
