@@ -21,9 +21,7 @@ include_dirs = []
 extra_link_args = []
 extra_compile_args = ['-DHAVE_ZLIB']
 data_files = []
-data_folder = "win_libs/64bit/"
-data_files = [("", [data_folder + "zlib.dll", data_folder + "iconv.dll",
-                    data_folder + "charset.dll", data_folder + "iconv.lib"])]
+data_folder = ""
 
 if platform.system() == 'Darwin':
     pass
@@ -38,6 +36,11 @@ elif platform.system() == 'Windows':
     library_dirs.append(data_folder)
     libraries.append('z')
     libraries.append('iconv')
+    
+    data_folder = "win_libs/64bit/"
+    data_files = [("", [data_folder + "zlib.dll", data_folder + "iconv.dll",
+                        data_folder + "charset.dll", data_folder + "iconv.lib"])]
+    
 elif platform.system() == 'Linux':
     libraries.append('z')
 else:
