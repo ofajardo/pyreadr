@@ -23,7 +23,7 @@ extra_compile_args = ['-DHAVE_ZLIB']
 data_files = []
 data_folder = "win_libs/64bit/"
 data_files = [("", [data_folder + "zlib.dll", data_folder + "iconv.dll",
-                    data_folder + "libiconv.dll", data_folder + "iconv.lib"])]
+                    data_folder + "libiconv-2.dll", data_folder + "iconv.lib"])]
 
 if platform.system() == 'Darwin':
     pass
