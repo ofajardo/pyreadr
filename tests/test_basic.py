@@ -60,6 +60,8 @@ class PyReadRBasic(unittest.TestCase):
         df_out.iloc[0, 1] = np.int32(df_out.iloc[0, 1])
         df_out["categ"] = df_out["categ"].astype("category")
         self.df_out = df_out
+        
+        self.df_international_win = pd.read_csv(os.path.join(self.basic_data_folder, "international_win.csv"))
 
     def test_rdata_basic(self):
 
@@ -70,10 +72,32 @@ class PyReadRBasic(unittest.TestCase):
         warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(self.df1.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
+        
+    def test_rdata_basic_r36(self):
+        """
+        same test but data saved with R 3.6.1
+        """
+
+        rdata_path = os.path.join(self.basic_data_folder, "two_r36.RData")
+        res = pyreadr.read_r(rdata_path)
+        self.assertListEqual(list(res.keys()), self.rdata_objects)
+        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        self.assertTrue(self.df1.equals(res['df1']))
+        self.assertTrue(self.df2.equals(res['df2']))
 
     def test_rds_basic(self):
 
         rds_path = os.path.join(self.basic_data_folder, "one.Rds")
+        res = pyreadr.read_r(rds_path)
+        self.assertTrue(self.df1.equals(res[None]))
+        
+    def test_rds_basic_r36(self):
+        """
+        same test but data saved with R 3.6.1
+        """
+
+        rds_path = os.path.join(self.basic_data_folder, "one_r36.Rds")
         res = pyreadr.read_r(rds_path)
         self.assertTrue(self.df1.equals(res[None]))
 
@@ -122,6 +146,22 @@ class PyReadRBasic(unittest.TestCase):
             os.remove(path)
         pyreadr.write_rds(path, self.df_out)
         self.assertTrue(os.path.isfile(path))
+        
+    def test_rdata_international_win(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "international.Rdata")
+        res = pyreadr.read_r(rdata_path)
+        df = res['df']
+        df.a = df.a.astype('object')
+        self.assertTrue(self.df_international_win.equals(df))
+        
+    def test_rds_international_win(self):
+
+        rds_path = os.path.join(self.basic_data_folder, "international.rds")
+        res = pyreadr.read_r(rds_path)
+        df = res[None]
+        df.a = df.a.astype('object')
+        self.assertTrue(self.df_international_win.equals(df))
         
 
 if __name__ == '__main__':

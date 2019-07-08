@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <math.h>
 #include <limits.h>
+#include <iconv.h>
+#include <errno.h>
 
 #if HAVE_BZIP2
 #include <bzlib.h>
@@ -33,6 +35,13 @@
 
 #define STREAM_BUFFER_SIZE   65536
 #define MAX_BUFFER_SIZE      UINT_MAX
+
+/* ICONV_CONST defined by autotools during configure according
+ * to the current platform. Some people copy-paste the source code, so
+ * provide some fallback logic */
+#ifndef ICONV_CONST
+#define ICONV_CONST
+#endif
 
 typedef struct rdata_atom_table_s {
     int   count;
@@ -66,6 +75,8 @@ typedef struct rdata_ctx_s {
     
     rdata_atom_table_t          *atom_table;
     int                          class_is_posixct;
+
+    iconv_t                      converter;
 } rdata_ctx_t;
 
 static int atom_table_add(rdata_atom_table_t *table, char *key);
@@ -121,7 +132,7 @@ static ssize_t read_st_bzip2(rdata_ctx_t *ctx, void *buffer, size_t len) {
     int result = BZ_OK;
     while (1) {
         ssize_t start_out = ctx->bz_strm->total_out_lo32 + 
-            ((long)ctx->bz_strm->total_out_hi32 << 32);
+            ((ssize_t)ctx->bz_strm->total_out_hi32 << 32LL);
 
         ctx->bz_strm->next_out = (char *)buffer + bytes_written;
         ctx->bz_strm->avail_out = len - bytes_written;
@@ -134,7 +145,7 @@ static ssize_t read_st_bzip2(rdata_ctx_t *ctx, void *buffer, size_t len) {
         }
 
         bytes_written += ctx->bz_strm->total_out_lo32 + 
-            ((long)ctx->bz_strm->total_out_hi32 << 32) - start_out;
+            ((ssize_t)ctx->bz_strm->total_out_hi32 << 32LL) - start_out;
         
         if (result == BZ_STREAM_END)
             break;
@@ -597,6 +608,9 @@ void free_rdata_ctx(rdata_ctx_t *ctx) {
     if (ctx->strm_buffer) {
         free(ctx->strm_buffer);
     }
+    if (ctx->converter) {
+        iconv_close(ctx->converter);
+    }
     free(ctx);
 }
 
@@ -628,7 +642,7 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
         retval = RDATA_ERROR_READ;
         goto cleanup;
     }
-    if (strncmp("RDX2\n", header_line, sizeof(header_line)) == 0) {
+    if (memcmp("RDX", header_line, 3) == 0 && header_line[4] == '\n') {
         is_rdata = 1;
     } else {
         reset_stream(ctx);
@@ -643,6 +657,26 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
         v2_header.format_version = byteswap4(v2_header.format_version);
         v2_header.writer_version = byteswap4(v2_header.writer_version);
         v2_header.reader_version = byteswap4(v2_header.reader_version);
+    }
+
+    if (is_rdata && v2_header.format_version != header_line[3] - '0') {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+
+    if (v2_header.format_version == 3) {
+        char encoding[64];
+        retval = read_character_string(encoding, sizeof(encoding), ctx);
+        if (retval != RDATA_OK)
+            goto cleanup;
+
+        if (strncmp("UTF-8", encoding, sizeof(encoding)) != 0) {
+            if ((ctx->converter = iconv_open("UTF-8", encoding)) == (iconv_t)-1) {
+                ctx->converter = NULL;
+                retval = RDATA_ERROR_UNSUPPORTED_CHARSET;
+                goto cleanup;
+            }
+        }
     }
     
     if (is_rdata) {
@@ -998,6 +1032,32 @@ cleanup:
     return retval;
 }
 
+static rdata_error_t rdata_convert(char *dst, size_t dst_len, const char *src, size_t src_len, iconv_t converter) {
+    if (dst_len == 0) {
+        return RDATA_ERROR_CONVERT_LONG_STRING;
+    } else if (converter) {
+        size_t dst_left = dst_len - 1;
+        char *dst_end = dst;
+        size_t status = iconv(converter, (ICONV_CONST char **)&src, &src_len, &dst_end, &dst_left);
+        if (status == (size_t)-1) {
+            if (errno == E2BIG) {
+                return RDATA_ERROR_CONVERT_LONG_STRING;
+            } else if (errno == EILSEQ) {
+                return RDATA_ERROR_CONVERT_BAD_STRING;
+            } else if (errno != EINVAL) { /* EINVAL indicates improper truncation; accept it */
+                return RDATA_ERROR_CONVERT;
+            }
+        }
+        dst[dst_len - dst_left - 1] = '\0';
+    } else if (src_len + 1 > dst_len) {
+        return RDATA_ERROR_CONVERT_LONG_STRING;
+    } else {
+        memcpy(dst, src, src_len);
+        dst[src_len] = '\0';
+    }
+    return RDATA_OK;
+}
+
 static rdata_error_t read_string_vector_n(int attributes, int32_t length,
         rdata_text_value_handler text_value_handler, void *callback_ctx, rdata_ctx_t *ctx) {
     int32_t string_length;
@@ -1005,9 +1065,13 @@ static rdata_error_t read_string_vector_n(int attributes, int32_t length,
     rdata_sexptype_info_t info;
     size_t buffer_size = 4096;
     char *buffer = NULL;
+    size_t utf8_buffer_size = 16384;
+    char *utf8_buffer = NULL;
     int i;
 
     buffer = rdata_malloc(buffer_size);
+    if (ctx->converter)
+        utf8_buffer = rdata_malloc(utf8_buffer_size);
     
     for (i=0; i<length; i++) {
         if ((retval = read_sexptype_header(&info, ctx)) != RDATA_OK)
@@ -1023,8 +1087,15 @@ static rdata_error_t read_string_vector_n(int attributes, int32_t length,
         
         if (string_length + 1 > buffer_size) {
             buffer_size = string_length + 1;
-            buffer = rdata_realloc(buffer, buffer_size);
-            if (buffer == NULL) {
+            if ((buffer = rdata_realloc(buffer, buffer_size)) == NULL) {
+                retval = RDATA_ERROR_MALLOC;
+                goto cleanup;
+            }
+        }
+
+        if (ctx->converter && 4*string_length + 1 > utf8_buffer_size) {
+            utf8_buffer_size = 4*string_length + 1;
+            if ((utf8_buffer = rdata_realloc(utf8_buffer, utf8_buffer_size)) == NULL) {
                 retval = RDATA_ERROR_MALLOC;
                 goto cleanup;
             }
@@ -1039,7 +1110,19 @@ static rdata_error_t read_string_vector_n(int attributes, int32_t length,
         }
 
         if (text_value_handler) {
-            if (text_value_handler(string_length >= 0 ? buffer : NULL, i, callback_ctx)) {
+            int cb_retval = 0;
+            if (string_length < 0) {
+                cb_retval = text_value_handler(NULL, i, callback_ctx);
+            } else if (!ctx->converter) {
+                cb_retval = text_value_handler(buffer, i, callback_ctx);
+            } else {
+                retval = rdata_convert(utf8_buffer, utf8_buffer_size, buffer, string_length, ctx->converter);
+                if (retval != RDATA_OK)
+                    goto cleanup;
+
+                cb_retval = text_value_handler(utf8_buffer, i, callback_ctx);
+            }
+            if (cb_retval) {
                 retval = RDATA_ERROR_USER_ABORT;
                 goto cleanup;
             }
@@ -1055,6 +1138,8 @@ cleanup:
     
     if (buffer)
         free(buffer);
+    if (utf8_buffer)
+        free(utf8_buffer);
 
     return retval;
 }

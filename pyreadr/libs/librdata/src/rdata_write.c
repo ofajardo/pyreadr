@@ -179,6 +179,21 @@ cleanup:
     return retval;
 }
 
+static rdata_error_t rdata_write_attributed_vector_header(rdata_writer_t *writer, int type, int32_t size) {
+    rdata_error_t retval = RDATA_OK;
+
+    retval = rdata_write_header(writer, type, R_OBJECT | R_ATTRIBUTES);
+    if (retval != RDATA_OK)
+        goto cleanup;
+
+    retval = rdata_write_integer(writer, size);
+    if (retval != RDATA_OK)
+        goto cleanup;
+
+cleanup:
+    return retval;
+}
+
 static rdata_error_t rdata_write_simple_vector_header(rdata_writer_t *writer, int type, int32_t size) {
     rdata_error_t retval = RDATA_OK;
 
@@ -234,12 +249,7 @@ rdata_error_t rdata_begin_table(rdata_writer_t *writer, const char *variable_nam
             goto cleanup;
     }
 
-    retval = rdata_write_header(writer, RDATA_SEXPTYPE_GENERIC_VECTOR, 
-            R_OBJECT | R_ATTRIBUTES); 
-    if (retval != RDATA_OK)
-        goto cleanup;
-
-    retval = rdata_write_integer(writer, writer->columns_count);
+    retval = rdata_write_attributed_vector_header(writer, RDATA_SEXPTYPE_GENERIC_VECTOR, writer->columns_count);
     if (retval != RDATA_OK)
         goto cleanup;
 
@@ -248,18 +258,7 @@ cleanup:
 }
 
 static rdata_error_t rdata_begin_factor_column(rdata_writer_t *writer, rdata_column_t *column, int32_t row_count) {
-    rdata_error_t retval = RDATA_OK;
-
-    retval = rdata_write_header(writer, RDATA_SEXPTYPE_INTEGER_VECTOR, R_OBJECT | R_ATTRIBUTES);
-    if (retval != RDATA_OK)
-        goto cleanup;
-
-    retval = rdata_write_integer(writer, row_count);
-    if (retval != RDATA_OK)
-        goto cleanup;
-
-cleanup:
-    return retval;
+    return rdata_write_attributed_vector_header(writer, RDATA_SEXPTYPE_INTEGER_VECTOR, row_count);
 }
 
 static rdata_error_t rdata_end_factor_column(rdata_writer_t *writer, rdata_column_t *column) {
@@ -311,7 +310,7 @@ static rdata_error_t rdata_end_real_column(rdata_writer_t *writer, rdata_column_
 }
 
 static rdata_error_t rdata_begin_timestamp_column(rdata_writer_t *writer, rdata_column_t *column, int32_t row_count) {
-    return rdata_write_simple_vector_header(writer, RDATA_SEXPTYPE_REAL_VECTOR, row_count);
+    return rdata_write_attributed_vector_header(writer, RDATA_SEXPTYPE_REAL_VECTOR, row_count);
 }
 
 static rdata_error_t rdata_end_timestamp_column(rdata_writer_t *writer, rdata_column_t *column) {

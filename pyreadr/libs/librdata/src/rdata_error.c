@@ -32,5 +32,20 @@ const char *rdata_error_message(rdata_error_t error_code) {
     if (error_code == RDATA_ERROR_UNSUPPORTED_COMPRESSION)
         return "The file is compressed using an unsupported compression scheme";
 
+    if (error_code == RDATA_ERROR_UNSUPPORTED_CHARSET)
+        return "File has an unsupported character set";
+
+    if (error_code == RDATA_ERROR_CONVERT)
+        return "Unable to convert string to the requested encoding";
+
+    if (error_code == RDATA_ERROR_CONVERT_BAD_STRING)
+        return "Unable to convert string to the requested encoding (invalid byte sequence)";
+
+    if (error_code == RDATA_ERROR_CONVERT_SHORT_STRING)
+        return "Unable to convert string to the requested encoding (incomplete byte sequence)";
+
+    if (error_code == RDATA_ERROR_CONVERT_LONG_STRING)
+        return "Unable to convert string to the requested encoding (output buffer too small)";
+
     return "Unknown error";
 }
