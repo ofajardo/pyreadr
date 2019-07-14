@@ -2,13 +2,15 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <stdio.h>
+#include <time.h>
 
 typedef enum rdata_type_e {
     RDATA_TYPE_STRING,
     RDATA_TYPE_INT32,
     RDATA_TYPE_REAL,
     RDATA_TYPE_LOGICAL,
-    RDATA_TYPE_TIMESTAMP
+    RDATA_TYPE_TIMESTAMP,
+    RDATA_TYPE_DATE
 } rdata_type_t;
 
 typedef enum rdata_error_e {
@@ -153,6 +155,7 @@ rdata_error_t rdata_begin_column(rdata_writer_t *writer, rdata_column_t *column,
 rdata_error_t rdata_append_real_value(rdata_writer_t *writer, double value);
 rdata_error_t rdata_append_int32_value(rdata_writer_t *writer, int32_t value);
 rdata_error_t rdata_append_timestamp_value(rdata_writer_t *writer, time_t value);
+rdata_error_t rdata_append_date_value(rdata_writer_t *writer, struct tm *value);
 rdata_error_t rdata_append_logical_value(rdata_writer_t *writer, int value);
 rdata_error_t rdata_append_string_value(rdata_writer_t *writer, const char *value);
 

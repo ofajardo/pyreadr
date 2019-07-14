@@ -13,6 +13,10 @@
 
 #define INITIAL_COLUMNS_CAPACITY    100
 
+#ifdef _WIN32
+#define timegm _mkgmtime
+#endif
+
 rdata_writer_t *rdata_writer_init(rdata_data_writer write_callback, rdata_file_format_t format) {
     rdata_writer_t *writer = calloc(1, sizeof(rdata_writer_t));
     writer->file_format = format;
@@ -209,6 +213,25 @@ cleanup:
     return retval;
 }
 
+static rdata_error_t rdata_write_class_pairlist(rdata_writer_t *writer, const char *class) {
+    rdata_error_t retval = RDATA_OK;
+
+    retval = rdata_write_pairlist_header(writer, "class");
+    if (retval != RDATA_OK)
+        goto cleanup;
+
+    retval = rdata_write_simple_vector_header(writer, RDATA_SEXPTYPE_CHARACTER_VECTOR, 1);
+    if (retval != RDATA_OK)
+        goto cleanup;
+
+    retval = rdata_write_string(writer, class);
+    if (retval != RDATA_OK)
+        goto cleanup;
+
+cleanup:
+    return retval;
+}
+
 rdata_error_t rdata_begin_file(rdata_writer_t *writer, void *user_ctx) {
     rdata_error_t retval = RDATA_OK;
 
@@ -281,15 +304,7 @@ static rdata_error_t rdata_end_factor_column(rdata_writer_t *writer, rdata_colum
             goto cleanup;
     }
 
-    retval = rdata_write_pairlist_header(writer, "class");
-    if (retval != RDATA_OK)
-        goto cleanup;
-
-    retval = rdata_write_simple_vector_header(writer, RDATA_SEXPTYPE_CHARACTER_VECTOR, 1);
-    if (retval != RDATA_OK)
-        goto cleanup;
-
-    retval = rdata_write_string(writer, "factor");
+    retval = rdata_write_class_pairlist(writer, "factor");
     if (retval != RDATA_OK)
         goto cleanup;
 
@@ -316,15 +331,26 @@ static rdata_error_t rdata_begin_timestamp_column(rdata_writer_t *writer, rdata_
 static rdata_error_t rdata_end_timestamp_column(rdata_writer_t *writer, rdata_column_t *column) {
     rdata_error_t retval = RDATA_OK;
 
-    retval = rdata_write_pairlist_header(writer, "class");
+    retval = rdata_write_class_pairlist(writer, "POSIXct");
     if (retval != RDATA_OK)
         goto cleanup;
 
-    retval = rdata_write_simple_vector_header(writer, RDATA_SEXPTYPE_CHARACTER_VECTOR, 1);
+    retval = rdata_write_header(writer, RDATA_PSEUDO_SXP_NIL, 0);
     if (retval != RDATA_OK)
         goto cleanup;
 
-    retval = rdata_write_string(writer, "POSIXct");
+cleanup:
+    return retval;
+}
+
+static rdata_error_t rdata_begin_date_column(rdata_writer_t *writer, rdata_column_t *column, int32_t row_count) {
+    return rdata_write_attributed_vector_header(writer, RDATA_SEXPTYPE_REAL_VECTOR, row_count);
+}
+
+static rdata_error_t rdata_end_date_column(rdata_writer_t *writer, rdata_column_t *column) {
+    rdata_error_t retval = RDATA_OK;
+
+    retval = rdata_write_class_pairlist(writer, "Date");
     if (retval != RDATA_OK)
         goto cleanup;
 
@@ -372,6 +398,8 @@ rdata_error_t rdata_begin_column(rdata_writer_t *writer, rdata_column_t *column,
         return rdata_begin_real_column(writer, column, row_count);
     if (type == RDATA_TYPE_TIMESTAMP)
         return rdata_begin_timestamp_column(writer, column, row_count);
+    if (type == RDATA_TYPE_DATE)
+        return rdata_begin_date_column(writer, column, row_count);
     if (type == RDATA_TYPE_LOGICAL)
         return rdata_begin_logical_column(writer, column, row_count);
     if (type == RDATA_TYPE_STRING)
@@ -392,13 +420,15 @@ rdata_error_t rdata_append_timestamp_value(rdata_writer_t *writer, time_t value)
     return rdata_write_double(writer, value);
 }
 
+rdata_error_t rdata_append_date_value(rdata_writer_t *writer, struct tm *value) {
+    return rdata_write_double(writer, timegm(value) / 86400);
+}
+
 rdata_error_t rdata_append_logical_value(rdata_writer_t *writer, int value) {
     if (value < 0)
         return rdata_write_integer(writer, INT32_MIN);
-    if (value > 0)
-        return rdata_write_integer(writer, 1);
 
-    return rdata_write_integer(writer, 0);
+    return rdata_write_integer(writer, (value > 0));
 }
 
 rdata_error_t rdata_append_string_value(rdata_writer_t *writer, const char *value) {
@@ -417,6 +447,8 @@ rdata_error_t rdata_end_column(rdata_writer_t *writer, rdata_column_t *column) {
         return rdata_end_real_column(writer, column);
     if (type == RDATA_TYPE_TIMESTAMP)
         return rdata_end_timestamp_column(writer, column);
+    if (type == RDATA_TYPE_DATE)
+        return rdata_end_date_column(writer, column);
     if (type == RDATA_TYPE_LOGICAL)
         return rdata_end_logical_column(writer, column);
     if (type == RDATA_TYPE_STRING)
@@ -471,15 +503,7 @@ rdata_error_t rdata_end_table(rdata_writer_t *writer, int32_t row_count, const c
             goto cleanup;
     }
     
-    retval = rdata_write_pairlist_header(writer, "class");
-    if (retval != RDATA_OK)
-        goto cleanup;
-    
-    retval = rdata_write_simple_vector_header(writer, RDATA_SEXPTYPE_CHARACTER_VECTOR, 1);
-    if (retval != RDATA_OK)
-        goto cleanup;
-
-    retval = rdata_write_string(writer, "data.frame");
+    retval = rdata_write_class_pairlist(writer, "data.frame");
     if (retval != RDATA_OK)
         goto cleanup;
     

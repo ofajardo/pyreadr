@@ -136,9 +136,14 @@ def transform_data(pd_series, dtype, has_missing, dateformat, datetimeformat):
         pass
     elif dtype == "OBJECT":
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: str(x))
-    elif dtype == "DATE": 
+    elif dtype == "DATE":
+        # for now transforming to string
+        # potentially dates could be transformed to true DATE type in R using rdata_append_date_value
+        # for this, datetime.date must be trasnformed to a tm struct for example:
+        # https://stackoverflow.com/questions/39673816/want-to-perform-date-time-value-manipulation-using-struct-tm
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(dateformat))
     elif dtype == "DATETIME":
+        # transforming to string to avoid issues with timezones
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(datetimeformat))
     else:
         msg = "Unkown pyreadr data type"

@@ -63,6 +63,10 @@ class PyReadRBasic(unittest.TestCase):
         
         self.df_international_win = pd.read_csv(os.path.join(self.basic_data_folder, "international_win.csv"))
 
+        df_dates = pd.read_csv(os.path.join(self.basic_data_folder, "dates.csv"))
+        df_dates["d"] = df_dates["d"].apply(lambda x: datetime.datetime.strptime(x, "%Y-%m-%d").date() if type(x) == str else None)
+        self.df_dates = df_dates
+
     def test_rdata_basic(self):
 
         rdata_path = os.path.join(self.basic_data_folder, "two.RData")
@@ -162,6 +166,18 @@ class PyReadRBasic(unittest.TestCase):
         df = res[None]
         df.a = df.a.astype('object')
         self.assertTrue(self.df_international_win.equals(df))
+
+    def test_rdata_dates(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "dates.RData")
+        res = pyreadr.read_r(rdata_path)
+        self.assertTrue(self.df_dates.equals(res['df']))
+
+    def test_rds_dates(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "dates.rds")
+        res = pyreadr.read_r(rdata_path)
+        self.assertTrue(self.df_dates.equals(res[None]))
         
 
 if __name__ == '__main__':

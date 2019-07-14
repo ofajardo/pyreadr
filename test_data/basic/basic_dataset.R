@@ -41,3 +41,10 @@ save(df3, file = "tzone.RData")
 df3$tstampa <- as.character(df3$tstampa)
 df3$tstampb <- as.character(df3$tstampb)
 write.csv(df3 ,file="df3.csv", row.names=FALSE)
+
+# dates
+d <- as.Date(c("2019/07/14", "1794/01/01","1970/01/01", ""))
+df <- data.frame(d)
+saveRDS(df, "dates.rds")
+save(df, file="dates.RData")
+write.csv(df ,file="dates.csv", row.names=FALSE)

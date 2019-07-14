@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import os.path
 from cython.operator cimport dereference as deref
+from libc.string cimport strlen
 
 from .custom_errors import PyreadrError, LibrdataError
 
@@ -15,6 +16,7 @@ class DataType(Enum):
     NUMERIC    = rdata_type_t.RDATA_TYPE_REAL
     LOGICAL    = rdata_type_t.RDATA_TYPE_LOGICAL
     TIMESTAMP  = rdata_type_t.RDATA_TYPE_TIMESTAMP
+    DATE       = rdata_type_t.RDATA_TYPE_DATE
 
 
 cdef int _os_open(path, mode):
@@ -164,7 +166,7 @@ cdef class Parser:
         cdef double *doubles = <double*>data
         cdef int *ints = <int*>data
 
-        if type == rdata_type_t.RDATA_TYPE_REAL or type == rdata_type_t.RDATA_TYPE_TIMESTAMP:
+        if type in [rdata_type_t.RDATA_TYPE_REAL, rdata_type_t.RDATA_TYPE_TIMESTAMP, rdata_type_t.RDATA_TYPE_DATE]:
             array = np.empty([count], dtype=np.float64)
             for i in range(count):
                 array[i] = doubles[i];

@@ -1,6 +1,6 @@
 # cython: c_string_type=str, c_string_encoding=utf8, language_level=3
 
-from libc.time cimport time_t
+from libc.time cimport time_t, tm
 from libc.stdint cimport int32_t
 from libc.stddef cimport wchar_t
 
@@ -19,6 +19,7 @@ cdef extern from 'libs/librdata/src/rdata.h':
         RDATA_TYPE_REAL
         RDATA_TYPE_LOGICAL
         RDATA_TYPE_TIMESTAMP
+        RDATA_TYPE_DATE
 
     cdef enum rdata_error_t 'rdata_error_e':
         RDATA_OK
@@ -116,6 +117,7 @@ cdef extern from 'libs/librdata/src/rdata.h':
     rdata_error_t rdata_append_real_value(rdata_writer_t *writer, double value);
     rdata_error_t rdata_append_int32_value(rdata_writer_t *writer, int32_t value);
     rdata_error_t rdata_append_timestamp_value(rdata_writer_t *writer, time_t value);
+    rdata_error_t rdata_append_date_value(rdata_writer_t *writer, tm *value)
     rdata_error_t rdata_append_logical_value(rdata_writer_t *writer, int value);
     rdata_error_t rdata_append_string_value(rdata_writer_t *writer, const char *value);
 
