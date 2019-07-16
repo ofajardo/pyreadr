@@ -219,7 +219,7 @@ print(object_list) # let's check what objects we got and what columns those have
 
 ### Reading timestamps and timezones
 
-R Date objects are read as integers (number of days since Jan 1st 1970). As librdata does not give back attributes such as class we cannot convert them automatically to a python datetime.
+R Date objects are read as datetime.date objects.
 
 R datetime objects (POSIXct and POSIXlt) are internally stored as UTC timestamps, and may have additional timezone
 information if the user set it explicitly. If no timezone information
@@ -259,7 +259,7 @@ transformed back to POSIX with as.POSIXct/lt (see later).
 ### What objects can be read and written
 
 Data frames composed of character, numeric (double), integer, timestamp (POSIXct 
-and POSIXlt), logical atomic vectors. Factors are also supported.
+and POSIXlt), date, logical atomic vectors. Factors are also supported.
 
 Tibbles are also supported.
 
@@ -321,8 +321,6 @@ NaN and missing value representation, and it will always be written as NaN in R.
 * As explained before, although atomic vectors can also be directly read, as librdata
 does not give the information of the type of object it parsed everything
 is translated to a pandas data frame.
-
-* R Date objects are read as integers (number of days since Jan 1st 1970). As librdata does not give back attributes such as class (type of object) we cannot convert them automatically to a python datetime.
 
 * POSIXct and POSIXlt objects in R are stored internally as UTC timestamps and may have
 in addition time zone information. librdata does not return time zone information and

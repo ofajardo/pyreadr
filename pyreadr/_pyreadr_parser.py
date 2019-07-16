@@ -2,6 +2,7 @@
 @author: Otto Fajardo
 """
 from collections import OrderedDict
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -86,6 +87,9 @@ class Table:
                 df[colname] = pd.to_datetime(df[colname], unit='s')
                 if self.timezone:
                     df[colname] = df[colname].dt.tz_localize('UTC').dt.tz_convert(self.timezone)
+            elif dtype.name == "DATE":
+                df.loc[df[colname] == np.inf, colname] = np.nan
+                df[colname] = df[colname].values.astype("datetime64[D]").astype(datetime)
             elif dtype.name == "LOGICAL" or dtype.name == "INTEGER":
                 # iscategorical = value_labels.get(colindx)
                 # if not iscategorical:
