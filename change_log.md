@@ -1,3 +1,7 @@
+# 0.2.1 (github, pypi and conda: 2019.07.16)
+* librdata updated to 5987b140875eab59bf876ed18f2e5344484fe376 implemented the ability to read 
+  vectors of type Date.
+
 # 0.2.0 (github, pypi and conda: 2019.07.08)
 * librdata source updated to 615dee09955b318ce128e0bfcc9d50aa3c9b7b7c 
   fixes #10 and reading files produced on windows with non ascii characters in content.
