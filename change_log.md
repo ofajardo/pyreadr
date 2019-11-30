@@ -1,3 +1,6 @@
+# 0.2.2 (github, pypi and conda: 2019.11.20)
+* static linking iconv on mac.
+
 # 0.2.1 (github, pypi and conda: 2019.07.16)
 * librdata updated to 5987b140875eab59bf876ed18f2e5344484fe376 implemented the ability to read 
   vectors of type Date.

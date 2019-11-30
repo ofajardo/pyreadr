@@ -1,0 +1,8 @@
+* commit and push to the main repo, this will trigger appveyor. Collect the artifacts manually and put them in the folder dist.
+* go to pyreadr_wheels2, git rm the folder wheels
+* in pyreadr_wheels2, change .travis.yml changing the commit to the current one, commit and push. This will trigger the 
+  travis job that will start introducing commits with one wheel per commit. It also triggers appveyor which will fail, but that's ok.
+  If a job fails, go to travis and restart it. 
+* in pyreadr_wheels2, git pull the folder wheels will now have the wheels, copy and paste into the folder dist of pyreadr.
+* in pyreadr produce the source distribution which goes into dist.
+* upload to pypi using twine
