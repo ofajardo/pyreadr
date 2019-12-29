@@ -365,6 +365,8 @@ for rdata files are not supported.
 by pyreadr are not compressed and therefore pretty bulky in comparison. Pyreadr writing is a relative slow operation
 compared to doint it in R.
 
+* Cannot read RData or rds files in encodings other than utf-8.
+
 Solutions to some of these limitations have been proposed in the upstream librdata [issues](https://github.com/WizardMac/librdata/issues) (points 1-4 are addressed by issue 12, point 5 by issue 16 and point 7 by issue 17). However there is no guarantee that these changes will be made and there are no timelines either. If you think it would be nice if these issues are solved, please express your support in the librdata issues.
 
 ## Change Log
