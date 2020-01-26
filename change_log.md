@@ -1,3 +1,6 @@
+# 0.2.3 (github, pypi and conda: 2020.01.26)
+* pandas added as install requirement
+
 # 0.2.2 (github, pypi and conda: 2019.11.20)
 * static linking iconv on mac.
 
