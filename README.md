@@ -44,9 +44,7 @@ for assignment? Then try [PytwisteR](https://github.com/ofajardo/pytwister)! Pyt
 ## Dependencies
 
 The module depends on pandas, which you normally have installed if you got Anaconda (highly recommended.) If creating
-a new conda or virtual environment or if you don't have it in your base installation, you will have to install it 
-manually before using pyreadr. Pandas is not selected as a dependency in the pip package, as that would install 
-pandas with pip and many people would prefer installing it with conda.
+a new conda or virtual environment or if you don't have it in your base installation, pandas should get installed automatically.
 
 In order to compile from source, you will need a C compiler (see installation) and cython 
 (version >= 0.28).
