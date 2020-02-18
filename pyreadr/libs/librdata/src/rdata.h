@@ -46,7 +46,10 @@ typedef int (*rdata_column_name_handler)(const char *value, int index, void *ctx
 typedef void (*rdata_error_handler)(const char *error_message, void *ctx);
 typedef int (*rdata_progress_handler)(double progress, void *ctx);
 
-#if defined _WIN32 || defined __CYGWIN__
+#ifdef _MSC_VER
+typedef off_t rdata_off_t;
+typedef __int64 ssize_t;
+#elif defined _WIN32 || defined __CYGWIN__
 typedef _off64_t rdata_off_t;
 #elif defined _AIX
 typedef off64_t rdata_off_t;
