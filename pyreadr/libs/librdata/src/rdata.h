@@ -46,10 +46,7 @@ typedef int (*rdata_column_name_handler)(const char *value, int index, void *ctx
 typedef void (*rdata_error_handler)(const char *error_message, void *ctx);
 typedef int (*rdata_progress_handler)(double progress, void *ctx);
 
-#ifdef _MSC_VER
-typedef off_t rdata_off_t;
-typedef __int64 ssize_t;
-#elif defined _WIN32 || defined __CYGWIN__
+#if defined _WIN32 || defined __CYGWIN__
 typedef _off64_t rdata_off_t;
 #elif defined _AIX
 typedef off64_t rdata_off_t;
@@ -83,6 +80,7 @@ typedef struct rdata_parser_s {
     rdata_table_handler         table_handler;
     rdata_column_handler        column_handler;
     rdata_column_name_handler   column_name_handler;
+    rdata_column_name_handler   row_name_handler;
     rdata_text_value_handler    text_value_handler;
     rdata_text_value_handler    value_label_handler;
     rdata_error_handler         error_handler;
@@ -95,6 +93,7 @@ void rdata_parser_free(rdata_parser_t *parser);
 rdata_error_t rdata_set_table_handler(rdata_parser_t *parser, rdata_table_handler table_handler);
 rdata_error_t rdata_set_column_handler(rdata_parser_t *parser, rdata_column_handler column_handler);
 rdata_error_t rdata_set_column_name_handler(rdata_parser_t *parser, rdata_column_name_handler column_name_handler);
+rdata_error_t rdata_set_row_name_handler(rdata_parser_t *parser, rdata_column_name_handler row_name_handler);
 rdata_error_t rdata_set_text_value_handler(rdata_parser_t *parser, rdata_text_value_handler text_value_handler);
 rdata_error_t rdata_set_value_label_handler(rdata_parser_t *parser, rdata_text_value_handler value_label_handler);
 rdata_error_t rdata_set_error_handler(rdata_parser_t *parser, rdata_error_handler error_handler);
@@ -162,3 +161,4 @@ rdata_error_t rdata_append_string_value(rdata_writer_t *writer, const char *valu
 rdata_error_t rdata_end_column(rdata_writer_t *writer, rdata_column_t *column);
 rdata_error_t rdata_end_table(rdata_writer_t *writer, int32_t row_count, const char *datalabel);
 rdata_error_t rdata_end_file(rdata_writer_t *writer);
+

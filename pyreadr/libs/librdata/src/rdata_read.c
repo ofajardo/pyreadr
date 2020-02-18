@@ -31,8 +31,6 @@
 #include "rdata.h"
 #include "rdata_internal.h"
 
-#define RDATA_ATOM_LEN 128
-
 #define RDATA_CLASS_POSIXCT 0x01
 #define RDATA_CLASS_DATE    0x02
 
@@ -47,8 +45,8 @@
 #endif
 
 typedef struct rdata_atom_table_s {
-    int   count;
-    char *data;
+    int    count;
+    char **data;
 } rdata_atom_table_t;
 
 typedef struct rdata_ctx_s {
@@ -56,6 +54,7 @@ typedef struct rdata_ctx_s {
     rdata_table_handler          table_handler;
     rdata_column_handler         column_handler;
     rdata_column_name_handler    column_name_handler;
+    rdata_column_name_handler    row_name_handler;
     rdata_text_value_handler     text_value_handler;
     rdata_text_value_handler     value_label_handler;
     rdata_error_handler       error_handler;
@@ -94,7 +93,7 @@ static rdata_error_t read_string_vector_n(int attributes, int32_t length, rdata_
 static rdata_error_t read_string_vector(int attributes, rdata_text_value_handler text_value_handler, 
         void *callback_ctx, rdata_ctx_t *ctx);
 static rdata_error_t read_value_vector(rdata_sexptype_header_t header, const char *name, rdata_ctx_t *ctx);
-static rdata_error_t read_character_string(char *key, size_t keylen, rdata_ctx_t *ctx);
+static rdata_error_t read_character_string(char **key, rdata_ctx_t *ctx);
 static rdata_error_t read_generic_list(int attributes, rdata_ctx_t *ctx);
 static rdata_error_t read_attributes(int (*handle_attribute)(char *key, rdata_sexptype_info_t val_info, rdata_ctx_t *ctx),
                            rdata_ctx_t *ctx);
@@ -115,9 +114,8 @@ static void *rdata_realloc(void *buf, size_t len) {
 }
 
 static int atom_table_add(rdata_atom_table_t *table, char *key) {
-    table->data = realloc(table->data, RDATA_ATOM_LEN * (table->count + 1));
-    memcpy(&table->data[RDATA_ATOM_LEN*table->count], key, strlen(key) + 1);
-    table->count++;
+    table->data = realloc(table->data, sizeof(char *) * (table->count + 1));
+    table->data[table->count++] = strdup(key);
     return table->count;
 }
 
@@ -125,7 +123,7 @@ static char *atom_table_lookup(rdata_atom_table_t *table, int index) {
     if (index <= 0 || index > table->count) {
         return NULL;
     }
-    return &table->data[(index-1)*RDATA_ATOM_LEN];
+    return table->data[(index-1)];
 }
 
 #if HAVE_BZIP2
@@ -606,6 +604,9 @@ void free_rdata_ctx(rdata_ctx_t *ctx) {
     }
     if (ctx->atom_table) {
         if (ctx->atom_table->data) {
+            int i;
+            for (i=0; i<ctx->atom_table->count; i++)
+                free(ctx->atom_table->data[i]);
             free(ctx->atom_table->data);
         }
         free(ctx->atom_table);
@@ -648,6 +649,7 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
     rdata_error_t retval = RDATA_OK;
     rdata_v2_header_t v2_header;
     rdata_ctx_t *ctx = rdata_ctx_init(parser->io, filename);
+    char *encoding = NULL;
 
     if (ctx == NULL) {
         retval = RDATA_ERROR_OPEN;
@@ -658,6 +660,7 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
     ctx->table_handler = parser->table_handler;
     ctx->column_handler = parser->column_handler;
     ctx->column_name_handler = parser->column_name_handler;
+    ctx->row_name_handler = parser->row_name_handler;
     ctx->text_value_handler = parser->text_value_handler;
     ctx->value_label_handler = parser->value_label_handler;
     ctx->error_handler = parser->error_handler;
@@ -694,12 +697,11 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
     }
 
     if (v2_header.format_version == 3) {
-        char encoding[64];
-        retval = read_character_string(encoding, sizeof(encoding), ctx);
+        retval = read_character_string(&encoding, ctx);
         if (retval != RDATA_OK)
             goto cleanup;
 
-        if (strncmp("UTF-8", encoding, sizeof(encoding)) != 0) {
+        if (strcmp("UTF-8", encoding) != 0) {
             if ((ctx->converter = iconv_open("UTF-8", encoding)) == (iconv_t)-1) {
                 ctx->converter = NULL;
                 retval = RDATA_ERROR_UNSUPPORTED_CHARSET;
@@ -724,6 +726,8 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
     }
     
 cleanup:
+    if (encoding)
+        free(encoding);
     if (ctx) {
         free_rdata_ctx(ctx);
     }
@@ -873,12 +877,13 @@ static rdata_error_t read_sexptype_header(rdata_sexptype_info_t *header_info, rd
                 goto cleanup;
             }
                         
-            char key[RDATA_ATOM_LEN];
-            
-            if ((retval = read_character_string(key, RDATA_ATOM_LEN, ctx)) != RDATA_OK)
+            char *key = NULL;
+            if ((retval = read_character_string(&key, ctx)) != RDATA_OK)
                 goto cleanup;
 
             ref = atom_table_add(ctx->atom_table, key);
+
+            free(key);
         } else if ((tag & 0xFF) == RDATA_PSEUDO_SXP_REF) {
             ref = (tag >> 8);
         }
@@ -920,9 +925,10 @@ static int handle_vector_attribute(char *key, rdata_sexptype_info_t val_info, rd
     return retval;
 }
 
-static rdata_error_t read_character_string(char *key, size_t keylen, rdata_ctx_t *ctx) {
+static rdata_error_t read_character_string(char **key, rdata_ctx_t *ctx) {
     uint32_t length;
     char *string = NULL;
+    char *utf8_string = NULL;
     rdata_error_t retval = RDATA_OK;
     
     if (read_st(ctx, &length, sizeof(length)) != sizeof(length)) {
@@ -934,7 +940,7 @@ static rdata_error_t read_character_string(char *key, size_t keylen, rdata_ctx_t
         length = byteswap4(length);
     
     if (length == -1 || length == 0) {
-        key[0] = '\0';
+        *key = strdup("");
         return RDATA_OK;
     }
 
@@ -952,13 +958,24 @@ static rdata_error_t read_character_string(char *key, size_t keylen, rdata_ctx_t
         goto cleanup;
     }
 
-    retval = rdata_convert(key, keylen, string, length, ctx->converter);
+    if ((utf8_string = rdata_malloc(4*length+1)) == NULL) {
+        retval = RDATA_ERROR_MALLOC;
+        goto cleanup;
+    }
+
+    retval = rdata_convert(utf8_string, 4*length+1, string, length, ctx->converter);
     if (retval != RDATA_OK)
         goto cleanup;
     
 cleanup:
     if (string)
         free(string);
+
+    if (retval == RDATA_OK) {
+        *key = utf8_string;
+    } else if (utf8_string) {
+        free(utf8_string);
+    }
     
     return retval;
 }
@@ -968,6 +985,8 @@ static int handle_data_frame_attribute(char *key, rdata_sexptype_info_t val_info
     
     if (strcmp(key, "names") == 0 && val_info.header.type == RDATA_SEXPTYPE_CHARACTER_VECTOR) {
         retval = read_string_vector(val_info.header.attributes, ctx->column_name_handler, ctx->user_ctx, ctx);
+    } else if (strcmp(key, "row.names") == 0 && val_info.header.type == RDATA_SEXPTYPE_CHARACTER_VECTOR) {
+        retval = read_string_vector(val_info.header.attributes, ctx->row_name_handler, ctx->user_ctx, ctx);
     } else if (strcmp(key, "label.table") == 0) {
         retval = recursive_discard(val_info.header, ctx);
     } else {
@@ -1112,14 +1131,6 @@ static rdata_error_t read_string_vector_n(int attributes, int32_t length,
             }
         }
 
-        if (ctx->converter && 4*string_length + 1 > utf8_buffer_size) {
-            utf8_buffer_size = 4*string_length + 1;
-            if ((utf8_buffer = rdata_realloc(utf8_buffer, utf8_buffer_size)) == NULL) {
-                retval = RDATA_ERROR_MALLOC;
-                goto cleanup;
-            }
-        }
-        
         if (string_length >= 0) {
             if (read_st(ctx, buffer, string_length) != string_length) {
                 retval = RDATA_ERROR_READ;
@@ -1135,6 +1146,13 @@ static rdata_error_t read_string_vector_n(int attributes, int32_t length,
             } else if (!ctx->converter) {
                 cb_retval = text_value_handler(buffer, i, callback_ctx);
             } else {
+                if (4*string_length + 1 > utf8_buffer_size) {
+                    utf8_buffer_size = 4*string_length + 1;
+                    if ((utf8_buffer = rdata_realloc(utf8_buffer, utf8_buffer_size)) == NULL) {
+                        retval = RDATA_ERROR_MALLOC;
+                        goto cleanup;
+                    }
+                }
                 retval = rdata_convert(utf8_buffer, utf8_buffer_size, buffer, string_length, ctx->converter);
                 if (retval != RDATA_OK)
                     goto cleanup;
@@ -1289,14 +1307,16 @@ cleanup:
 
 static rdata_error_t discard_character_string(int add_to_table, rdata_ctx_t *ctx) {
     rdata_error_t retval = RDATA_OK;
-    char key[RDATA_ATOM_LEN];
+    char *key = NULL;
     
-    if ((retval = read_character_string(key, RDATA_ATOM_LEN, ctx)) != RDATA_OK)
+    if ((retval = read_character_string(&key, ctx)) != RDATA_OK)
         goto cleanup;
     
     if (strlen(key) > 0 && add_to_table) {
         atom_table_add(ctx->atom_table, key);
     }
+
+    free(key);
     
 cleanup:
     
