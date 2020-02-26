@@ -1,6 +1,5 @@
 # 0.2.5 (github, pypi and conda: 20120.02.26)
 * expanding user (~) when reading files, checking that file exists.
-* adding windows wheels for 32 bit python. 
 
 # 0.2.4 (github, pypi and conda: 2020.02.18)
 * updated librdata to commit a29cba35bc167b2f60c90a7cafa5630fbe54b053

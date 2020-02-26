@@ -5,6 +5,7 @@ import unittest
 import os
 import datetime
 import warnings
+import shutil
 
 import pandas as pd
 import numpy as np
@@ -179,7 +180,15 @@ class PyReadRBasic(unittest.TestCase):
         res = pyreadr.read_r(rdata_path)
         self.assertTrue(self.df_dates.equals(res[None]))
         
+    def test_rds_expanduser(self):
 
+        rds_path = os.path.join(self.basic_data_folder, "one.Rds")
+        dst_path = "~/one.Rds"
+        shutil.copyfile(rds_path, os.path.expanduser(dst_path) )
+        res = pyreadr.read_r(dst_path)
+        os.remove(os.path.expanduser(dst_path))
+        self.assertTrue(self.df1.equals(res[None]))
+ 
 if __name__ == '__main__':
 
     import sys
