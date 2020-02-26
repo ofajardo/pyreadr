@@ -71,6 +71,12 @@ def list_objects(path):
     """
 
     parser = ListObjectsParser()
+    if not isinstance(path, str):
+        raise PyreadrError("path must be a string!")
+    path = os.path.expanduser(path)
+    if not os.path.isfile(path):
+        raise PyreadrError("File {0} does not exist!".format(path))
+ 
     parser.parse(path)
     return parser.object_list
     
@@ -105,6 +111,11 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
     
     file_format = "rdata"
     writer = PyreadrWriter()
+
+    if not isinstance(path, str):
+        raise PyreadrError("path must be a string!")
+    path = os.path.expanduser(path)
+
     writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat)
 
 
@@ -131,5 +142,9 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
     
     file_format = "rds"
     df_name = ""   # this is irrelevant in this case, but we need to pass something
+    if not isinstance(path, str):
+        raise PyreadrError("path must be a string!")
+    path = os.path.expanduser(path)
+
     writer = PyreadrWriter()
     writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat)

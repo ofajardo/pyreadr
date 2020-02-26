@@ -188,6 +188,31 @@ class PyReadRBasic(unittest.TestCase):
         res = pyreadr.read_r(dst_path)
         os.remove(os.path.expanduser(dst_path))
         self.assertTrue(self.df1.equals(res[None]))
+
+    def test_list_objects_rdata_expanduser(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "two.RData")
+        dst_path = "~/two.RData"
+        shutil.copyfile(rdata_path, os.path.expanduser(dst_path) )
+        res = pyreadr.list_objects(dst_path)
+        os.remove(os.path.expanduser(dst_path))
+        self.assertListEqual(self.rdata_objects_description, res)
+
+    def test_write_rds_expanduser(self):
+        
+        path = "~/test_expand.Rds"
+        pyreadr.write_rds(path, self.df_out)
+        isfile = os.path.isfile(os.path.expanduser(path))
+        os.remove(os.path.expanduser(path))
+        self.assertTrue(isfile)
+
+    def test_write_rdata_expanduser(self):
+        
+        path = "~/Test_expand.RData"
+        pyreadr.write_rdata(path, self.df_out)
+        isfile = os.path.isfile(os.path.expanduser(path))
+        os.remove(os.path.expanduser(path))
+        self.assertTrue(isfile)
  
 if __name__ == '__main__':
 

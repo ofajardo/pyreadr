@@ -1,4 +1,7 @@
-# 0.2.5 (github, pypi and conda: 20120.02.26)
+# 0.2.6 (github, pypi and conda: 20120.02.26)
+* expanding user for list objects and write functions
+
+# 0.2.5 (release deleted from pypi)
 * expanding user (~) when reading files, checking that file exists.
 
 # 0.2.4 (github, pypi and conda: 2020.02.18)
