@@ -2,6 +2,7 @@
 @author: Otto Fajardo
 """
 from collections import OrderedDict
+import os
 
 import pandas as pd
 
@@ -37,6 +38,12 @@ def read_r(path, use_objects=None, timezone=None):
         parser.set_use_objects(use_objects)
     if timezone:
         parser.set_timezone(timezone)
+
+    if not isinstance(path, str):
+        raise PyreadrError("path must be a string!")
+    path = os.path.expanduser(path)
+    if not os.path.isfile(path):
+        raise PyreadrError("File {0} does not exist!".format(path))
     parser.parse(path)
 
     result = OrderedDict()
