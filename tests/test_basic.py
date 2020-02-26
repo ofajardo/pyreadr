@@ -203,7 +203,10 @@ class PyReadRBasic(unittest.TestCase):
         path = "~/test_expand.Rds"
         pyreadr.write_rds(path, self.df_out)
         isfile = os.path.isfile(os.path.expanduser(path))
-        os.remove(os.path.expanduser(path))
+        try:
+            os.remove(os.path.expanduser(path))
+        except:
+            pass
         self.assertTrue(isfile)
 
     def test_write_rdata_expanduser(self):
@@ -211,7 +214,10 @@ class PyReadRBasic(unittest.TestCase):
         path = "~/Test_expand.RData"
         pyreadr.write_rdata(path, self.df_out)
         isfile = os.path.isfile(os.path.expanduser(path))
-        os.remove(os.path.expanduser(path))
+        try:
+            os.remove(os.path.expanduser(path))
+        except:
+            pass
         self.assertTrue(isfile)
  
 if __name__ == '__main__':
