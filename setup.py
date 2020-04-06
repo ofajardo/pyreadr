@@ -74,7 +74,7 @@ setup(
     packages=["pyreadr"],
     include_package_data=True,
     data_files=data_files,
-    install_requires=['pandas'],
+    install_requires=['pandas>0.24.0'],
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Cython",
