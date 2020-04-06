@@ -5,3 +5,5 @@
 /build
 /pyreadr.egg-info
 /pyreadr/__pycache__
+test_data/write/
+docs/__pycache__/

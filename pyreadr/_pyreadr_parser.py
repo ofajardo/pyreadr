@@ -98,10 +98,11 @@ class Table:
                 # values, therefore we need to change the data type to
                 # object to be able to mix integers and the float nan
                 # In addition np.bool(np.nan) evaluates to True, we have to take care of that
+                # Edit: as of pandas 0.24.1 there are mixed Int types that support NaNs (Int8, Int32, etc)
                 na_index = df[colname] <= -2147483648
                 if np.any(na_index):
                     if dtype.name == "INTEGER":
-                        df[colname] = df[colname].astype(np.object)
+                        df[colname] = df[colname].astype("Int32")
                         df.loc[na_index, colname] = np.nan
                     elif dtype.name == "LOGICAL":
                         df[colname] = df[colname].astype('bool')
@@ -120,6 +121,7 @@ class Table:
         if self.value_labels:
             for colindx, labels in self.value_labels.items():
                 colname = self.final_names[colindx]
+                self.df[colname] = self.df[colname].astype('float')
                 self.df = self.df.replace({colname: labels})
                 self.df[colname] = self.df[colname].astype("category")
 

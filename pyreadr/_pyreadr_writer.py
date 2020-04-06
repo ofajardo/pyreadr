@@ -16,8 +16,9 @@ from .custom_errors import PyreadrError
 
 int_types = {np.dtype('int32'), np.dtype('int16'), np.dtype('int8'), np.dtype('uint8'), np.dtype('uint16'),
              np.int32, np.int16, np.int8, np.uint8, np.uint16}
+int_mixed_types = {pd.Int8Dtype(), pd.Int16Dtype(), pd.Int32Dtype(), pd.UInt8Dtype(), pd.UInt16Dtype()}
 float_types = {np.dtype('int64'), np.dtype('uint64'), np.dtype('uint32'), np.dtype('float'),
-               np.int64, np.uint64, np.uint32, np.float}
+               np.int64, np.uint64, np.uint32, np.float, pd.Int64Dtype(), pd.UInt32Dtype(), pd.UInt64Dtype()}
 datetime_types = {datetime.datetime, np.datetime64}
 
 pyreadr_to_librdata_types = {"INTEGER": "INTEGER", "NUMERIC": "NUMERIC",
@@ -59,10 +60,13 @@ def get_pyreadr_column_types(df):
                 missing = pd.isna(df[col_name])
                 if np.any(missing):
                     has_missing_values[indx] = True
-        elif col_type == np.object:
+        elif col_type == np.object or col_type in int_mixed_types:
             missing = pd.isna(df[col_name])
             if np.any(missing):
                 has_missing_values[indx] = True
+                if col_type in int_mixed_types:
+                    result[col_name] = "INTEGER"
+                    continue
                 col = df[col_name].dropna()
                 if len(col):
                     curtype = type(col[0])
@@ -74,6 +78,9 @@ def get_pyreadr_column_types(df):
                     result[col_name] = "LOGICAL"
                     continue
             else:
+                if col_type in int_mixed_types:
+                    result[col_name] = "INTEGER"
+                    continue
                 curtype = type(df[col_name][0])
                 equal = df[col_name].apply(lambda x: type(x) == curtype)
                 if not np.all(equal):
@@ -123,6 +130,7 @@ def transform_data(pd_series, dtype, has_missing, dateformat, datetimeformat):
     """
 
     if dtype == "INTEGER":
+        pd_series = pd_series.astype("Int32") # if int8 setting min_integer would cause overflow
         if has_missing:
             pd_series.loc[pd.isna(pd_series)] = librdata_min_integer
         pd_series = pd_series.astype(np.int32)

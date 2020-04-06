@@ -22,7 +22,7 @@ class PyReadRBasic(unittest.TestCase):
         self.write_data_folder = os.path.join(self.data_folder, "write")
 
         df1_dtypes = {'num': np.float64,
-                      'int': np.object,
+                      'int': "Int32",
                       'char': np.object,
                       'fac': 'category'}
                       
