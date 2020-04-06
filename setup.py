@@ -34,7 +34,7 @@ elif platform.system() == 'Windows':
     library_dirs.append('pyreadr/libs/librdata')
     
     data_folder = "win_libs/64bit/"
-    data_files = [("", [data_folder + "zlib.dll", data_folder + "iconv.dll",
+    data_files = [("Lib/site-packages/pyreadr", [data_folder + "zlib.dll", data_folder + "iconv.dll",
                         data_folder + "charset.dll", data_folder + "iconv.lib"])]
                         
     library_dirs.append(data_folder)
@@ -69,7 +69,7 @@ short_description = "Reads/writes R RData and Rds files into/from pandas data fr
 
 setup(
     name='pyreadr',
-    version='0.2.6',
+    version='0.2.7',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=True,
