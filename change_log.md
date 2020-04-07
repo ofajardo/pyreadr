@@ -1,3 +1,7 @@
+# 0.2.7 (github, pypi and conda: 2020.04.07)
+* write is able to cope with mixed integer pandas types
+* Windows dlls are now copied into the package folder instead of python root
+
 # 0.2.6 (github, pypi and conda: 20120.02.26)
 * expanding user for list objects and write functions
 
