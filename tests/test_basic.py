@@ -219,6 +219,16 @@ class PyReadRBasic(unittest.TestCase):
         except:
             pass
         self.assertTrue(isfile)
+		
+    def test_rdata_bzip2(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "two_bzip2.RData")
+        res = pyreadr.read_r(rdata_path)
+        self.assertListEqual(list(res.keys()), self.rdata_objects)
+        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        self.assertTrue(self.df1.equals(res['df1']))
+        self.assertTrue(self.df2.equals(res['df2']))
  
 if __name__ == '__main__':
 
