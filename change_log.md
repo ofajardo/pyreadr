@@ -1,3 +1,5 @@
+# 0.2.8 (github, pypi and conda: )
+* reading files with bzip2 compression
 # 0.2.7 (github, pypi and conda: 2020.04.07)
 * write is able to cope with mixed integer pandas types
 * Windows dlls are now copied into the package folder instead of python root
