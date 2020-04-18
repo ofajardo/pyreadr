@@ -25,6 +25,13 @@ class PyReadRBasic(unittest.TestCase):
                       'int': np.object,
                       'char': np.object,
                       'fac': 'category'}
+
+        df1_tstamp_dtypes = {'num': np.float64,
+                      'int': np.object,
+                      'char': np.object,
+                      'fac': 'category',
+                      'tstamp1': str,
+                      'tstamp2': str}
                       
         df2_dtypes = {'num2': np.float64,
                       'int2': np.int32,
@@ -34,12 +41,17 @@ class PyReadRBasic(unittest.TestCase):
         df1 = pd.read_csv(os.path.join(self.basic_data_folder, "df1.csv"), dtype=df1_dtypes, parse_dates=[5, 6],
                           keep_default_na=False, na_values=["NA"])
         df1.loc[df1['int'].notnull(), 'int'] = df1.loc[df1['int'].notnull(), 'int'].astype(np.int32)
+        
+        df1_tstamp = pd.read_csv(os.path.join(self.basic_data_folder, "df1.csv"), dtype=df1_tstamp_dtypes,
+                          keep_default_na=False, na_values=["NA"])
+        df1_tstamp.loc[df1['int'].notnull(), 'int'] = df1.loc[df1['int'].notnull(), 'int'].astype(np.int32)
 
         df2 = pd.read_csv(os.path.join(self.basic_data_folder, "df2.csv"), dtype=df2_dtypes)
 
         df3 = pd.read_csv(os.path.join(self.basic_data_folder, "df3.csv"), parse_dates=[0, 1])
 
         self.df1 = df1
+        self.df1_tstamp = df1_tstamp
         self.df2 = df2
         self.df3 = df3
 
@@ -228,11 +240,8 @@ class PyReadRBasic(unittest.TestCase):
         # numpy comparing NaNs raises a runtimewarning, let's ignore that here
         warnings.simplefilter("ignore", category=RuntimeWarning)
         # for some reason when R saves with bzip2 compression dates go to character
-        df1 = self.df1
-        df1['tstamp1'] = df1['tstamp1'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        df1['tstamp2'] = df1['tstamp2'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        self.assertTrue(df1.equals(res['df1']))
-        self.assertTrue(df2.equals(res['df2']))
+        self.assertTrue(self.df1_tstamp.equals(res['df1']))
+        self.assertTrue(self.df2.equals(res['df2']))
  
 if __name__ == '__main__':
 
