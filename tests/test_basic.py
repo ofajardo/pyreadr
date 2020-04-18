@@ -219,7 +219,7 @@ class PyReadRBasic(unittest.TestCase):
         except:
             pass
         self.assertTrue(isfile)
-		
+
     def test_rdata_bzip2(self):
 
         rdata_path = os.path.join(self.basic_data_folder, "two_bzip2.RData")
@@ -227,8 +227,12 @@ class PyReadRBasic(unittest.TestCase):
         self.assertListEqual(list(res.keys()), self.rdata_objects)
         # numpy comparing NaNs raises a runtimewarning, let's ignore that here
         warnings.simplefilter("ignore", category=RuntimeWarning)
-        self.assertTrue(self.df1.equals(res['df1']))
-        self.assertTrue(self.df2.equals(res['df2']))
+        # for some reason when R saves with bzip2 compression dates go to character
+        df1 = self.df1
+        df1['tstamp1'] = df1['tstamp1'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        df1['tstamp2'] = df1['tstamp2'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        self.assertTrue(df1.equals(res['df1']))
+        self.assertTrue(df2.equals(res['df2']))
  
 if __name__ == '__main__':
 

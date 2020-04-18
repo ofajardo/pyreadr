@@ -19,7 +19,7 @@ library_dirs = []
 libraries = []
 include_dirs = []
 extra_link_args = []
-extra_compile_args = ['-DHAVE_ZLIB']
+extra_compile_args = ['-DHAVE_ZLIB', '-DHAVE_BZIP2']
 data_files = []
 data_folder = ""
 
@@ -43,6 +43,7 @@ elif platform.system() == 'Windows':
     
 elif platform.system() == 'Linux':
     libraries.append('z')
+    libraries.append('bz2')
 else:
     raise RuntimeError('Unsupported OS')
 
