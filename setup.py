@@ -29,17 +29,20 @@ elif platform.system() == 'Windows':
     include_dirs.append(".")
     include_dirs.append('pyreadr')
     include_dirs.append('pyreadr/libs/zlib')
+    include_dirs.append('pyreadr/libs/bzip2')
     include_dirs.append('pyreadr/libs/librdata')
     include_dirs.append('pyreadr/libs/iconv')
     library_dirs.append('pyreadr/libs/librdata')
     
     data_folder = "win_libs/64bit/"
     data_files = [("Lib/site-packages/pyreadr", [data_folder + "zlib.dll", data_folder + "iconv.dll",
-                        data_folder + "charset.dll", data_folder + "iconv.lib"])]
+                        data_folder + "charset.dll", data_folder + "iconv.lib",
+                        data_folder + "libbz2-1.dll"])]
                         
     library_dirs.append(data_folder)
     libraries.append('z')
     libraries.append('iconv')
+    libraries.append('bz2')
     
 elif platform.system() == 'Linux':
     libraries.append('z')

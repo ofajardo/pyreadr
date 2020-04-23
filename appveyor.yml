@@ -7,45 +7,46 @@ environment:
     # The list here is complete (excluding Python 2.6, which
     # isn't covered by this document) at the time of writing.
 
-    - PYTHON: C:\Python38-x64
-    #- PYTHON: C:\Python38
     - PYTHON: C:\Python37-x64
     #- PYTHON: C:\Python37
-    - PYTHON: C:\Python36-x64
+    #- PYTHON: C:\Python38-x64
+    #- PYTHON: C:\Python38
+    #- PYTHON: C:\Python36-x64
     #- PYTHON: C:\Python36
-    - PYTHON: C:\Python35-x64
+    #- PYTHON: C:\Python35-x64
     #- PYTHON: C:\Python35
     #- PYTHON: C:\Python27-x64
+    
+platform:
+  - x64
+  #- x86
 
 install:
   # We need wheel installed to build wheels
   #- "%PYTHON%\\python.exe -m pip install wheel"
   - cmd: echo "Using cmd"
 
-  # Prepend newly installed Python to the PATH of this build (this cannot be
-  # done from inside the powershell script as it would require to restart
-  # the parent CMD process).
-  - SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%
-
-  # Fix MSVC builds for 64-bit Python
-  # See
-  # http://stackoverflow.com/questions/32091593/cannot-install-windows-sdk-7-1-on-windows-10
-  - echo "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 > "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64/vcvars64.bat"
-
+  - set CONDAPATH=C:\Miniconda37
+  - if "%PLATFORM%" == "x64" set CONDAPATH=%CONDAPATH%-x64
+  - call %CONDAPATH%\Scripts\activate
+  # prepare environment with conda
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # create an environment with the appropiate python
+  - conda create -y -n currentenv python=%PYTHON_VERSION%
+  - conda activate currentenv
   # Check that we have the expected version and architecture for Python
   - python --version
   - python -c "import struct; print(struct.calcsize('P') * 8)"
-
-  - python -m pip install --upgrade pip
-  # Pin wheel to 0.26 to avoid Windows ABI tag for built wheel
-  - pip install wheel==0.26
-  - pip install setuptools
-  # Dependencies for package
-  - pip install Cython
-  #- pip install pandas
+  # install necessary packages
+  - conda install -q setuptools pip libpython cython wheel
+  # mingw64 toolchain to compile python extensions
+  - conda install -q -c msys2 m2w64-toolchain
 
 
 build_script:
+  # set mingw32 as compiler and produce the wheel
+  - python.exe setup.py config --compiler=mingw32
   # Build and install the wheel
   - python setup.py bdist_wheel
   - ps: |

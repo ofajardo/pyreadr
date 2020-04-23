@@ -144,8 +144,8 @@ class PyReadRBasic(unittest.TestCase):
     def test_write_rdata(self):
         
         path = os.path.join(self.write_data_folder, "test.RData")
-        if os.path.isfile(path):
-            os.remove(path)
+        #if os.path.isfile(path):
+        #    os.remove(path)
         pyreadr.write_rdata(path, self.df_out)
         self.assertTrue(os.path.isfile(path))
         #res = pyreadr.read_r(path)
@@ -159,8 +159,8 @@ class PyReadRBasic(unittest.TestCase):
     def test_write_rds(self):
         
         path = os.path.join(self.write_data_folder, "test.Rds")
-        if os.path.isfile(path):
-            os.remove(path)
+        #if os.path.isfile(path):
+        #    os.remove(path)
         pyreadr.write_rds(path, self.df_out)
         self.assertTrue(os.path.isfile(path))
         
