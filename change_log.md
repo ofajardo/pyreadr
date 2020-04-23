@@ -1,4 +1,4 @@
-# 0.2.8 (github, pypi and conda: )
+# 0.2.8 (github, pypi and conda: 2020.04.23)
 * reading files with bzip2 compression
 * changed compilation on windows to mingw so that bzip can work (not working with mvsc).
   This also will help keeping the same source as librdata instead of manually doing the
