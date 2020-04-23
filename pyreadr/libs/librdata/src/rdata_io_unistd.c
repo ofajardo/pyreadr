@@ -1,10 +1,7 @@
 
 #include <fcntl.h>
 #include <stdlib.h>
-
-#ifndef _MSC_VER
 #include <unistd.h>
-#endif
 
 #include "rdata.h"
 #include "rdata_io_unistd.h"
@@ -17,9 +14,7 @@
 #define UNISTD_OPEN_OPTIONS O_RDONLY
 #endif
 
-#ifdef _MSC_VER
-#define lseek _lseek
-#elif defined _WIN32 || defined _AIX
+#if defined _WIN32 || defined _AIX
 #define lseek lseek64
 #endif
 

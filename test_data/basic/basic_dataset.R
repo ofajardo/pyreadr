@@ -48,3 +48,7 @@ df <- data.frame(d)
 saveRDS(df, "dates.rds")
 save(df, file="dates.RData")
 write.csv(df ,file="dates.csv", row.names=FALSE)
+
+# bzip2 compression
+# save the RData file
+save(df1, df2, char, mylist, file = "two_bzip2.RData", compress = "bzip2")

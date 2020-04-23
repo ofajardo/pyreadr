@@ -1,3 +1,9 @@
+# 0.2.8 (github, pypi and conda: )
+* reading files with bzip2 compression
+* changed compilation on windows to mingw so that bzip can work (not working with mvsc).
+  This also will help keeping the same source as librdata instead of manually doing the
+  changes required for the sources to work with mvsc.
+
 # 0.2.7 (github, pypi and conda: 2020.04.07)
 * write is able to cope with mixed integer pandas types
 * Windows dlls are now copied into the package folder instead of python root
