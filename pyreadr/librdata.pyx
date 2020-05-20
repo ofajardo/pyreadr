@@ -28,7 +28,7 @@ cdef int _os_open(path, mode):
             flags = _O_RDONLY | _O_BINARY
         else:
             flags = _O_WRONLY | _O_CREAT | _O_BINARY
-        return _wsopen(u16_path, flags, _SH_DENYRD, 0)
+        return _wsopen(u16_path, flags, _SH_DENYRD, _S_IREAD | _S_IWRITE)
     ELSE:
         if mode == 'r':
             flags = O_RDONLY

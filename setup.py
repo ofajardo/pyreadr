@@ -26,6 +26,10 @@ data_folder = ""
 if platform.system() == 'Darwin':
     libraries.append("iconv")
 elif platform.system() == 'Windows':
+    is64bit = sys.maxsize > 2 ** 32
+    if not is64bit:
+        msg = "Python 32 bit is not supported on Windows. Please use Python 64 bit"
+        raise Exception(msg)
     include_dirs.append(".")
     include_dirs.append('pyreadr')
     include_dirs.append('pyreadr/libs/zlib')
@@ -73,7 +77,7 @@ short_description = "Reads/writes R RData and Rds files into/from pandas data fr
 
 setup(
     name='pyreadr',
-    version='0.2.8',
+    version='0.2.9',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=True,

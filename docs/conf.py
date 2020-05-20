@@ -20,13 +20,13 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'pyreadr'
-copyright = '2018, Otto Fajardo'
+copyright = '2018-2020, Otto Fajardo'
 author = 'Otto Fajardo'
 
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '0.2.8'
+release = '0.2.9'
 
 
 # -- General configuration ---------------------------------------------------

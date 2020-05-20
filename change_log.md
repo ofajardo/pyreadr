@@ -1,3 +1,7 @@
+# 0.2.9 (github, pypi and conda: 2020.05.20)
+* corrected bug when writing file not being able to delete them with python on windows.
+* raising error if trying to run setup.py on windows 32 bit.
+
 # 0.2.8 (github, pypi and conda: 2020.04.23)
 * reading files with bzip2 compression
 * changed compilation on windows to mingw so that bzip can work (not working with mvsc).
