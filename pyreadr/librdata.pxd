@@ -151,6 +151,10 @@ IF UNAME_SYSNAME == 'Windows':
         cdef int _SH_DENYRD  # Denies read access to a file.
         cdef int _SH_DENYNO
 
+    cdef extern from '<sys/stat.h>':
+        cdef int _S_IREAD
+        cdef int _S_IWRITE
+
 ELSE:
     cdef extern from '<sys/stat.h>':
         int open(const char *path, int oflag, int mode)
