@@ -4,6 +4,7 @@
 """
 
 import setuptools
+import sys
 
 import platform
 import glob
