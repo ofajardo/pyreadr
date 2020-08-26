@@ -8,3 +8,4 @@
 test_data/write/
 docs/__pycache__/
 dist/
+.DS_Store
