@@ -35,7 +35,6 @@
 #define RDATA_CLASS_DATE    0x02
 
 #define STREAM_BUFFER_SIZE   65536
-#define MAX_BUFFER_SIZE      UINT_MAX
 
 /* ICONV_CONST defined by autotools during configure according
  * to the current platform. Some people copy-paste the source code, so
@@ -100,14 +99,14 @@ static rdata_error_t read_attributes(int (*handle_attribute)(char *key, rdata_se
 static rdata_error_t recursive_discard(rdata_sexptype_header_t sexptype_header, rdata_ctx_t *ctx);
 
 static void *rdata_malloc(size_t len) {
-    if (len > MAX_BUFFER_SIZE || len == 0)
+    if (len == 0)
         return NULL;
 
     return malloc(len);
 }
 
 static void *rdata_realloc(void *buf, size_t len) {
-    if (len > MAX_BUFFER_SIZE || len == 0)
+    if (len == 0)
         return NULL;
 
     return realloc(buf, len);

@@ -78,7 +78,7 @@ short_description = "Reads/writes R RData and Rds files into/from pandas data fr
 
 setup(
     name='pyreadr',
-    version='0.2.9',
+    version='0.3.0',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=True,
