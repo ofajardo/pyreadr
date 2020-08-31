@@ -69,7 +69,7 @@ def get_pyreadr_column_types(df):
                     continue
                 col = df[col_name].dropna()
                 if len(col):
-                    curtype = type(col[0])
+                    curtype = type(col.iloc[0])
                     equal = col.apply(lambda x: type(x) == curtype)
                     if not np.all(equal):
                         result[col_name] = "OBJECT"
@@ -137,20 +137,28 @@ def transform_data(pd_series, dtype, has_missing, dateformat, datetimeformat):
     elif dtype == "NUMERIC":
         pass
     elif dtype == "LOGICAL":
+        if type(pd_series.dtype) is pd.core.dtypes.dtypes.CategoricalDtype:
+            pd_series = pd_series.astype('object')
         if has_missing:
             pd_series.loc[pd.isna(pd_series)] = librdata_min_integer
         pd_series = pd_series.astype(np.int32)
     elif dtype == "CHARACTER":
         pass
     elif dtype == "OBJECT":
+        if type(pd_series.dtype) is pd.core.dtypes.dtypes.CategoricalDtype:
+            pd_series = pd_series.astype('object')
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: str(x))
     elif dtype == "DATE":
+        if type(pd_series.dtype) is pd.core.dtypes.dtypes.CategoricalDtype:
+            pd_series = pd_series.astype('object')
         # for now transforming to string
         # potentially dates could be transformed to true DATE type in R using rdata_append_date_value
         # for this, datetime.date must be trasnformed to a tm struct for example:
         # https://stackoverflow.com/questions/39673816/want-to-perform-date-time-value-manipulation-using-struct-tm
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(dateformat))
     elif dtype == "DATETIME":
+        if type(pd_series.dtype) is pd.core.dtypes.dtypes.CategoricalDtype:
+            pd_series = pd_series.astype('object')
         # transforming to string to avoid issues with timezones
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(datetimeformat))
     else:
