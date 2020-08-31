@@ -1,4 +1,4 @@
-# 0.3.1 (github, pypi and conda: 2020.08.26)
+# 0.3.1 (github, pypi and conda: 2020.08.30)
 * fixes bug #40
 
 # 0.3.0 (github, pypi and conda: 2020.08.26)
