@@ -188,7 +188,7 @@ class PyreadrWriter(Writer):
             except:
                 raise
         else:
-            raise PyreadrError(f"compression {compression} not implemented!")
+            raise PyreadrError(f"compression {0} not implemented!".format(compression))
 
     
     def write_r(self, path, file_format, df, df_name, dateformat, datetimeformat, compress):
