@@ -6,6 +6,7 @@ from collections import OrderedDict
 import datetime
 import gzip
 import os
+import shutil
 
 import numpy as np
 import pandas as pd
@@ -179,10 +180,9 @@ class PyreadrWriter(Writer):
         if compression == "gzip":
             try:
                 with open(src, "rb") as fin:
-                    content = fin.read()
                     try:
                         with gzip.open(dst, "wb") as fout:
-                            fout.write(content)
+                            shutil.copyfileobj(fin, fout)
                     except:
                         raise
             except:
