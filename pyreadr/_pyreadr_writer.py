@@ -211,7 +211,7 @@ class PyreadrWriter(Writer):
         if compress:
             path = original_path + "_temp"
             if compress != "gzip":
-                PyreadrError(f"compression {compress} not implemented!, Please use gzip")
+                PyreadrError("compression {0} not implemented!, Please use gzip".format(compress))
 
         self.open(path, file_format)
         self.set_row_count(df.shape[0])
