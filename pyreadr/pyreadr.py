@@ -81,7 +81,7 @@ def list_objects(path):
     return parser.object_list
     
     
-def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S"):
+def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None):
     """
     Write a single pandas data frame to a rdata file.
 
@@ -116,10 +116,10 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
         raise PyreadrError("path must be a string!")
     path = os.path.expanduser(path)
 
-    writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat)
+    writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat, compress)
 
 
-def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S"):
+def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None):
     """
     Write a single pandas data frame to a rds file.
 
@@ -134,6 +134,8 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
             By default "%Y-%m-%d".
         datetimeformat : str
             string to format datetime like objects. By default "%Y-%m-%d %H:%M:%S".
+        compress : str
+            compression to use, defaults to no compression. Only "gzip" supported.
     """
     
     if not isinstance(df, pd.DataFrame):
@@ -147,4 +149,4 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
     path = os.path.expanduser(path)
 
     writer = PyreadrWriter()
-    writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat)
+    writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat, compress)

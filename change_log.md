@@ -1,4 +1,7 @@
-# 0.3.1 (github, pypi and conda: 2020.08.30)
+# 0.3.2 (github, pypi and conda: 2020.09.01)
+* introduces gzip compression as an option (#41)
+
+# 0.3.1 (github, pypi: 2020.08.30, conda: 2020.09.01)
 * fixes bug #40
 
 # 0.3.0 (github, pypi and conda: 2020.08.26)

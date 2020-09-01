@@ -200,7 +200,7 @@ therefore timestamps are displayed in UTC, unless this parameter is set.</p></li
 
 <dl class="py function">
 <dt id="pyreadr.pyreadr.write_rdata">
-<code class="sig-prename descclassname">pyreadr.pyreadr.</code><code class="sig-name descname">write_rdata</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em>, <em class="sig-param"><span class="n">df</span></em>, <em class="sig-param"><span class="n">df_name</span><span class="o">=</span><span class="default_value">'dataset'</span></em>, <em class="sig-param"><span class="n">dateformat</span><span class="o">=</span><span class="default_value">'%Y-%m-%d'</span></em>, <em class="sig-param"><span class="n">datetimeformat</span><span class="o">=</span><span class="default_value">'%Y-%m-%d %H:%M:%S'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rdata" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">pyreadr.pyreadr.</code><code class="sig-name descname">write_rdata</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em>, <em class="sig-param"><span class="n">df</span></em>, <em class="sig-param"><span class="n">df_name</span><span class="o">=</span><span class="default_value">'dataset'</span></em>, <em class="sig-param"><span class="n">dateformat</span><span class="o">=</span><span class="default_value">'%Y-%m-%d'</span></em>, <em class="sig-param"><span class="n">datetimeformat</span><span class="o">=</span><span class="default_value">'%Y-%m-%d %H:%M:%S'</span></em>, <em class="sig-param"><span class="n">compress</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rdata" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write a single pandas data frame to a rdata file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -219,7 +219,7 @@ By default “%Y-%m-%d”.</p></li>
 
 <dl class="py function">
 <dt id="pyreadr.pyreadr.write_rds">
-<code class="sig-prename descclassname">pyreadr.pyreadr.</code><code class="sig-name descname">write_rds</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em>, <em class="sig-param"><span class="n">df</span></em>, <em class="sig-param"><span class="n">dateformat</span><span class="o">=</span><span class="default_value">'%Y-%m-%d'</span></em>, <em class="sig-param"><span class="n">datetimeformat</span><span class="o">=</span><span class="default_value">'%Y-%m-%d %H:%M:%S'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rds" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">pyreadr.pyreadr.</code><code class="sig-name descname">write_rds</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em>, <em class="sig-param"><span class="n">df</span></em>, <em class="sig-param"><span class="n">dateformat</span><span class="o">=</span><span class="default_value">'%Y-%m-%d'</span></em>, <em class="sig-param"><span class="n">datetimeformat</span><span class="o">=</span><span class="default_value">'%Y-%m-%d %H:%M:%S'</span></em>, <em class="sig-param"><span class="n">compress</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rds" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write a single pandas data frame to a rds file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -229,6 +229,7 @@ By default “%Y-%m-%d”.</p></li>
 <li><p><strong>dateformat</strong> (<em>str</em>) – string to format datetime.date objects.
 By default “%Y-%m-%d”.</p></li>
 <li><p><strong>datetimeformat</strong> (<em>str</em>) – string to format datetime like objects. By default “%Y-%m-%d %H:%M:%S”.</p></li>
+<li><p><strong>compress</strong> (<em>str</em>) – compression to use, defaults to no compression. Only “gzip” supported.</p></li>
 </ul>
 </dd>
 </dl>

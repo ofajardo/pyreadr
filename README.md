@@ -5,7 +5,7 @@ pandas dataframes. It does not need to have R or other external
 dependencies installed.
 <br> 
 
-This module is based on the [librdata](https://github.com/WizardMac/librdata) C library by 
+This package is based on the [librdata](https://github.com/WizardMac/librdata) C library by 
 [Evan Miller](https://www.evanmiller.org/) and a modified version of the cython wrapper around 
 librdata
 [jamovi-readstat](https://github.com/jamovi/jamovi-readstat)
@@ -43,7 +43,7 @@ for assignment? Then try [PytwisteR](https://github.com/ofajardo/pytwister)! Pyt
 
 ## Dependencies
 
-The module depends on pandas, which you normally have installed if you got Anaconda (highly recommended.) If creating
+The package depends on pandas, which you normally have installed if you got Anaconda (highly recommended.) If creating
 a new conda or virtual environment or if you don't have it in your base installation, pandas should get installed automatically.
 
 In order to compile from source, you will need a C compiler (see installation) and cython 
@@ -181,6 +181,26 @@ dataset2 <- readRDS("test.Rds")
 print(dataset2)
 
 ```
+
+By default the resulting files will be uncompressed, you can activate gzip compression
+by passing the option compress="gzip". This is useful in case you have big files.
+
+
+```python
+import pyreadr
+import pandas as pd
+
+# prepare a pandas dataframe
+df = pd.DataFrame([["a",1],["b",2]], columns=["A", "B"])
+
+# write a compressed RData file
+pyreadr.write_rdata("test.RData", df, df_name="dataset", compress="gzip")
+
+# write a compressed Rds file
+pyreadr.write_rds("test.Rds", df, compress="gzip")
+
+```
+
 
 ### Reading selected objects
 
@@ -354,7 +374,11 @@ R data frame. Other data types are not supported. Multiple data frames
 for rdata files are not supported.
 
 * RData and Rds files produced by R are (by default) compressed. Files produced
-by pyreadr are not compressed and therefore pretty bulky in comparison. Pyreadr writing is a relative slow operation
+by pyreadr are not compressed by default and therefore pretty bulky in comparison. You
+can pass the option compress="gzip" to write_rds or write_rda in order to activate 
+gzip compression.
+
+* Pyreadr writing is a relative slow operation
 compared to doint it in R.
 
 * Cannot read RData or rds files in encodings other than utf-8.

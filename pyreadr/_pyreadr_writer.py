@@ -4,6 +4,8 @@
 
 from collections import OrderedDict
 import datetime
+import gzip
+import os
 
 import numpy as np
 import pandas as pd
@@ -169,8 +171,27 @@ def transform_data(pd_series, dtype, has_missing, dateformat, datetimeformat):
 
 
 class PyreadrWriter(Writer):
+
+    def compress_file(self, src, dst, compression="gzip"):
+        """
+        Compresses a file from src to dst with given compression
+        """
+        if compression == "gzip":
+            try:
+                with open(src, "rb") as fin:
+                    content = fin.read()
+                    try:
+                        with gzip.open(dst, "wb") as fout:
+                            fout.write(content)
+                    except:
+                        raise
+            except:
+                raise
+        else:
+            raise PyreadrError(f"compression {compression} not implemented!")
+
     
-    def write_r(self, path, file_format, df, df_name, dateformat, datetimeformat):
+    def write_r(self, path, file_format, df, df_name, dateformat, datetimeformat, compress):
         """
         write a RData or Rds file. 
         path: str: path to the file
@@ -179,11 +200,18 @@ class PyreadrWriter(Writer):
         df_name = name of the object to write. Irrelevant if rds format.
         dateformat: str: string to format dates
         datetimeformat: str: string to format datetimes
+        compress: str: compression to use, for now only gzip supported.
         """
         
         col_names = df.columns.tolist()
         pyreadr_types, hasmissing = get_pyreadr_column_types(df)
         librdata_types = pyreadr_types_to_librdata_types(pyreadr_types)
+        original_path = path
+        
+        if compress:
+            path = original_path + "_temp"
+            if compress != "gzip":
+                PyreadrError(f"compression {compress} not implemented!, Please use gzip")
 
         self.open(path, file_format)
         self.set_row_count(df.shape[0])
@@ -201,3 +229,7 @@ class PyreadrWriter(Writer):
                 self.insert_value(row_indx, indx, val, curtype)
             
         self.close()
+
+        if compress:
+            self.compress_file(path, original_path, compress)
+            os.remove(path)

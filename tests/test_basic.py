@@ -242,6 +242,23 @@ class PyReadRBasic(unittest.TestCase):
         # for some reason when R saves with bzip2 compression dates go to character
         self.assertTrue(self.df1_tstamp.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
+
+    def test_write_rdata_gzip(self):
+        
+        path = os.path.join(self.write_data_folder, "test_gzip.RData")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rdata(path, self.df_out, compress="gzip")
+        self.assertTrue(os.path.isfile(path))
+
+    def test_write_rds_gzip(self):
+        
+        path = os.path.join(self.write_data_folder, "test_gzip.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, self.df_out, compress="gzip")
+        self.assertTrue(os.path.isfile(path))
+
  
 if __name__ == '__main__':
 
