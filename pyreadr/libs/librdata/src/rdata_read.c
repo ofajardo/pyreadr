@@ -486,7 +486,7 @@ cleanup:
 static rdata_error_t init_stream(rdata_ctx_t *ctx) {
     rdata_error_t retval = RDATA_OK;
     char header[5];
-
+    
     if (ctx->io->read(&header, sizeof(header), ctx->io->io_ctx) != sizeof(header)) {
         retval = RDATA_ERROR_READ;
         goto cleanup;
