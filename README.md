@@ -38,6 +38,7 @@ for assignment? Then try [PytwisteR](https://github.com/ofajardo/pytwister)! Pyt
   * [What objects can be read](#what-objects-can-be-read)
   * [More on writing files](#more-on-writing-files)
 - [Known limitations](#known-limitations)
+- [Contributing](#contributing)
 - [Change Log](#change-log)
 - [People](#people)
 
@@ -384,6 +385,10 @@ compared to doint it in R.
 * Cannot read RData or rds files in encodings other than utf-8.
 
 Solutions to some of these limitations have been proposed in the upstream librdata [issues](https://github.com/WizardMac/librdata/issues) (points 1-4 are addressed by issue 12, point 5 by issue 16 and point 7 by issue 17). However there is no guarantee that these changes will be made and there are no timelines either. If you think it would be nice if these issues are solved, please express your support in the librdata issues.
+
+## Contributing
+
+Contributions are welcome! Please chech the document [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
 ## Change Log
 
