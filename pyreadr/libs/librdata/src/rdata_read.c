@@ -499,15 +499,12 @@ static rdata_error_t init_stream(rdata_ctx_t *ctx) {
 
     if (header[0] == 'B' && header[1] == 'Z' && header[2] == 'h' &&
             header[3] >= '0' && header[3] <= '9') {
-        fflush(stdout);
         return init_bz_stream(ctx);
     }
     if (header[0] == '\x1f' && header[1] == '\x8b') {
-        fflush(stdout);
         return init_z_stream(ctx);
     }
     if (strncmp("\xFD" "7zXZ", header, sizeof(header)) == 0) {
-        fflush(stdout);
         return init_lzma_stream(ctx);
     }
 
