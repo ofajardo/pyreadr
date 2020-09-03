@@ -20,7 +20,7 @@ library_dirs = []
 libraries = []
 include_dirs = []
 extra_link_args = []
-extra_compile_args = ['-DHAVE_ZLIB', '-DHAVE_BZIP2']
+extra_compile_args = ['-DHAVE_ZLIB', '-DHAVE_BZIP2', '-DHAVE_LZMA']
 data_files = []
 data_folder = ""
 
@@ -35,6 +35,7 @@ elif platform.system() == 'Windows':
     include_dirs.append('pyreadr')
     include_dirs.append('pyreadr/libs/zlib')
     include_dirs.append('pyreadr/libs/bzip2')
+    include_dirs.append('pyreadr/libs/lzma')
     include_dirs.append('pyreadr/libs/librdata')
     include_dirs.append('pyreadr/libs/iconv')
     library_dirs.append('pyreadr/libs/librdata')
@@ -48,10 +49,12 @@ elif platform.system() == 'Windows':
     libraries.append('z')
     libraries.append('iconv')
     libraries.append('bz2')
+    libraries.append('lzma')
     
 elif platform.system() == 'Linux':
     libraries.append('z')
     libraries.append('bz2')
+    libraries.append('lzma')
 else:
     raise RuntimeError('Unsupported OS')
 
@@ -78,7 +81,7 @@ short_description = "Reads/writes R RData and Rds files into/from pandas data fr
 
 setup(
     name='pyreadr',
-    version='0.3.2',
+    version='0.3.3',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=True,
