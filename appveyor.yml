@@ -42,6 +42,7 @@ install:
   - conda install -q setuptools pip libpython cython wheel
   # mingw64 toolchain to compile python extensions
   - conda install -q -c msys2 m2w64-toolchain
+  - conda install -q -c msys2 m2-liblzma
 
 
 build_script:
