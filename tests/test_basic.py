@@ -239,9 +239,21 @@ class PyReadRBasic(unittest.TestCase):
         self.assertListEqual(list(res.keys()), self.rdata_objects)
         # numpy comparing NaNs raises a runtimewarning, let's ignore that here
         warnings.simplefilter("ignore", category=RuntimeWarning)
-        # for some reason when R saves with bzip2 compression dates go to character
+        # for some reason when R saves with bzip2 compression dates go to character -> probably it's coming from my R script
         self.assertTrue(self.df1_tstamp.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
+
+    def test_rdata_lzma(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "two_xz.RData")
+        res = pyreadr.read_r(rdata_path)
+        self.assertListEqual(list(res.keys()), self.rdata_objects)
+        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        df1 = res['df1']
+        df2 = res['df2']
+        self.assertTrue(self.df1_tstamp.equals(df1))
+        self.assertTrue(self.df2.equals(df2))
 
     def test_write_rdata_gzip(self):
         
