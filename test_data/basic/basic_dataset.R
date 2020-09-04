@@ -10,6 +10,7 @@ tstamp2 <- as.POSIXct(num, origin = "2017-02-03 08:00:00", tz = "GMT")
 
 df1 <- data.frame(num, int, char, fac, log, tstamp1, tstamp2)
 df1$char <- as.character(df1$char)
+df1$fac <- as.factor(df1$fac)
 
 num2 <- c(4,5,6,3,5,6)
 int2 <- as.integer(num2)
@@ -19,6 +20,7 @@ log2 <- c(TRUE, TRUE, FALSE, TRUE, FALSE, TRUE)
 
 df2 <- data.frame(num2, int2, char2, fac2, log2)
 df2$char2 <- as.character(df2$char2)
+df2$fac2 <- as.factor(df2$fac2)
 
 mylist <- list("one"=1)
 
@@ -52,3 +54,4 @@ write.csv(df ,file="dates.csv", row.names=FALSE)
 # bzip2 compression
 # save the RData file
 save(df1, df2, char, mylist, file = "two_bzip2.RData", compress = "bzip2")
+save(df1, df2, char, mylist, file = "two_xz.RData", compress = "xz")

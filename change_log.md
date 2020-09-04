@@ -1,3 +1,6 @@
+# 0.3.3 (github, pypi, and conda: 2020.09.04)
+* Implemented reading files with lzma compression
+
 # 0.3.2 (github, pypi and conda: 2020.09.01)
 * introduces gzip compression as an option (#41)
 

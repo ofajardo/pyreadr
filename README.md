@@ -399,3 +399,4 @@ A log with the changes for each version can be found [here](https://github.com/o
 [Otto Fajardo](https://github.com/ofajardo) - author, maintainer
 
 [Jonathon Love](https://jona.thon.love/) - contributor (original cython wrapper from jamovi-readstat and msvc compatible librdata)
+[deenes](https://github.com/deeenes) -  reading lzma compression
