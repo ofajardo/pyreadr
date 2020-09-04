@@ -44,7 +44,7 @@ elif platform.system() == 'Windows':
     data_files = [("Lib/site-packages/pyreadr", [data_folder + "zlib.dll", data_folder + "iconv.dll",
                         data_folder + "charset.dll", data_folder + "iconv.lib",
                         data_folder + "libbz2-1.dll",
-                        data_folder + "liblzma.dll"])]
+                        data_folder + "liblzma-5.dll"])]
                         
     library_dirs.append(data_folder)
     libraries.append('z')
