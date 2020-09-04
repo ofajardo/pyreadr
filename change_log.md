@@ -1,5 +1,6 @@
 # 0.3.3 (github, pypi, and conda: 2020.09.04)
 * Implemented reading files with lzma compression
+* Not producing wheels for python 3.5 anymore
 
 # 0.3.2 (github, pypi and conda: 2020.09.01)
 * introduces gzip compression as an option (#41)
