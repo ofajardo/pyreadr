@@ -50,8 +50,8 @@ a new conda or virtual environment or if you don't have it in your base installa
 In order to compile from source, you will need a C compiler (see installation) and cython 
 (version >= 0.28).
 
-librdata also depends on zlib and bzip2; it was reported not to be installed on Lubuntu. If you face this problem intalling the 
-libraries solves it.
+librdata also depends on zlib, bzip2 and lzma; it was reported not to be installed on Lubuntu or docker base ubuntu
+images. If you face this problem intalling the libraries solves it.
 
 ## Installation
 
