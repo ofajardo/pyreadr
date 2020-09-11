@@ -271,6 +271,23 @@ class PyReadRBasic(unittest.TestCase):
         pyreadr.write_rds(path, self.df_out, compress="gzip")
         self.assertTrue(os.path.isfile(path))
 
+    def test_altrep_deferred_string(self):
+        path = os.path.join(self.basic_data_folder, "altrep_defstr.rds")
+        res = pyreadr.read_r(path)
+        self.assertEqual(res[None].iloc[0,0], '14901')
+
+    def test_altrep_compact_intseq(self):
+        path = os.path.join(self.basic_data_folder, "altrep_intseq.rdata")
+        res = pyreadr.read_r(path)
+        self.assertEqual(res['df']['vec'].iloc[0], 1)
+        self.assertEqual(res['df']['vec'].iloc[9], 10)
+
+    def test_altrep_wrap_real(self):
+        path = os.path.join(self.basic_data_folder, "altrep_wrapreal.rdata")
+        res = pyreadr.read_r(path)
+        self.assertEqual(res['stderror']['logbeta'][0], 0.1508568509311767)
+        self.assertEqual(res['stderror']['logmu'][0], 0.9572626097649835)
+
  
 if __name__ == '__main__':
 

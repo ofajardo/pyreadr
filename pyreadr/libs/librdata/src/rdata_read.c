@@ -1153,7 +1153,9 @@ static int deferred_string_handler(const char *name, enum rdata_type_e type, voi
         for (int i=0; i<length; i++) {
             char buf[128] = { 0 };
             if (type == RDATA_TYPE_REAL) {
-                snprintf(buf, sizeof(buf), "%lld", (long long)((double *)vals)[i]);
+                snprintf(buf, sizeof(buf), "%.0lf", ((double *)vals)[i]);
+            } else if (type == RDATA_TYPE_INT32) {
+                snprintf(buf, sizeof(buf), "%d", ((int32_t *)vals)[i]);
             }
             ctx->text_value_handler(buf, i, ctx->user_ctx);
         }
@@ -1256,7 +1258,7 @@ static rdata_error_t read_altrep_vector(const char *name, rdata_ctx_t *ctx) {
             snprintf(error_buf, sizeof(error_buf), "Unrecognized ALTREP class: %s\n", class);
             ctx->error_handler(error_buf, ctx->user_ctx);
         }
-        retval = RDATA_ERROR_PARSE;
+        retval = RDATA_ERROR_UNSUPPORTED_STORAGE_CLASS;
     }
 cleanup:
     return retval;
@@ -1759,7 +1761,12 @@ static rdata_error_t recursive_discard(rdata_sexptype_header_t sexptype_header, 
             }
             break;
         default:
-            return RDATA_ERROR_READ;
+            if (ctx->error_handler) {
+                char error_buf[1024];
+                snprintf(error_buf, sizeof(error_buf), "Unhandled S-Expression: %d", sexptype_header.type);
+                ctx->error_handler(error_buf, ctx->user_ctx);
+            }
+            return RDATA_ERROR_UNSUPPORTED_S_EXPRESSION;
     }
 cleanup:
     

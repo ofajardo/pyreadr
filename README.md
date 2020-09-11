@@ -351,11 +351,11 @@ numpy arrays. They are translated to pandas data frames with one single column.
 
 * Lists are not read.
 
-* Objects that depend on non base R packages (Bioconductor for example) cannot be read.
-The error code in this case is a bit obscure:
+* S4 Objects and probably other kind of objects, including those that depend on non base R packages (Bioconductor for example) cannot be read.
+ The error code in this case is as follows:
 
 ```python
-"ValueError: Unable to read from file"
+"pyreadr.custom_errors.LibrdataError: The file contains an unrecognized object"
 ```
 
 * Data frames with special values like arrays, matrices and other data frames
