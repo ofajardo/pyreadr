@@ -92,8 +92,11 @@ static rdata_error_t read_string_vector_n(int attributes, int32_t length, rdata_
 static rdata_error_t read_string_vector(int attributes, rdata_text_value_handler text_value_handler, 
         void *callback_ctx, rdata_ctx_t *ctx);
 static rdata_error_t read_value_vector(rdata_sexptype_header_t header, const char *name, rdata_ctx_t *ctx);
+static rdata_error_t read_value_vector_cb(rdata_sexptype_header_t header, const char *name,
+        rdata_column_handler column_handler, void *user_ctx, rdata_ctx_t *ctx);
 static rdata_error_t read_character_string(char **key, rdata_ctx_t *ctx);
 static rdata_error_t read_generic_list(int attributes, rdata_ctx_t *ctx);
+static rdata_error_t read_altrep_vector(const char *name, rdata_ctx_t *ctx);
 static rdata_error_t read_attributes(int (*handle_attribute)(char *key, rdata_sexptype_info_t val_info, rdata_ctx_t *ctx),
                            rdata_ctx_t *ctx);
 static rdata_error_t recursive_discard(rdata_sexptype_header_t sexptype_header, rdata_ctx_t *ctx);
@@ -775,6 +778,15 @@ static rdata_error_t read_toplevel_object(const char *table_name, const char *ke
         if ((retval = read_string_vector_n(sexptype_info.header.attributes, length,
                         ctx->text_value_handler, ctx->user_ctx, ctx)) != RDATA_OK)
             goto cleanup;
+    } else if (sexptype_info.header.type == RDATA_PSEUDO_SXP_ALTREP) {
+        if (table_name == NULL && ctx->table_handler) {
+            if (ctx->table_handler(key, ctx->user_ctx)) {
+                retval = RDATA_ERROR_USER_ABORT;
+                goto cleanup;
+            }
+        }
+        if ((retval = read_altrep_vector(key, ctx)) != RDATA_OK)
+            goto cleanup;
     } else if (sexptype_info.header.type == RDATA_SEXPTYPE_GENERIC_VECTOR &&
             sexptype_info.header.object && sexptype_info.header.attributes) {
         if (table_name != NULL) {
@@ -894,6 +906,9 @@ static rdata_error_t read_sexptype_header(rdata_sexptype_info_t *header_info, rd
         } else if ((tag & 0xFF) == RDATA_PSEUDO_SXP_REF) {
             ref = (tag >> 8);
         }
+    }
+    if (header.type == RDATA_PSEUDO_SXP_REF) {
+        ref = (sexptype >> 8);
     }
     
     header_info->header = header;
@@ -1039,12 +1054,219 @@ cleanup:
     return retval;
 }
 
+static rdata_error_t read_wrap_real(const char *name, rdata_ctx_t *ctx) {
+    rdata_error_t retval = RDATA_OK;
+    rdata_sexptype_info_t sexptype_info;
+    /* pairlist */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+    if (sexptype_info.header.type != RDATA_SEXPTYPE_PAIRLIST) {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+    /* representation */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+
+    if ((retval = read_value_vector(sexptype_info.header, name, ctx)) != RDATA_OK)
+        goto cleanup;
+
+    /* alt representation */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+    if ((retval = recursive_discard(sexptype_info.header, ctx)) != RDATA_OK)
+        goto cleanup;
+
+    /* nil */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+    if (sexptype_info.header.type != RDATA_PSEUDO_SXP_NIL) {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+
+cleanup:
+    return retval;
+}
+
+static rdata_error_t read_compact_intseq(const char *name, rdata_ctx_t *ctx) {
+    rdata_error_t retval = RDATA_OK;
+    rdata_sexptype_info_t sexptype_info;
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+
+    int32_t length;
+    if ((retval = read_length(&length, ctx)) != RDATA_OK)
+        goto cleanup;
+    if (length != 3) {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+
+    double vals[3];
+    if (read_st(ctx, vals, sizeof(vals)) != sizeof(vals)) {
+        retval = RDATA_ERROR_READ;
+        goto cleanup;
+    }
+    if (ctx->machine_needs_byteswap) {
+        vals[0] = byteswap_double(vals[0]);
+        vals[1] = byteswap_double(vals[1]);
+        vals[2] = byteswap_double(vals[2]);
+    }
+
+    if (sexptype_info.header.attributes) {
+        if ((retval = read_attributes(&handle_vector_attribute, ctx)) != RDATA_OK)
+            goto cleanup;
+    }
+
+    if (ctx->column_handler) {
+        int32_t *integers = rdata_malloc(vals[0] * sizeof(int32_t));
+        int32_t val = vals[1];
+        for (int i=0; i<vals[0]; i++) {
+            integers[i] = val;
+            val += vals[2];
+        }
+        int cb_retval = ctx->column_handler(name, RDATA_TYPE_INT32, integers, vals[0], ctx->user_ctx);
+        free(integers);
+        if (cb_retval) {
+            retval = RDATA_ERROR_USER_ABORT;
+            goto cleanup;
+        }
+    }
+
+    /* nil */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+    if (sexptype_info.header.type != RDATA_PSEUDO_SXP_NIL) {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+cleanup:
+    return retval;
+}
+
+static int deferred_string_handler(const char *name, enum rdata_type_e type, void *vals, long length, void *user_ctx) {
+    rdata_ctx_t *ctx = (rdata_ctx_t *)user_ctx;
+    if (ctx->column_handler)
+        ctx->column_handler(name, RDATA_TYPE_STRING, NULL, length, ctx->user_ctx);
+    if (ctx->text_value_handler) {
+        for (int i=0; i<length; i++) {
+            char buf[128] = { 0 };
+            if (type == RDATA_TYPE_REAL) {
+                snprintf(buf, sizeof(buf), "%lld", (long long)((double *)vals)[i]);
+            }
+            ctx->text_value_handler(buf, i, ctx->user_ctx);
+        }
+    }
+    return 0;
+}
+
+static rdata_error_t read_deferred_string(const char *name, rdata_ctx_t *ctx) {
+    rdata_error_t retval = RDATA_OK;
+    rdata_sexptype_info_t sexptype_info;
+    /* pairlist */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+    if (sexptype_info.header.type != RDATA_SEXPTYPE_PAIRLIST) {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+    /* representation */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+
+    if ((retval = read_value_vector_cb(sexptype_info.header, name, &deferred_string_handler, ctx, ctx)) != RDATA_OK)
+        goto cleanup;
+
+    /* alt representation */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+    if ((retval = recursive_discard(sexptype_info.header, ctx)) != RDATA_OK)
+        goto cleanup;
+
+    /* nil */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+    if (sexptype_info.header.type != RDATA_PSEUDO_SXP_NIL) {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+
+cleanup:
+    return retval;
+}
+
+static rdata_error_t read_altrep_vector(const char *name, rdata_ctx_t *ctx) {
+    rdata_error_t retval = RDATA_OK;
+    rdata_sexptype_info_t sexptype_info;
+    /* pairlist */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+    if (sexptype_info.header.type != RDATA_SEXPTYPE_PAIRLIST) {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+    /* class name */
+    char *class = NULL;
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+    if (sexptype_info.header.type == RDATA_SEXPTYPE_SYMBOL) {
+        if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+            goto cleanup;
+        if (sexptype_info.header.type != RDATA_SEXPTYPE_CHARACTER_STRING) {
+            retval = RDATA_ERROR_PARSE;
+            goto cleanup;
+        }
+        if ((retval = read_character_string(&class, ctx)) != RDATA_OK)
+            goto cleanup;
+
+        atom_table_add(ctx->atom_table, class);
+    } else if (sexptype_info.header.type == RDATA_PSEUDO_SXP_REF) {
+        if ((class = atom_table_lookup(ctx->atom_table, sexptype_info.ref)) == NULL) {
+            retval = RDATA_ERROR_PARSE;
+            goto cleanup;
+        }
+    } else {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+
+    /* package and class ID */
+    if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+        goto cleanup;
+    if (sexptype_info.header.type != RDATA_SEXPTYPE_PAIRLIST) {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
+    if ((retval = recursive_discard(sexptype_info.header, ctx)) != RDATA_OK)
+        goto cleanup;
+
+    if (strcmp(class, "wrap_real") == 0) {
+        if ((retval = read_wrap_real(name, ctx)) != RDATA_OK)
+            goto cleanup;
+    } else if (strcmp(class, "compact_intseq") == 0) {
+        if ((retval = read_compact_intseq(name, ctx)) != RDATA_OK)
+            goto cleanup;
+    } else if (strcmp(class, "deferred_string") == 0) {
+        if ((retval = read_deferred_string(name, ctx)) != RDATA_OK)
+            goto cleanup;
+    } else {
+        if (ctx->error_handler) {
+            char error_buf[1024];
+            snprintf(error_buf, sizeof(error_buf), "Unrecognized ALTREP class: %s\n", class);
+            ctx->error_handler(error_buf, ctx->user_ctx);
+        }
+        retval = RDATA_ERROR_PARSE;
+    }
+cleanup:
+    return retval;
+}
+
 static rdata_error_t read_generic_list(int attributes, rdata_ctx_t *ctx) {
     rdata_error_t retval = RDATA_OK;
     int32_t length;
     int i;
     rdata_sexptype_info_t sexptype_info;
-    
     
     if ((retval = read_length(&length, ctx)) != RDATA_OK)
         goto cleanup;
@@ -1066,6 +1288,8 @@ static rdata_error_t read_generic_list(int attributes, rdata_ctx_t *ctx) {
             }
             retval = read_string_vector_n(sexptype_info.header.attributes, vec_length,
                     ctx->text_value_handler, ctx->user_ctx, ctx);
+        } else if (sexptype_info.header.type == RDATA_PSEUDO_SXP_ALTREP) {
+            retval = read_altrep_vector(NULL, ctx);
         } else {
             retval = read_value_vector(sexptype_info.header, NULL, ctx);
         }
@@ -1199,13 +1423,14 @@ static rdata_error_t read_string_vector(int attributes, rdata_text_value_handler
     return read_string_vector_n(attributes, length, text_value_handler, callback_ctx, ctx);
 }
 
-static rdata_error_t read_value_vector(rdata_sexptype_header_t header, const char *name, rdata_ctx_t *ctx) {
+static rdata_error_t read_value_vector_cb(rdata_sexptype_header_t header, const char *name,
+        rdata_column_handler column_handler, void *user_ctx, rdata_ctx_t *ctx) {
     rdata_error_t retval = RDATA_OK;
     int32_t length;
     size_t input_elem_size = 0;
     void *vals = NULL;
     size_t buf_len = 0;
-    int output_data_type;
+    enum rdata_type_e output_data_type;
     int i;
     
     switch (header.type) {
@@ -1268,8 +1493,8 @@ static rdata_error_t read_value_vector(rdata_sexptype_header_t header, const cha
     if (ctx->column_class == RDATA_CLASS_DATE)
         output_data_type = RDATA_TYPE_DATE;
     
-    if (ctx->column_handler) {
-        if (ctx->column_handler(name, output_data_type, vals, length, ctx->user_ctx)) {
+    if (column_handler) {
+        if (column_handler(name, output_data_type, vals, length, user_ctx)) {
             retval = RDATA_ERROR_USER_ABORT;
             goto cleanup;
         }
@@ -1280,6 +1505,10 @@ cleanup:
         free(vals);
 
     return retval;
+}
+
+static rdata_error_t read_value_vector(rdata_sexptype_header_t header, const char *name, rdata_ctx_t *ctx) {
+    return read_value_vector_cb(header, name, ctx->column_handler, ctx->user_ctx, ctx);
 }
 
 static rdata_error_t discard_vector(rdata_sexptype_header_t sexptype_header, size_t element_size, rdata_ctx_t *ctx) {
@@ -1510,6 +1739,24 @@ static rdata_error_t recursive_discard(rdata_sexptype_header_t sexptype_header, 
         case RDATA_PSEUDO_SXP_BASE_NAMESPACE:
         case RDATA_PSEUDO_SXP_EMPTY_ENVIRONMENT:
         case RDATA_PSEUDO_SXP_BASE_ENVIRONMENT:
+            break;
+        case RDATA_PSEUDO_SXP_ALTREP:
+            /* class, package, type */
+            if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
+                goto cleanup;
+            if ((error = recursive_discard(info.header, ctx)) != RDATA_OK)
+                goto cleanup;
+            
+            while (1) {
+                if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
+                    goto cleanup;
+                if (info.header.type == RDATA_SEXPTYPE_PAIRLIST)
+                    continue;
+                if (info.header.type == RDATA_PSEUDO_SXP_NIL)
+                    break;
+                if ((error = recursive_discard(info.header, ctx)) != RDATA_OK)
+                    goto cleanup;
+            }
             break;
         default:
             return RDATA_ERROR_READ;
