@@ -47,5 +47,11 @@ const char *rdata_error_message(rdata_error_t error_code) {
     if (error_code == RDATA_ERROR_CONVERT_LONG_STRING)
         return "Unable to convert string to the requested encoding (output buffer too small)";
 
+    if (error_code == RDATA_ERROR_UNSUPPORTED_S_EXPRESSION)
+        return "The file contains an unrecognized object";
+
+    if (error_code == RDATA_ERROR_UNSUPPORTED_STORAGE_CLASS)
+        return "The file contains an unrecognized object";
+
     return "Unknown error";
 }

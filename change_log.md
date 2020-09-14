@@ -1,3 +1,9 @@
+# 0.3.4 (github, pypi and conda: 2020.09.XX)
+* Updated librdata source to commit: 
+  This improves reading of altrep objects
+  and gives a better error when encountering S4 objects
+  solves issues:
+
 # 0.3.3 (github, pypi, and conda: 2020.09.04)
 * Implemented reading files with lzma compression
 * Not producing wheels for python 3.5 anymore
