@@ -73,7 +73,7 @@ def get_pyreadr_column_types(df):
                 col = df[col_name].dropna()
                 if len(col):
                     curtype = type(col.iloc[0])
-                    equal = col.apply(lambda x: type(x) == curtype)
+                    equal = np.array(col.apply(lambda x: type(x) == curtype))
                     if not np.all(equal):
                         result[col_name] = "OBJECT"
                         continue
@@ -85,7 +85,7 @@ def get_pyreadr_column_types(df):
                     result[col_name] = "INTEGER"
                     continue
                 curtype = type(df[col_name][0])
-                equal = df[col_name].apply(lambda x: type(x) == curtype)
+                equal = np.array(df[col_name].apply(lambda x: type(x) == curtype))
                 if not np.all(equal):
                     result[col_name] = "OBJECT"
                     continue
