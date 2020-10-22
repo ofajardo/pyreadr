@@ -89,7 +89,7 @@ setup(
     include_package_data=True,
     data_files=data_files,
     install_requires=['pandas>0.24.0'],
-    license="AGPLv3",
+    license="AGPL-3.0-or-later",
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Cython",
@@ -97,7 +97,7 @@ setup(
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering",
         "Environment :: Console",
-        "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+        "License :: OSI Approved :: GNU Affero General Public License v3.0 or later",
     ],
     description=short_description,
     author="Otto Fajardo",
