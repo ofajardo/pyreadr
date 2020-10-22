@@ -401,3 +401,5 @@ A log with the changes for each version can be found [here](https://github.com/o
 [Jonathon Love](https://jona.thon.love/) - contributor (original cython wrapper from jamovi-readstat and msvc compatible librdata)
 
 [deenes](https://github.com/deeenes) -  reading lzma compression
+
+[Daniel M. Sullivan](www.danielmsullivan.com) - added license information to setup.py
