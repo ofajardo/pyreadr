@@ -1,3 +1,9 @@
+# 0.3.6 (github, pypi and conda: 2020.10.22)
+* Added license to setup.py
+
+# 0.3.5 (github, pypi and conda: 2020.09.24)
+* Solved #48
+
 # 0.3.4 (github, pypi and conda: 2020.09.14)
 * Updated librdata source to commit: 7188fa54b1894da24ceb8ccefd0a62113a38497c
   This improves reading of altrep objects
