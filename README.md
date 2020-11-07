@@ -4,6 +4,10 @@ A python package to read and write R RData and Rds files into/from
 pandas dataframes. It does not need to have R or other external
 dependencies installed.
 <br> 
+It can read mainly R data frames. Support for other kind of R objects is limited, particularly
+R lists and R S4 objects (such as those from Bioconductor) are not supported. Please read the
+Known limitations section for more information.
+<br>
 
 This package is based on the [librdata](https://github.com/WizardMac/librdata) C library by 
 [Evan Miller](https://www.evanmiller.org/) and a modified version of the cython wrapper around 
@@ -288,6 +292,9 @@ is translated to a pandas data frame.
 
 Only single pandas data frames can be written into R data frames.
 
+Lists and S4 objects (such as those coming from Bioconductor are not supported. Please read the Known limitations section for more
+information.
+
 ### More on writing files
 
 For converting python/numpy types to R types the following rules are
@@ -349,9 +356,9 @@ thefore the display of the tiemstamps in R and in pandas may differ.
 the dimensions, therefore those cannot be arranged properly multidimensional
 numpy arrays. They are translated to pandas data frames with one single column.
 
-* Lists are not read.
+* **Lists are not read**.
 
-* S4 Objects and probably other kind of objects, including those that depend on non base R packages (Bioconductor for example) cannot be read.
+* **S4 Objects and probably other kind of objects, including those that depend on non base R packages (Bioconductor for example) cannot be read.**
  The error code in this case is as follows:
 
 ```python
