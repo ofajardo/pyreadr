@@ -4,9 +4,10 @@ A python package to read and write R RData and Rds files into/from
 pandas dataframes. It does not need to have R or other external
 dependencies installed.
 <br> 
-It can read mainly R data frames. Support for other kind of R objects is limited, particularly
+
+**It can read mainly R data frames. Support for other kind of R objects is limited.
 R lists and R S4 objects (such as those from Bioconductor) are not supported. Please read the
-Known limitations section for more information.
+Known limitations section for more information.**
 <br>
 
 This package is based on the [librdata](https://github.com/WizardMac/librdata) C library by 
