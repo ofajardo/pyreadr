@@ -1,3 +1,7 @@
+# 0.3.7 (github, pypi and conda: 2020.11.14)
+* Added download\_file function
+* using std=gnu99 from env_vars.sh in wheels to solve #56
+
 # 0.3.6 (github, pypi and conda: 2020.10.22)
 * Added license to setup.py
 
