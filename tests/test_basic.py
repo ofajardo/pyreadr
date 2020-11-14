@@ -288,6 +288,12 @@ class PyReadRBasic(unittest.TestCase):
         self.assertEqual(res['stderror']['logbeta'][0], 0.1508568509311767)
         self.assertEqual(res['stderror']['logmu'][0], 0.9572626097649835)
 
+    def test_read_from_url(self):
+        path = os.path.join(self.write_data_folder, "airlines.rda")
+        url = "https://github.com/hadley/nycflights13/blob/master/data/airlines.rda?raw=true"
+        res = pyreadr.read_r(pyreadr.download_file(url, path))
+        self.assertIsNotNone(res)
+
  
 if __name__ == '__main__':
 

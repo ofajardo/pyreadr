@@ -37,6 +37,7 @@ for assignment? Then try [PytwisteR](https://github.com/ofajardo/pytwister)! Pyt
 - [Usage](#usage)
   * [Basic Usage: reading files](#basic-usage--reading-files)
   * [Basic Usage: writing files](#basic-usage--writing-files)
+  * [Reading files from internet](#reading-files-from-internet)
   * [Reading selected objects](#reading-selected-objects)
   * [List objects and column names](#list-objects-and-column-names)
   * [Reading timestamps and timezones](#reading-timestamps-and-timezones)
@@ -149,6 +150,7 @@ You can also check the [Module documentation](https://ofajardo.github.io/pyreadr
 | ------------------- | ----------- |
 | read_r        | reads RData and Rds files |
 | list_objects  | list objects and column names contained in RData or Rds file |
+| download_file | download file from internet |
 | write_rdata   | writes RData files |
 | write_rds     | writes Rds files   |
 
@@ -205,6 +207,34 @@ pyreadr.write_rdata("test.RData", df, df_name="dataset", compress="gzip")
 # write a compressed Rds file
 pyreadr.write_rds("test.Rds", df, compress="gzip")
 
+```
+
+### Reading files from internet
+
+Librdata, the C backend of pyreadr absolutely needs a file in disk and only a string with the path
+can be passed as argument, therefore you cannot pass an url to pyreadr.read_r. 
+
+In order to help with this limitation, pyreadr provides a funtion download_file which as its name
+suggests downloads a file from an url to disk:
+
+```python
+import pyreadr
+
+url = "https://github.com/hadley/nycflights13/blob/master/data/airlines.rda?raw=true"
+dst_path = "/some/path/on/disk/airlines.rda"
+dst_path_again = pyreadr.download_file(url, dst_path)
+res = pyreadr.read_r(dst_path)
+```
+
+As you see download_file returns the path where the file was written, therefore you can pass it
+to pyreadr.read_r directly:
+
+```python
+import pyreadr
+
+url = "https://github.com/hadley/nycflights13/blob/master/data/airlines.rda?raw=true"
+dst_path = "/some/path/on/disk/airlines.rda"
+res = pyreadr.read_r(pyreadr.download_file(url, dst_path), dst_path)
 ```
 
 

@@ -3,6 +3,7 @@
 """
 from collections import OrderedDict
 import os
+from urllib.request import urlopen
 
 import pandas as pd
 
@@ -150,3 +151,30 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
 
     writer = PyreadrWriter()
     writer.write_r(path, file_format, df, df_name, dateformat, datetimeformat, compress)
+
+def download_file(url, destination_path):
+    """
+    Downloads a file from a web url to destination_path.
+
+    Parameters
+    ----------
+    url : str
+        url of the file
+    destination_path : str
+        path to write the file to disk
+
+    Returns
+    -------
+    str
+        it gives back the path to where the file was written.
+    """
+    response = urlopen(url)
+    content = response.read()
+    if destination_path.startswith("~"):
+        destination_path = os.path.expanduser(destination_path)
+    with open(destination_path, 'wb') as fhandle:
+        try:
+            fhandle.write(content)
+        except:
+            raise
+    return destination_path
