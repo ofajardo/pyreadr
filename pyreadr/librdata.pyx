@@ -26,9 +26,10 @@ cdef int _os_open(path, mode):
         u16_path = PyUnicode_AsWideCharString(path, &length)
         if mode == 'r':
             flags = _O_RDONLY | _O_BINARY
+            return _wsopen(u16_path, flags, _SH_DENYWR, _S_IREAD | _S_IWRITE)
         else:
             flags = _O_WRONLY | _O_CREAT | _O_BINARY
-        return _wsopen(u16_path, flags, _SH_DENYRD, _S_IREAD | _S_IWRITE)
+            return _wsopen(u16_path, flags, _SH_DENYRW, _S_IREAD | _S_IWRITE)
     ELSE:
         if mode == 'r':
             flags = O_RDONLY
