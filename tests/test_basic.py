@@ -85,6 +85,11 @@ class PyReadRBasic(unittest.TestCase):
         df_dates["d"] = df_dates["d"].apply(lambda x: datetime.datetime.strptime(x, "%Y-%m-%d").date() if type(x) == str else None)
         self.df_dates = df_dates
 
+        # matrices
+        matdata = np.asarray(list(range(1,13)), dtype=np.int32)
+        self.mat_simple = pd.DataFrame(np.reshape(matdata, (4,3), order='F'))
+        self.mat_simple_byrow = pd.DataFrame(np.reshape(matdata, (4,3), order='C'))
+
     def test_rdata_basic(self):
 
         rdata_path = os.path.join(self.basic_data_folder, "two.RData")
@@ -312,6 +317,19 @@ class PyReadRBasic(unittest.TestCase):
         url = "https://github.com/hadley/nycflights13/blob/master/data/airlines.rda?raw=true"
         res = pyreadr.read_r(pyreadr.download_file(url, path))
         self.assertIsNotNone(res)
+
+    # matrices
+    def test_matrix_simple_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_simple.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_simple))
+
+    def test_matrix_simple_byrow_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_simple_byrow.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_simple_byrow))
 
  
 if __name__ == '__main__':

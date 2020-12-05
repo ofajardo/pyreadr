@@ -30,6 +30,9 @@ class Table:
         self.value_labels = dict()
         self.df = None
         self.timezone = timezone
+        self.dim = None
+        self.dim_num = 0
+        self.dim_names = list()
 
     def convert_to_pandas_dataframe(self):
         """
@@ -41,6 +44,8 @@ class Table:
         self._covert_data()
         self._handle_value_labels()
         self._handle_row_names()
+        if self.dim_names:
+            print("dim names", self.dim_names)
         return self.df
 
     # Internal methods
@@ -66,13 +71,31 @@ class Table:
         Converts the data to a pandas data frame, which still needs some further processing.
         """
 
-        data = OrderedDict()
-        for indx, column in enumerate(self.columns):
-            colname = self.final_names[indx]
-            data[colname] = column
-        # print(data)
-        df = pd.DataFrame.from_dict(data)
-        self.df = df
+        if self.dim_num:
+            if len(self.columns)>1:
+                raise PyreadrError("matrix, array or table object with more than one vector!")
+            data = np.asarray(self.columns[0])
+            if self.dim_num>1:
+                data = np.reshape(data, tuple(self.dim.tolist()), order='F')
+            if self.dim_names:
+                pass
+            else:
+                if self.dim_num>1:
+                    colnames = list(range(0,data.shape[1]))
+                else:
+                    colnames = [0]
+            df = pd.DataFrame(data, columns=colnames)
+            self.final_names = colnames
+            self.df = df
+
+        else:
+            # normal data frames
+            data = OrderedDict()
+            for indx, column in enumerate(self.columns):
+                colname = self.final_names[indx]
+                data[colname] = column
+            df = pd.DataFrame.from_dict(data)
+            self.df = df
 
     def _covert_data(self):
         """
@@ -199,6 +222,27 @@ class PyreadrParser(Parser):
         """
         if self.parse_current_table:
             self.current_table.column_names_special[index] = name
+
+    def handle_dim(self, name, data_type, data, count):
+        """
+        Evoked once to retrieve the number of dimensions
+        :param name: str: column name, may be None
+        :param data_type: object of type DataType(Enum) (defined in librdata.pyx)
+        :param data: a numpy array representing the number of dimensions
+        :param count: int: number of elements in the array
+        """
+        if self.parse_current_table:
+            self.current_table.dim = data
+            self.current_table.dim_num = count
+
+    def handle_dim_name(self, name, index):
+        """
+        Get one dimension name, one at a time, for matrices, arrays, tables.
+        :param name: str: name of the dimension
+        :param index: int: index of the dimension
+        """
+        if self.parse_current_table:
+            self.current_table.dim_names.append(name)
 
     def handle_row_name(self, name, index):
         """

@@ -61,3 +61,10 @@ write.csv(df ,file="dates.csv", row.names=FALSE)
 # save the RData file
 save(df1, df2, char, mylist, file = "two_bzip2.RData", compress = "bzip2")
 save(df1, df2, char, mylist, file = "two_xz.RData", compress = "xz")
+
+# matrices
+mat_simple <- matrix(1:12, nrow=4, ncol=3) 
+saveRDS(mat_simple, "mat_simple.rds")
+mat_simple_byrow <- matrix(1:12, nrow=4, ncol=3, byrow=TRUE) 
+saveRDS(mat_simple_byrow, "mat_simple_byrow.rds")
+

@@ -1,3 +1,8 @@
+# 0.3.9 (github, pypi and conda: 2020.11.15)
+* Implemented reading dataframe rownames as pandas index
+* Implementing reading matrices, arrays, tables
+* librdata source updated to commit e0dc6fa2ebb26f17d74071fbead419554bb7f073
+
 # 0.3.8 (github, pypi and conda: 2020.11.15)
 * Fixed sharing flags for opening files on windows
 
