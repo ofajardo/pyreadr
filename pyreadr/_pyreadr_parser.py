@@ -40,6 +40,7 @@ class Table:
         self.dim_num = 0
         self.dim_names = list()
         self.dim_names_ready = list()
+        self.arraylike_data = None
 
     def convert_to_pandas_dataframe(self):
         """
@@ -56,9 +57,41 @@ class Table:
 
     # methods for arraylike: array, matrix, table
     def _arraylike_todf(self):
+        self._arraylike_convert()
+        self._arraylike_buildf()
+
+    def _arraylike_convert(self):
         if len(self.columns)>1:
             raise PyreadrError("matrix, array or table object with more than one vector!")
         data = np.asarray(self.columns[0])
+        dtype = self.column_types[0]
+        if dtype.name == "TIMESTAMP":
+            # inf values do not make sense for timestamp
+            data[data == np.inf] = np.nan
+            data = pd.to_datetime(data, unit='s').values
+            if self.timezone:
+                data = data.dt.tz_localize('UTC').dt.tz_convert(self.timezone)
+        elif dtype.name == "DATE":
+            data[data == np.inf] = np.nan
+            data = data.astype("datetime64[D]").astype(datetime)
+        elif dtype.name == "LOGICAL" or dtype.name == "INTEGER":
+            na_index = data <= -2147483648
+            if np.any(na_index):
+                if dtype.name == "INTEGER":
+                    data = data.astype(np.object)
+                    data[na_index] = np.nan
+                elif dtype.name == "LOGICAL":
+                    data = data.astype('bool')
+                    data = data.astype(np.object)
+                    data[na_index] = np.nan
+            else:
+                if dtype.name == "LOGICAL":
+                    data = data.astype('bool')
+
+        self.arraylike_data = data
+
+    def _arraylike_buildf(self):
+        data = self.arraylike_data
         #dim = np.roll(self.dim, self.dim_num-2)
         dim = self.dim
         dimtuple = tuple(dim.tolist())
