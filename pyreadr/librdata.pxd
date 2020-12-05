@@ -77,6 +77,7 @@ cdef extern from 'libs/librdata/src/rdata.h':
     rdata_error_t rdata_set_table_handler(rdata_parser_t *parser, rdata_table_handler table_handler);
     rdata_error_t rdata_set_column_handler(rdata_parser_t *parser, rdata_column_handler column_handler);
     rdata_error_t rdata_set_column_name_handler(rdata_parser_t *parser, rdata_column_name_handler column_name_handler);
+    rdata_error_t rdata_set_row_name_handler(rdata_parser_t *parser, rdata_column_name_handler row_name_handler);
     rdata_error_t rdata_set_text_value_handler(rdata_parser_t *parser, rdata_text_value_handler text_value_handler);
     rdata_error_t rdata_set_value_label_handler(rdata_parser_t *parser, rdata_text_value_handler value_label_handler);
     rdata_error_t rdata_set_error_handler(rdata_parser_t *parser, rdata_error_handler error_handler);

@@ -24,6 +24,7 @@ class Table:
         self.name = None
         self.column_names = dict()
         self.column_names_special = dict()
+        self.row_names = list() 
         self.column_types = dict()
         self.columns = list()
         self.value_labels = dict()
@@ -39,6 +40,7 @@ class Table:
         self._todf()
         self._covert_data()
         self._handle_value_labels()
+        self._handle_row_names()
         return self.df
 
     # Internal methods
@@ -123,6 +125,11 @@ class Table:
                 self.df = self.df.replace({colname: labels})
                 self.df[colname] = self.df[colname].astype("category")
 
+    def _handle_row_names(self):
+        if self.row_names:
+            self.df['rownames'] = self.row_names
+            self.df.set_index('rownames', inplace=True)
+
 
 class PyreadrParser(Parser):
     """
@@ -192,6 +199,16 @@ class PyreadrParser(Parser):
         """
         if self.parse_current_table:
             self.current_table.column_names_special[index] = name
+
+    def handle_row_name(self, name, index):
+        """
+        Handles R dataframe's rownames
+        :param name: str: name of the row
+        :param index: int: index of the row
+        """
+        if self.parse_current_table:
+            #self.current_table.row_names[index] = name
+            self.current_table.row_names.append(name)
 
     def handle_text_value(self, name, index):
         """

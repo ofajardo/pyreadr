@@ -84,6 +84,15 @@ cdef int _handle_column_name(const char *name, int index, void *ctx):
         parser._error = e
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
+cdef int _handle_row_name(const char *name, int index, void *ctx):
+    parser = <Parser>ctx
+    try:
+        Parser.__handle_row_name(parser, name, index)
+        return rdata_error_t.RDATA_OK
+    except Exception as e:
+        parser._error = e
+        return rdata_error_t.RDATA_ERROR_USER_ABORT
+
 
 cdef int _handle_text_value(const char *value, int index, void *ctx):
     parser = <Parser>ctx
@@ -129,6 +138,7 @@ cdef class Parser:
         rdata_set_table_handler(self._this, _handle_table)
         rdata_set_column_handler(self._this, _handle_column)
         rdata_set_column_name_handler(self._this, _handle_column_name)
+        rdata_set_row_name_handler(self._this, _handle_row_name)
         rdata_set_text_value_handler(self._this, _handle_text_value)
         rdata_set_value_label_handler(self._this, _handle_value_label)
 
@@ -149,6 +159,9 @@ cdef class Parser:
         pass
 
     def handle_column_name(self, name, index):
+        pass
+
+    def _handle_row_name(self, name, index):
         pass
 
     def handle_text_value(self, name, index):
@@ -187,6 +200,9 @@ cdef class Parser:
 
     cdef __handle_column_name(self, const char *name, int index):
         self.handle_column_name(name, index)
+
+    cdef __handle_row_name(self, const char *name, int index):
+        self.handle_row_name(name, index)
 
     cdef __handle_text_value(self, const char *value, int index):
         if value != NULL:
