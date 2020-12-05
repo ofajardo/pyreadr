@@ -39,16 +39,41 @@ class Table:
         Coordinates all the necessary steps to convert the data collected from the parser to a pandas data frame.
         :return: a pandas data frame
         """
+        if self.dim_num:
+            self._arraylike_todf()
+        else:
+            self._dflike_todf()
+        return self.df
+
+    # Internal methods
+
+    # methods for arraylike: array, matrix, table
+    def _arraylike_todf(self):
+        if len(self.columns)>1:
+            raise PyreadrError("matrix, array or table object with more than one vector!")
+        data = np.asarray(self.columns[0])
+        if self.dim_num>1:
+            data = np.reshape(data, tuple(self.dim.tolist()), order='F')
+        if self.dim_names:
+            pass
+        else:
+            if self.dim_num>1:
+                colnames = list(range(0,data.shape[1]))
+            else:
+                colnames = [0]
+        df = pd.DataFrame(data, columns=colnames)
+        #self.final_names = colnames
+        self.df = df
+
+
+    # methods for data_frames
+    # also vectors
+    def _dflike_todf(self):
         self._consolidate_names()
         self._todf()
         self._covert_data()
         self._handle_value_labels()
         self._handle_row_names()
-        if self.dim_names:
-            print("dim names", self.dim_names)
-        return self.df
-
-    # Internal methods
 
     def _consolidate_names(self):
         """
@@ -71,31 +96,13 @@ class Table:
         Converts the data to a pandas data frame, which still needs some further processing.
         """
 
-        if self.dim_num:
-            if len(self.columns)>1:
-                raise PyreadrError("matrix, array or table object with more than one vector!")
-            data = np.asarray(self.columns[0])
-            if self.dim_num>1:
-                data = np.reshape(data, tuple(self.dim.tolist()), order='F')
-            if self.dim_names:
-                pass
-            else:
-                if self.dim_num>1:
-                    colnames = list(range(0,data.shape[1]))
-                else:
-                    colnames = [0]
-            df = pd.DataFrame(data, columns=colnames)
-            self.final_names = colnames
-            self.df = df
-
-        else:
-            # normal data frames
-            data = OrderedDict()
-            for indx, column in enumerate(self.columns):
-                colname = self.final_names[indx]
-                data[colname] = column
-            df = pd.DataFrame.from_dict(data)
-            self.df = df
+        # normal data frames
+        data = OrderedDict()
+        for indx, column in enumerate(self.columns):
+            colname = self.final_names[indx]
+            data[colname] = column
+        df = pd.DataFrame.from_dict(data)
+        self.df = df
 
     def _covert_data(self):
         """
