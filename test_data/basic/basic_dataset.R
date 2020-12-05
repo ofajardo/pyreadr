@@ -29,6 +29,12 @@ save(df1, df2, char, mylist, file = "two.RData")
 # Save the Rds file
 saveRDS(df1, "one.Rds")
 
+# dataframes with rownames
+df1_rownames <- df1
+row.names(df1_rownames) <- c("A", "B", "C", "D", "E", "F")
+saveRDS(df1_rownames, "one_rownames.Rds")
+save(df1_rownames, df2, char, mylist, file = "two_rownames.RData")
+
 # Save as csv as well
 df1$tstamp1 <- as.character(df1$tstamp1)
 df1$tstamp2 <- as.character(df1$tstamp2)

@@ -55,6 +55,11 @@ class PyReadRBasic(unittest.TestCase):
         self.df2 = df2
         self.df3 = df3
 
+        df1_rownames = df1.copy()
+        df1_rownames['rownames'] = ['A', 'B', 'C',"D",'E','F']
+        df1_rownames = df1_rownames.set_index('rownames')
+        self.df1_rownames = df1_rownames
+
         self.rdata_objects = ['df1', 'df2', 'char']
         self.rdata_objects_description = [{"object_name": "df1", "columns": ['num', 'int', 'char', 'fac', 'log', 'tstamp1', 'tstamp2']},
             {"object_name": "df2", "columns": ['num2', 'int2', 'char2', 'fac2', 'log2']},
@@ -90,6 +95,14 @@ class PyReadRBasic(unittest.TestCase):
         self.assertTrue(self.df1.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
         
+    def test_rdata_rownames(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "two_rownames.RData")
+        res = pyreadr.read_r(rdata_path)
+        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        self.assertTrue(self.df1_rownames.equals(res['df1_rownames']))
+        
     def test_rdata_basic_r36(self):
         """
         same test but data saved with R 3.6.1
@@ -108,6 +121,12 @@ class PyReadRBasic(unittest.TestCase):
         rds_path = os.path.join(self.basic_data_folder, "one.Rds")
         res = pyreadr.read_r(rds_path)
         self.assertTrue(self.df1.equals(res[None]))
+
+    def test_rds_rownames(self):
+
+        rds_path = os.path.join(self.basic_data_folder, "one_rownames.Rds")
+        res = pyreadr.read_r(rds_path)
+        self.assertTrue(self.df1_rownames.equals(res[None]))
         
     def test_rds_basic_r36(self):
         """
