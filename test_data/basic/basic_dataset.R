@@ -94,3 +94,4 @@ array_3d_named <- array(data=1:36, dim=c(4,3,3), dimnames = list(matrownames, ma
 saveRDS(array_3d_named, "array_3d_named.rds")
 
 
+
