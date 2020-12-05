@@ -48,6 +48,16 @@ rdata_error_t rdata_set_value_label_handler(rdata_parser_t *parser, rdata_text_v
     return RDATA_OK;
 }
 
+rdata_error_t rdata_set_dim_handler(rdata_parser_t *parser, rdata_column_handler dim_handler) {
+    parser->dim_handler = dim_handler;
+    return RDATA_OK;
+}
+
+rdata_error_t rdata_set_dim_name_handler(rdata_parser_t *parser, rdata_text_value_handler dim_name_handler) {
+    parser->dim_name_handler = dim_name_handler;
+    return RDATA_OK;
+}
+
 rdata_error_t rdata_set_error_handler(rdata_parser_t *parser, rdata_error_handler error_handler) {
     parser->error_handler = error_handler;
     return RDATA_OK;

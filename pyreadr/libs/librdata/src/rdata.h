@@ -85,6 +85,8 @@ typedef struct rdata_parser_s {
     rdata_column_name_handler   row_name_handler;
     rdata_text_value_handler    text_value_handler;
     rdata_text_value_handler    value_label_handler;
+    rdata_column_handler        dim_handler;
+    rdata_text_value_handler    dim_name_handler;
     rdata_error_handler         error_handler;
     rdata_io_t                 *io;
 } rdata_parser_t;
@@ -98,6 +100,8 @@ rdata_error_t rdata_set_column_name_handler(rdata_parser_t *parser, rdata_column
 rdata_error_t rdata_set_row_name_handler(rdata_parser_t *parser, rdata_column_name_handler row_name_handler);
 rdata_error_t rdata_set_text_value_handler(rdata_parser_t *parser, rdata_text_value_handler text_value_handler);
 rdata_error_t rdata_set_value_label_handler(rdata_parser_t *parser, rdata_text_value_handler value_label_handler);
+rdata_error_t rdata_set_dim_handler(rdata_parser_t *parser, rdata_column_handler dim_handler);
+rdata_error_t rdata_set_dim_name_handler(rdata_parser_t *parser, rdata_text_value_handler dim_name_handler);
 rdata_error_t rdata_set_error_handler(rdata_parser_t *parser, rdata_error_handler error_handler);
 rdata_error_t rdata_set_open_handler(rdata_parser_t *parser, rdata_open_handler open_handler);
 rdata_error_t rdata_set_close_handler(rdata_parser_t *parser, rdata_close_handler close_handler);
