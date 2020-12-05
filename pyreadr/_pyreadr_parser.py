@@ -6,6 +6,12 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+xray_available = False
+try:
+    import xarray as xr
+    xray_available = True
+except:
+    pass
 
 from .librdata import Parser
 from .custom_errors import PyreadrError
@@ -33,6 +39,7 @@ class Table:
         self.dim = None
         self.dim_num = 0
         self.dim_names = list()
+        self.dim_names_ready = list()
 
     def convert_to_pandas_dataframe(self):
         """
@@ -52,19 +59,53 @@ class Table:
         if len(self.columns)>1:
             raise PyreadrError("matrix, array or table object with more than one vector!")
         data = np.asarray(self.columns[0])
-        if self.dim_num>1:
-            data = np.reshape(data, tuple(self.dim.tolist()), order='F')
+        #dim = np.roll(self.dim, self.dim_num-2)
+        dim = self.dim
+        dimtuple = tuple(dim.tolist())
+        data = np.reshape(data, dimtuple, order='F')
         if self.dim_names:
-            pass
-        else:
-            if self.dim_num>1:
-                colnames = list(range(0,data.shape[1]))
+            self.arrange_dimnames_arraylike()
+            dim_names = self.dim_names_ready
+            if self.dim_num<3:
+                colnames = dim_names[1]
+                rownames = dim_names[0]
+                df = pd.DataFrame(data, columns=colnames, index=rownames)
             else:
-                colnames = [0]
-        df = pd.DataFrame(data, columns=colnames)
-        #self.final_names = colnames
+                if not xray_available:
+                    raise PyreadrError("Trying to read array with >2 dimensions, please install xarray!")
+                df = xr.DataArray(data, dim_names)
+        else:
+            if self.dim_num<3:
+                df = pd.DataFrame(data)
+            else:
+                if not xray_available:
+                    raise PyreadrError("Trying to read array with >2 dimensions, please install xarray!")
+                df = xr.DataArray(data)
         self.df = df
 
+    def arrange_dimnames_arraylike(self):
+
+        if self.dim_names:
+            dimtuple = tuple(self.dim.tolist())
+            dim_names = list()
+            lendimnames = len(self.dim_names)
+            allcnt = 0
+            cnt = 0
+            dimcnt = 0
+            curdim = list()
+            curdsize = dimtuple[dimcnt]
+            for dname in self.dim_names:
+                curdim.append(dname)
+                cnt += 1
+                allcnt += 1
+                if cnt==curdsize:
+                    dim_names.append(curdim)
+                    curdim = list()
+                    cnt = 0
+                    if allcnt < lendimnames:
+                        dimcnt += 1
+                        curdsize = dimtuple[dimcnt]
+            self.dim_names_ready = dim_names
 
     # methods for data_frames
     # also vectors

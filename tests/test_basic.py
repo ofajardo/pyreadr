@@ -9,6 +9,7 @@ import shutil
 
 import pandas as pd
 import numpy as np
+import xarray as xr
 
 
 class PyReadRBasic(unittest.TestCase):
@@ -89,6 +90,24 @@ class PyReadRBasic(unittest.TestCase):
         matdata = np.asarray(list(range(1,13)), dtype=np.int32)
         self.mat_simple = pd.DataFrame(np.reshape(matdata, (4,3), order='F'))
         self.mat_simple_byrow = pd.DataFrame(np.reshape(matdata, (4,3), order='C'))
+        self.mat_rowcolnames = pd.DataFrame(np.reshape(matdata, (4,3), order='F'), 
+                          columns=['V'+str(x) for x in range(1,4)],
+                          index=["A", "B","C","D"])
+        self.mat_rownames = pd.DataFrame(np.reshape(matdata, (4,3), order='F'), 
+                          index=["A", "B","C","D"])
+        self.mat_colnames = pd.DataFrame(np.reshape(matdata, (4,3), order='F'), 
+                          columns=['V'+str(x) for x in range(1,4)])
+        self.table = pd.DataFrame(np.asarray([[2,2], [2,2]], dtype=np.int32), 
+                                columns=["0", "1"],
+                                index=["0","1"])
+        flat3d = np.asarray(list(range(1,37)), dtype=np.int32)
+        self.array3d = xr.DataArray(np.reshape(flat3d, (4,3,3), order='F'))
+        self.array3d_named = xr.DataArray(np.reshape(flat3d, (4,3,3), order='F'),
+                                          [["A", "B","C","D"],
+                                           ['V'+str(x) for x in range(1,4)],
+                                           ['D'+str(x) for x in range(1,4)]])
+
+
 
     def test_rdata_basic(self):
 
@@ -330,6 +349,52 @@ class PyReadRBasic(unittest.TestCase):
         res = pyreadr.read_r(path)
         df = res[None]
         self.assertTrue(df.equals(self.mat_simple_byrow))
+
+    def test_matrix_rowcolnames(self):
+        path = os.path.join(self.basic_data_folder, "mat_rowcolnames.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_rowcolnames))
+
+    #def test_matrix_colnames(self):
+        #path = os.path.join(self.basic_data_folder, "mat_colnames.rds")
+        #res = pyreadr.read_r(path)
+        #df = res[None]
+        #self.assertTrue(df.equals(self.mat_colnames))
+
+    #def test_matrix_rownames(self):
+        #path = os.path.join(self.basic_data_folder, "mat_rownames.rds")
+        #res = pyreadr.read_r(path)
+        #df = res[None]
+        #print(df)
+        #self.assertTrue(df.equals(self.mat_rownames))
+
+    def test_table(self):
+        path = os.path.join(self.basic_data_folder, "table.rds")
+        res = pyreadr.read_r(path)
+        df = res[None] 
+        #import pdb;pdb.set_trace()
+        self.assertTrue(df.equals(self.table))
+
+    def test_array_simple_rds(self):
+        path = os.path.join(self.basic_data_folder, "array_simple.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_simple))
+
+    def test_array_3d(self):
+        path = os.path.join(self.basic_data_folder, "array_3d.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.array3d))
+
+    def test_array_3dnamed(self):
+        path = os.path.join(self.basic_data_folder, "array_3d_named.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.array3d_named))
+
+
 
  
 if __name__ == '__main__':
