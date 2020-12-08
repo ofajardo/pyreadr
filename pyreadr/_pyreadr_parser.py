@@ -59,12 +59,20 @@ class Table:
     def _arraylike_todf(self):
         self._arraylike_convert()
         self._arraylike_buildf()
+        self._handle_value_labels()
 
     def _arraylike_convert(self):
         if len(self.columns)>1:
             raise PyreadrError("matrix, array or table object with more than one vector!")
-        data = np.asarray(self.columns[0])
+
         dtype = self.column_types[0]
+        if dtype.name == "CHARACTER":
+            data = np.asarray(self.columns[0], dtype=np.object)
+        else:
+            data = np.asarray(self.columns[0])
+
+        # apparently DATE arrays and matrices are not saved as date or datetimes but numeric
+        # but if someone creates a vector and sets the dim attribute, we will get trough these.
         if dtype.name == "TIMESTAMP":
             # inf values do not make sense for timestamp
             data[data == np.inf] = np.nan
@@ -91,17 +99,25 @@ class Table:
         self.arraylike_data = data
 
     def _arraylike_buildf(self):
+        """"
+        Transform the one dimensional array to a dataframe with several rows and columns
+        """
         data = self.arraylike_data
-        #dim = np.roll(self.dim, self.dim_num-2)
-        dim = self.dim
+        dim = self.dim # TODO: if 0s convert to 1!
+        #dim[dim==0] = 1
+        if len(dim)>3:
+            raise PyreadrError("Librdata currently supports arrays with up to 3 dimensions, you got %s dimensions" % str(len(dim)))
         dimtuple = tuple(dim.tolist())
         data = np.reshape(data, dimtuple, order='F')
         if self.dim_names:
             self.arrange_dimnames_arraylike()
             dim_names = self.dim_names_ready
+            len_dim_names = len(dim_names)
             if self.dim_num<3:
-                colnames = dim_names[1]
                 rownames = dim_names[0]
+                colnames = None
+                if len_dim_names>1:
+                    colnames = dim_names[1]
                 df = pd.DataFrame(data, columns=colnames, index=rownames)
             else:
                 if not xray_available:
@@ -117,7 +133,7 @@ class Table:
         self.df = df
 
     def arrange_dimnames_arraylike(self):
-
+        
         if self.dim_names:
             dimtuple = tuple(self.dim.tolist())
             dim_names = list()
@@ -132,6 +148,8 @@ class Table:
                 cnt += 1
                 allcnt += 1
                 if cnt==curdsize:
+                    if np.all(pd.isna(curdim)):
+                        curdim = None
                     dim_names.append(curdim)
                     curdim = list()
                     cnt = 0
@@ -224,8 +242,17 @@ class Table:
         """
 
         if self.value_labels:
-            for colindx, labels in self.value_labels.items():
-                colname = self.final_names[colindx]
+            colnames = self.df.columns.tolist()
+            if self.dim_num>0:
+                if len(self.dim)>1:
+                    dim = self.dim[1]
+                else:
+                    dim = 1
+                indx_labels = [(x, self.value_labels[0]) for x in range(0, dim)]
+            else:
+               indx_labels = list(self.value_labels.items()) 
+            for colindx, labels in indx_labels:
+                colname = colnames[colindx]
                 self.df = self.df.replace({colname: labels})
                 self.df[colname] = self.df[colname].astype("category")
 

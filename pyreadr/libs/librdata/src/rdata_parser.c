@@ -6,7 +6,7 @@
 rdata_parser_t *rdata_parser_init() {
     rdata_parser_t *parser = calloc(1, sizeof(rdata_parser_t));
     parser->io = calloc(1, sizeof(rdata_io_t));
-    unistd_io_init(parser);
+    rdata_unistd_io_init(parser);
     return parser;
 }
 

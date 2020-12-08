@@ -129,7 +129,7 @@ cdef extern from 'libs/librdata/src/rdata.h':
     rdata_error_t rdata_end_file(rdata_writer_t *writer);
 
 cdef extern from 'libs/librdata/src/rdata_io_unistd.h':
-    cdef struct unistd_io_ctx_t 'unistd_io_ctx_s':
+    cdef struct rdata_unistd_io_ctx_t 'rdata_unistd_io_ctx_s':
         int fd
 
 IF UNAME_SYSNAME == 'Windows':

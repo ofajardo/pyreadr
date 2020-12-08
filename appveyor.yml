@@ -72,6 +72,7 @@ test_script:
   #- "build.cmd %PYTHON%\\python.exe setup.py test"
 
   # Run some tests
+  - pip install xarray
   - mkdir tmp
   - cd tmp
   - python ../tests/test_basic.py

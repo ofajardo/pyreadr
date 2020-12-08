@@ -19,21 +19,21 @@
 #endif
 
 
-int unistd_open_handler(const char *path, void *io_ctx) {
+int rdata_unistd_open_handler(const char *path, void *io_ctx) {
     int fd = open(path, UNISTD_OPEN_OPTIONS);
-    ((unistd_io_ctx_t*) io_ctx)->fd = fd;
+    ((rdata_unistd_io_ctx_t*) io_ctx)->fd = fd;
     return fd;
 }
 
-int unistd_close_handler(void *io_ctx) {
-    int fd = ((unistd_io_ctx_t*) io_ctx)->fd;
+int rdata_unistd_close_handler(void *io_ctx) {
+    int fd = ((rdata_unistd_io_ctx_t*) io_ctx)->fd;
     if (fd != -1)
         return close(fd);
     else
         return 0;
 }
 
-rdata_off_t unistd_seek_handler(rdata_off_t offset,
+rdata_off_t rdata_unistd_seek_handler(rdata_off_t offset,
         rdata_io_flags_t whence, void *io_ctx) {
     int flag = 0;
     switch(whence) {
@@ -49,23 +49,23 @@ rdata_off_t unistd_seek_handler(rdata_off_t offset,
         default:
             return -1;
     }
-    int fd = ((unistd_io_ctx_t*) io_ctx)->fd;
+    int fd = ((rdata_unistd_io_ctx_t*) io_ctx)->fd;
     return lseek(fd, offset, flag);
 }
 
-ssize_t unistd_read_handler(void *buf, size_t nbyte, void *io_ctx) {
-    int fd = ((unistd_io_ctx_t*) io_ctx)->fd;
+ssize_t rdata_unistd_read_handler(void *buf, size_t nbyte, void *io_ctx) {
+    int fd = ((rdata_unistd_io_ctx_t*) io_ctx)->fd;
     ssize_t out = read(fd, buf, nbyte);
     return out;
 }
 
-rdata_error_t unistd_update_handler(long file_size, 
+rdata_error_t rdata_unistd_update_handler(long file_size, 
         rdata_progress_handler progress_handler, void *user_ctx,
         void *io_ctx) {
     if (!progress_handler)
         return RDATA_OK;
 
-    int fd = ((unistd_io_ctx_t*) io_ctx)->fd;
+    int fd = ((rdata_unistd_io_ctx_t*) io_ctx)->fd;
     long current_offset = lseek(fd, 0, SEEK_CUR);
 
     if (current_offset == -1)
@@ -77,14 +77,14 @@ rdata_error_t unistd_update_handler(long file_size,
     return RDATA_OK;
 }
 
-void unistd_io_init(rdata_parser_t *parser) {
-    rdata_set_open_handler(parser, unistd_open_handler);
-    rdata_set_close_handler(parser, unistd_close_handler);
-    rdata_set_seek_handler(parser, unistd_seek_handler);
-    rdata_set_read_handler(parser, unistd_read_handler);
-    rdata_set_update_handler(parser, unistd_update_handler);
+void rdata_unistd_io_init(rdata_parser_t *parser) {
+    rdata_set_open_handler(parser, rdata_unistd_open_handler);
+    rdata_set_close_handler(parser, rdata_unistd_close_handler);
+    rdata_set_seek_handler(parser, rdata_unistd_seek_handler);
+    rdata_set_read_handler(parser, rdata_unistd_read_handler);
+    rdata_set_update_handler(parser, rdata_unistd_update_handler);
 
-    unistd_io_ctx_t *io_ctx = calloc(1, sizeof(unistd_io_ctx_t));
+    rdata_unistd_io_ctx_t *io_ctx = calloc(1, sizeof(rdata_unistd_io_ctx_t));
     io_ctx->fd = -1;
     rdata_set_io_ctx(parser, (void*) io_ctx);
 }

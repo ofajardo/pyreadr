@@ -46,7 +46,7 @@ cdef int _os_close(int fd):
 
 
 cdef int _handle_open(const char* path, void* io_ctx):
-    cdef unistd_io_ctx_t* ctx = <unistd_io_ctx_t*>io_ctx
+    cdef rdata_unistd_io_ctx_t* ctx = <rdata_unistd_io_ctx_t*>io_ctx
     cdef int fd
     if not os.path.isfile(path):
         return -1
@@ -228,25 +228,29 @@ cdef class Parser:
     cdef __handle_column_name(self, const char *name, int index):
         self.handle_column_name(name, index)
 
-    cdef __handle_dim(self, const char *name, rdata_type_t type, void *data, long count):
+    cdef __handle_dim(self, const char *name, rdata_type_t datatype, void *data, long count):
         cdef int *ints = <int*>data
 
-        if type == rdata_type_t.RDATA_TYPE_INT32:
+        data_type = DataType(datatype)
+        if datatype == rdata_type_t.RDATA_TYPE_INT32:
             array = np.empty([count], dtype=np.int32)
             for i in range(count):
                 array[i] = ints[i];
         else:
-            raise PyreadrError('Wrong data type for dimensions.')
+            raise PyreadrError('Wrong data type %s for dimensions.' % str(data_type))
 
         if name == NULL:
             new_name = None
         else:
             new_name = name
-        data_type = DataType(type)
         self.handle_dim(new_name, data_type, array, count)
 
     cdef __handle_dim_name(self, const char *name, int index):
-        self.handle_dim_name(name, index)
+        if name == NULL:
+            new_name = None
+        else:
+            new_name = name
+        self.handle_dim_name(new_name, index)
 
     cdef __handle_row_name(self, const char *name, int index):
         self.handle_row_name(name, index)

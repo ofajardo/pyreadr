@@ -56,7 +56,7 @@ elif platform.system() == 'Linux':
     libraries.append('z')
     libraries.append('bz2')
     libraries.append('lzma')
-    #extra_compile_args.append("-std=c99")
+    #extra_compile_args.append("--std=gnu99")
 else:
     raise RuntimeError('Unsupported OS')
 
