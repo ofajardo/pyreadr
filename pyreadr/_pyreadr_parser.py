@@ -103,8 +103,7 @@ class Table:
         Transform the one dimensional array to a dataframe with several rows and columns
         """
         data = self.arraylike_data
-        dim = self.dim # TODO: if 0s convert to 1!
-        #dim[dim==0] = 1
+        dim = self.dim 
         if len(dim)>3:
             raise PyreadrError("Librdata currently supports arrays with up to 3 dimensions, you got %s dimensions" % str(len(dim)))
         dimtuple = tuple(dim.tolist())

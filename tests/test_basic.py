@@ -6,6 +6,7 @@ import os
 import datetime
 import warnings
 import shutil
+from string import ascii_uppercase
 
 import pandas as pd
 import numpy as np
@@ -88,6 +89,8 @@ class PyReadRBasic(unittest.TestCase):
 
         # matrices
         matdata = np.asarray(list(range(1,13)), dtype=np.int32)
+        self.mat_singlecol = pd.DataFrame(matdata)
+        self.mat_singlecol_named = pd.DataFrame(matdata, index=list(ascii_uppercase)[0:12])
         self.mat_simple = pd.DataFrame(np.reshape(matdata, (4,3), order='F'))
         self.mat_simple_byrow = pd.DataFrame(np.reshape(matdata, (4,3), order='C'))
         self.mat_rowcolnames = pd.DataFrame(np.reshape(matdata, (4,3), order='F'), 
@@ -402,12 +405,17 @@ class PyReadRBasic(unittest.TestCase):
         df = res[None]
         self.assertTrue(df.equals(self.mat_simple))
 
-    #def test_array_onedim_rds(self):
-        #path = os.path.join(self.basic_data_folder, "array_onedim.rds")
-        #res = pyreadr.read_r(path)
-        #df = res[None]
-        #print(df)
-        #self.assertTrue(df.equals(self.mat_simple))
+    def test_array_onedim_rds(self):
+        path = os.path.join(self.basic_data_folder, "array_onedim.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_singlecol))
+
+    def test_array_onedim_named_rds(self):
+        path = os.path.join(self.basic_data_folder, "array_onedim_named.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_singlecol_named))
 
     def test_array_3d(self):
         path = os.path.join(self.basic_data_folder, "array_3d.rds")
