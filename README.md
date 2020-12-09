@@ -329,6 +329,9 @@ dimension names). The only exception is 3D arrays, which are translated to a
 xarray DataArray (as pandas does not support more than 2 dimensions). This is also
 the only time that an object different from a pandas dataframe is returned by read_r.
 
+For 3D arrays, consider that python prints these in a different way as R does, but still
+you are looking at the same array (see for example [here](https://rstudio.github.io/reticulate/articles/arrays.html#displaying-arrays) for an explanation.)
+
 Only single pandas data frames can be written into R data frames.
 
 Lists and S4 objects (such as those coming from Bioconductor are not supported. Please read the Known limitations section for more
