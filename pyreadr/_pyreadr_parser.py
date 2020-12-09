@@ -6,6 +6,7 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+# xray is needed for 3d arrays only
 xray_available = False
 try:
     import xarray as xr
@@ -47,6 +48,7 @@ class Table:
         Coordinates all the necessary steps to convert the data collected from the parser to a pandas data frame.
         :return: a pandas data frame
         """
+        # we need to handle things differently depening wether the dim attribute is set
         if self.dim_num:
             self._arraylike_todf()
         else:
@@ -57,11 +59,19 @@ class Table:
 
     # methods for arraylike: array, matrix, table
     def _arraylike_todf(self):
+        """
+        Method to convert objects with the dim attribute set: matrices, 
+        arrays and tables; also vectors if the user set the dim attribute
+        explicitly.
+        """
         self._arraylike_convert()
         self._arraylike_buildf()
         self._handle_value_labels()
 
     def _arraylike_convert(self):
+        """
+        convert the data to suitable types
+        """
         if len(self.columns)>1:
             raise PyreadrError("matrix, array or table object with more than one vector!")
 
@@ -132,7 +142,10 @@ class Table:
         self.df = df
 
     def arrange_dimnames_arraylike(self):
-        
+        """
+        Dimenion names are captured as a flat array, transform to a nested array for
+        easier handling.
+        """ 
         if self.dim_names:
             dimtuple = tuple(self.dim.tolist())
             dim_names = list()
@@ -160,6 +173,11 @@ class Table:
     # methods for data_frames
     # also vectors
     def _dflike_todf(self):
+        """
+        This one is for objects that do not have the dim attribute set: dataframes
+        and atomic vectors. (but vectors can have the dim attribute in that case
+        they go to the other method)
+        """
         self._consolidate_names()
         self._todf()
         self._covert_data()
@@ -234,6 +252,16 @@ class Table:
                     if dtype.name == "LOGICAL":
                         df[colname] = df[colname].astype('bool')
 
+    def _handle_row_names(self):
+        """
+        For dataframes, set rownames as index
+        """
+        if self.row_names:
+            self.df['rownames'] = self.row_names
+            self.df.set_index('rownames', inplace=True)
+
+    # methods for both dim and no dim
+
     def _handle_value_labels(self):
         """
         R factors are represented as integer vectors, and their string equivalences are stored somewhere else. This
@@ -254,11 +282,6 @@ class Table:
                 colname = colnames[colindx]
                 self.df = self.df.replace({colname: labels})
                 self.df[colname] = self.df[colname].astype("category")
-
-    def _handle_row_names(self):
-        if self.row_names:
-            self.df['rownames'] = self.row_names
-            self.df.set_index('rownames', inplace=True)
 
 
 class PyreadrParser(Parser):

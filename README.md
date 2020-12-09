@@ -5,9 +5,9 @@ pandas dataframes. It does not need to have R or other external
 dependencies installed.
 <br> 
 
-**It can read mainly R data frames. Support for other kind of R objects is limited.
+**It can read mainly R data frames and tibbles. Also supports vectors, matrices, arrays and tables.
 R lists and R S4 objects (such as those from Bioconductor) are not supported. Please read the
-Known limitations section for more information.**
+Known limitations section and the section on what objects can be read for more information.**
 <br>
 
 This package is based on the [librdata](https://github.com/WizardMac/librdata) C library by 
@@ -41,7 +41,7 @@ for assignment? Then try [PytwisteR](https://github.com/ofajardo/pytwister)! Pyt
   * [Reading selected objects](#reading-selected-objects)
   * [List objects and column names](#list-objects-and-column-names)
   * [Reading timestamps and timezones](#reading-timestamps-and-timezones)
-  * [What objects can be read](#what-objects-can-be-read)
+  * [What objects can be read](#what-objects-can-be-read-and-written)
   * [More on writing files](#more-on-writing-files)
 - [Known limitations](#known-limitations)
 - [Contributing](#contributing)
@@ -52,6 +52,9 @@ for assignment? Then try [PytwisteR](https://github.com/ofajardo/pytwister)! Pyt
 
 The package depends on pandas, which you normally have installed if you got Anaconda (highly recommended.) If creating
 a new conda or virtual environment or if you don't have it in your base installation, pandas should get installed automatically.
+
+If you are reading 3D arrays, you will need to install xarray manually. This is not installed automatically as most users
+won't need it.
 
 In order to compile from source, you will need a C compiler (see installation) and cython 
 (version >= 0.28).
@@ -75,13 +78,13 @@ If you are running on a machine without admin rights, and you want to install ag
 pip install pyreadr --user
 ```
 
-We offer pre-compiled wheels for python 3.5, 3.6 and 3.7 for Windows,
+We offer pre-compiled wheels for Windows,
 linux and macOs.
 
 ### Using conda
 
 The package is also available in [conda-forge](https://anaconda.org/conda-forge/pyreadr) 
-for windows, mac and linux 64 bit, python 3.6 and 3.7. only.
+for windows, mac and linux 64 bit.
 
 In order to install:
 
@@ -317,9 +320,14 @@ and POSIXlt), date, logical atomic vectors. Factors are also supported.
 
 Tibbles are also supported.
 
-Atomic vectors as described before can also be directly read, but as librdata
-does not give the information of the type of object it parsed everything
-is translated to a pandas data frame.
+Atomic vectors as described before can also be directly read and are 
+translated to a pandas data frame with one column. 
+
+Matrices, arrays and tables are also read and translated to pandas data frames
+(because those objects in R can be named, and plain numpy arrays do not support
+dimension names). The only exception is 3D arrays, which are translated to a
+xarray DataArray (as pandas does not support more than 2 dimensions). This is also
+the only time that an object different from a pandas dataframe is returned by read_r.
 
 Only single pandas data frames can be written into R data frames.
 
@@ -375,17 +383,12 @@ NaN and missing value representation, and it will always be written as NaN in R.
 
 ## Known limitations
 
-* As explained before, although atomic vectors can also be directly read, as librdata
-does not give the information of the type of object it parsed everything
-is translated to a pandas data frame.
-
 * POSIXct and POSIXlt objects in R are stored internally as UTC timestamps and may have
 in addition time zone information. librdata does not return time zone information and
 thefore the display of the tiemstamps in R and in pandas may differ.
 
-* Matrices and arrays are read, but librdata does not return information about
-the dimensions, therefore those cannot be arranged properly multidimensional
-numpy arrays. They are translated to pandas data frames with one single column.
+* Librdata reads arrays with a maximum of 3 dimensions. If more dimensions are present
+you will get an error. Please submit an issue if this is the case. 
 
 * **Lists are not read**.
 
