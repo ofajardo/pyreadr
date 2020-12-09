@@ -46,7 +46,7 @@ cdef int _os_close(int fd):
 
 
 cdef int _handle_open(const char* path, void* io_ctx):
-    cdef unistd_io_ctx_t* ctx = <unistd_io_ctx_t*>io_ctx
+    cdef rdata_unistd_io_ctx_t* ctx = <rdata_unistd_io_ctx_t*>io_ctx
     cdef int fd
     if not os.path.isfile(path):
         return -1
@@ -74,11 +74,39 @@ cdef int _handle_column(const char *name, rdata_type_t type, void *data, long co
         parser._error = e
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
+cdef int _handle_dim(const char *name, rdata_type_t type, void *data, long count, void *ctx):
+    parser = <Parser>ctx
+    try:
+        if parser.parse_current_table:
+            Parser.__handle_dim(parser, name, type, data, count)
+        return rdata_error_t.RDATA_OK
+    except Exception as e:
+        parser._error = e
+        return rdata_error_t.RDATA_ERROR_USER_ABORT
+
 
 cdef int _handle_column_name(const char *name, int index, void *ctx):
     parser = <Parser>ctx
     try:
         Parser.__handle_column_name(parser, name, index)
+        return rdata_error_t.RDATA_OK
+    except Exception as e:
+        parser._error = e
+        return rdata_error_t.RDATA_ERROR_USER_ABORT
+
+cdef int _handle_dim_name(const char *name, int index, void *ctx):
+    parser = <Parser>ctx
+    try:
+        Parser.__handle_dim_name(parser, name, index)
+        return rdata_error_t.RDATA_OK
+    except Exception as e:
+        parser._error = e
+        return rdata_error_t.RDATA_ERROR_USER_ABORT
+
+cdef int _handle_row_name(const char *name, int index, void *ctx):
+    parser = <Parser>ctx
+    try:
+        Parser.__handle_row_name(parser, name, index)
         return rdata_error_t.RDATA_OK
     except Exception as e:
         parser._error = e
@@ -129,6 +157,9 @@ cdef class Parser:
         rdata_set_table_handler(self._this, _handle_table)
         rdata_set_column_handler(self._this, _handle_column)
         rdata_set_column_name_handler(self._this, _handle_column_name)
+        rdata_set_dim_handler(self._this, _handle_dim)
+        rdata_set_dim_name_handler(self._this, _handle_dim_name)
+        rdata_set_row_name_handler(self._this, _handle_row_name)
         rdata_set_text_value_handler(self._this, _handle_text_value)
         rdata_set_value_label_handler(self._this, _handle_value_label)
 
@@ -149,6 +180,15 @@ cdef class Parser:
         pass
 
     def handle_column_name(self, name, index):
+        pass
+
+    def handle_dim(self, name, data_type, data, count):
+        pass
+
+    def handle_dim_name(self, name, index):
+        pass
+
+    def _handle_row_name(self, name, index):
         pass
 
     def handle_text_value(self, name, index):
@@ -187,6 +227,33 @@ cdef class Parser:
 
     cdef __handle_column_name(self, const char *name, int index):
         self.handle_column_name(name, index)
+
+    cdef __handle_dim(self, const char *name, rdata_type_t datatype, void *data, long count):
+        cdef int *ints = <int*>data
+
+        data_type = DataType(datatype)
+        if datatype == rdata_type_t.RDATA_TYPE_INT32:
+            array = np.empty([count], dtype=np.int32)
+            for i in range(count):
+                array[i] = ints[i];
+        else:
+            raise PyreadrError('Wrong data type %s for dimensions.' % str(data_type))
+
+        if name == NULL:
+            new_name = None
+        else:
+            new_name = name
+        self.handle_dim(new_name, data_type, array, count)
+
+    cdef __handle_dim_name(self, const char *name, int index):
+        if name == NULL:
+            new_name = None
+        else:
+            new_name = name
+        self.handle_dim_name(new_name, index)
+
+    cdef __handle_row_name(self, const char *name, int index):
+        self.handle_row_name(name, index)
 
     cdef __handle_text_value(self, const char *value, int index):
         if value != NULL:

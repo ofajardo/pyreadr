@@ -29,6 +29,12 @@ save(df1, df2, char, mylist, file = "two.RData")
 # Save the Rds file
 saveRDS(df1, "one.Rds")
 
+# dataframes with rownames
+df1_rownames <- df1
+row.names(df1_rownames) <- c("A", "B", "C", "D", "E", "F")
+saveRDS(df1_rownames, "one_rownames.Rds")
+save(df1_rownames, df2, char, mylist, file = "two_rownames.RData")
+
 # Save as csv as well
 df1$tstamp1 <- as.character(df1$tstamp1)
 df1$tstamp2 <- as.character(df1$tstamp2)
@@ -55,3 +61,58 @@ write.csv(df ,file="dates.csv", row.names=FALSE)
 # save the RData file
 save(df1, df2, char, mylist, file = "two_bzip2.RData", compress = "bzip2")
 save(df1, df2, char, mylist, file = "two_xz.RData", compress = "xz")
+
+# matrices
+mat_simple <- matrix(1:12, nrow=4, ncol=3) 
+saveRDS(mat_simple, "mat_simple.rds")
+mat_simple_byrow <- matrix(1:12, nrow=4, ncol=3, byrow=TRUE) 
+saveRDS(mat_simple_byrow, "mat_simple_byrow.rds")
+matrownames <- c("A", "B", "C", "D")
+matcolnames <- c("V1", "V2", "V3")
+mat_rowcolnames <- matrix(1:12, nrow=4, ncol=3, dimnames = list(matrownames, matcolnames)) 
+saveRDS(mat_rowcolnames, "mat_rowcolnames.rds")
+mat_rownames <- matrix(1:12, nrow=4, ncol=3, dimnames = list(matrownames)) 
+saveRDS(mat_rownames, "mat_rownames.rds")
+mat_colnames <- matrix(1:12, nrow=4, ncol=3, dimnames = list(c(), matcolnames)) 
+saveRDS(mat_colnames, "mat_colnames.rds")
+samp <- data.frame(list("a"=c(1,1,1,1,0,0,0,0),"b"=c(0,1)))
+samp_tab <- table(samp)
+saveRDS(samp_tab, "table.rds")
+array_simple <- array(data=1:12, dim=c(4,3)) 
+saveRDS(array_simple, "array_simple.rds")
+array_onedim <- array(data=1:12, dim=c(12)) 
+saveRDS(array_onedim, "array_onedim.rds")
+onedimnames <- LETTERS[1:12]
+array_onedim_named <- array(data=1:12, dim=c(12), dimnames=list(onedimnames)) 
+saveRDS(array_onedim_named, "array_onedim_named.rds")
+array_3d <- array(data=1:36, dim=c(4,3,3)) 
+saveRDS(array_3d, "array_3d.rds")
+dim3 <- c("D1","D2","D3")
+array_3d_named <- array(data=1:36, dim=c(4,3,3), dimnames = list(matrownames, matcolnames,dim3)) 
+saveRDS(array_3d_named, "array_3d_named.rds")
+# differnt types
+withna <- 1:12
+withna[3:4] <- NA
+mat_na <- matrix(withna, nrow=4, ncol=3) 
+saveRDS(mat_na, "mat_na.rds")
+mat_bool <- matrix(as.logical(withna), nrow=4, ncol=3)
+saveRDS(mat_bool, "mat_bool.rds")
+mat_numeric <- mat_simple * 100000 
+saveRDS(mat_numeric, "mat_numeric.rds")
+# matrices and arrays do not preserve POSIXct and DATE types
+# but you can set the dim attribute on an array as well
+dats <- rep("1970-01-01", 12)
+dats[3:4] <- NA
+mat_date <- as.Date(dats)
+dim(mat_date) <- c(4,3)
+saveRDS(mat_date, "mat_date.rds")
+mat_dtime <- as.POSIXct(dats, tz = "GMT")
+dim(mat_dtime) <- c(4,3)
+saveRDS(mat_dtime, "mat_dtime.rds")
+# factor
+facvec <- as.factor(rep(c( "james", "cecil","zoe", "amber", NA, "rob"),2))
+matstr <- matrix(facvec, nrow=4, ncol=3)
+saveRDS(matstr, "mat_str.rds")
+dim(facvec) <- c(4,3)
+saveRDS(facvec, "mat_factor.rds")
+

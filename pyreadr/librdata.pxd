@@ -77,8 +77,11 @@ cdef extern from 'libs/librdata/src/rdata.h':
     rdata_error_t rdata_set_table_handler(rdata_parser_t *parser, rdata_table_handler table_handler);
     rdata_error_t rdata_set_column_handler(rdata_parser_t *parser, rdata_column_handler column_handler);
     rdata_error_t rdata_set_column_name_handler(rdata_parser_t *parser, rdata_column_name_handler column_name_handler);
+    rdata_error_t rdata_set_row_name_handler(rdata_parser_t *parser, rdata_column_name_handler row_name_handler);
     rdata_error_t rdata_set_text_value_handler(rdata_parser_t *parser, rdata_text_value_handler text_value_handler);
     rdata_error_t rdata_set_value_label_handler(rdata_parser_t *parser, rdata_text_value_handler value_label_handler);
+    rdata_error_t rdata_set_dim_handler(rdata_parser_t *parser, rdata_column_handler dim_handler);
+    rdata_error_t rdata_set_dim_name_handler(rdata_parser_t *parser, rdata_text_value_handler dim_name_handler);
     rdata_error_t rdata_set_error_handler(rdata_parser_t *parser, rdata_error_handler error_handler);
     rdata_error_t rdata_set_open_handler(rdata_parser_t *parser, rdata_open_handler open_handler);
     rdata_error_t rdata_set_close_handler(rdata_parser_t *parser, rdata_close_handler close_handler);
@@ -126,7 +129,7 @@ cdef extern from 'libs/librdata/src/rdata.h':
     rdata_error_t rdata_end_file(rdata_writer_t *writer);
 
 cdef extern from 'libs/librdata/src/rdata_io_unistd.h':
-    cdef struct unistd_io_ctx_t 'unistd_io_ctx_s':
+    cdef struct rdata_unistd_io_ctx_t 'rdata_unistd_io_ctx_s':
         int fd
 
 IF UNAME_SYSNAME == 'Windows':

@@ -6,9 +6,11 @@ import os
 import datetime
 import warnings
 import shutil
+from string import ascii_uppercase
 
 import pandas as pd
 import numpy as np
+import xarray as xr
 
 
 class PyReadRBasic(unittest.TestCase):
@@ -55,6 +57,11 @@ class PyReadRBasic(unittest.TestCase):
         self.df2 = df2
         self.df3 = df3
 
+        df1_rownames = df1.copy()
+        df1_rownames['rownames'] = ['A', 'B', 'C',"D",'E','F']
+        df1_rownames = df1_rownames.set_index('rownames')
+        self.df1_rownames = df1_rownames
+
         self.rdata_objects = ['df1', 'df2', 'char']
         self.rdata_objects_description = [{"object_name": "df1", "columns": ['num', 'int', 'char', 'fac', 'log', 'tstamp1', 'tstamp2']},
             {"object_name": "df2", "columns": ['num2', 'int2', 'char2', 'fac2', 'log2']},
@@ -80,6 +87,52 @@ class PyReadRBasic(unittest.TestCase):
         df_dates["d"] = df_dates["d"].apply(lambda x: datetime.datetime.strptime(x, "%Y-%m-%d").date() if type(x) == str else None)
         self.df_dates = df_dates
 
+        # matrices
+        matdata = np.asarray(list(range(1,13)), dtype=np.int32)
+        self.mat_singlecol = pd.DataFrame(matdata)
+        self.mat_singlecol_named = pd.DataFrame(matdata, index=list(ascii_uppercase)[0:12])
+        self.mat_simple = pd.DataFrame(np.reshape(matdata, (4,3), order='F'))
+        self.mat_simple_byrow = pd.DataFrame(np.reshape(matdata, (4,3), order='C'))
+        self.mat_rowcolnames = pd.DataFrame(np.reshape(matdata, (4,3), order='F'), 
+                          columns=['V'+str(x) for x in range(1,4)],
+                          index=["A", "B","C","D"])
+        self.mat_rownames = pd.DataFrame(np.reshape(matdata, (4,3), order='F'), 
+                          index=["A", "B","C","D"])
+        self.mat_colnames = pd.DataFrame(np.reshape(matdata, (4,3), order='F'), 
+                          columns=['V'+str(x) for x in range(1,4)])
+        self.table = pd.DataFrame(np.asarray([[2,2], [2,2]], dtype=np.int32), 
+                                columns=["0", "1"],
+                                index=["0","1"])
+        flat3d = np.asarray(list(range(1,37)), dtype=np.int32)
+        self.array3d = xr.DataArray(np.reshape(flat3d, (4,3,3), order='F'))
+        self.array3d_named = xr.DataArray(np.reshape(flat3d, (4,3,3), order='F'),
+                                          [["A", "B","C","D"],
+                                           ['V'+str(x) for x in range(1,4)],
+                                           ['D'+str(x) for x in range(1,4)]])
+        matnan = np.asarray(matdata, dtype=np.object)
+        matnan[2:4] = np.nan
+        self.mat_nan = pd.DataFrame(np.reshape(matnan, (4,3), order='F'))
+        matnan_num = np.asarray(matdata, dtype=np.float64) * 100000
+        self.mat_numeric = pd.DataFrame(np.reshape(matnan_num, (4,3), order='F'))
+        matnan_bool = np.asarray(matnan, dtype=np.bool)
+        matnan_bool = np.asarray(matnan_bool, dtype=np.object)
+        matnan_bool[2:4] = np.nan
+        self.mat_bool = pd.DataFrame(np.reshape(matnan_bool, (4,3), order='F'))
+        matzeros = np.zeros(12)
+        matzeros[2:4] = np.nan
+        matdtime = pd.to_datetime(matzeros)
+        matdtime = np.reshape(matdtime.values, (4,3), order='F')
+        self.mat_dtime = pd.DataFrame(matdtime)
+        matdate = matzeros.astype("datetime64[D]").astype(datetime.datetime)
+        matdate = np.reshape(matdate, (4,3), order='F')
+        self.mat_date = pd.DataFrame(matdate)
+        # string
+        matstr = np.asarray(["james", "cecil","zoe", "amber", np.nan, "rob"]*2, dtype=np.object)
+        self.mat_str = pd.DataFrame(np.reshape(matstr, (4,3), order='F'))
+        # categories
+        mat_cat = self.mat_str.copy()
+        self.mat_cat = mat_cat.astype("category")
+
     def test_rdata_basic(self):
 
         rdata_path = os.path.join(self.basic_data_folder, "two.RData")
@@ -89,6 +142,14 @@ class PyReadRBasic(unittest.TestCase):
         warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(self.df1.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
+        
+    def test_rdata_rownames(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "two_rownames.RData")
+        res = pyreadr.read_r(rdata_path)
+        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        self.assertTrue(self.df1_rownames.equals(res['df1_rownames']))
         
     def test_rdata_basic_r36(self):
         """
@@ -108,6 +169,12 @@ class PyReadRBasic(unittest.TestCase):
         rds_path = os.path.join(self.basic_data_folder, "one.Rds")
         res = pyreadr.read_r(rds_path)
         self.assertTrue(self.df1.equals(res[None]))
+
+    def test_rds_rownames(self):
+
+        rds_path = os.path.join(self.basic_data_folder, "one_rownames.Rds")
+        res = pyreadr.read_r(rds_path)
+        self.assertTrue(self.df1_rownames.equals(res[None]))
         
     def test_rds_basic_r36(self):
         """
@@ -293,6 +360,116 @@ class PyReadRBasic(unittest.TestCase):
         url = "https://github.com/hadley/nycflights13/blob/master/data/airlines.rda?raw=true"
         res = pyreadr.read_r(pyreadr.download_file(url, path))
         self.assertIsNotNone(res)
+
+    # matrices
+    def test_matrix_simple_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_simple.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_simple))
+
+    def test_matrix_simple_byrow_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_simple_byrow.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_simple_byrow))
+
+    def test_matrix_rowcolnames(self):
+        path = os.path.join(self.basic_data_folder, "mat_rowcolnames.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_rowcolnames))
+
+    def test_matrix_colnames(self):
+        path = os.path.join(self.basic_data_folder, "mat_colnames.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_colnames))
+
+    def test_matrix_rownames(self):
+        path = os.path.join(self.basic_data_folder, "mat_rownames.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_rownames))
+
+    def test_table(self):
+        path = os.path.join(self.basic_data_folder, "table.rds")
+        res = pyreadr.read_r(path)
+        df = res[None] 
+        #import pdb;pdb.set_trace()
+        self.assertTrue(df.equals(self.table))
+
+    def test_array_simple_rds(self):
+        path = os.path.join(self.basic_data_folder, "array_simple.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_simple))
+
+    def test_array_onedim_rds(self):
+        path = os.path.join(self.basic_data_folder, "array_onedim.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_singlecol))
+
+    def test_array_onedim_named_rds(self):
+        path = os.path.join(self.basic_data_folder, "array_onedim_named.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_singlecol_named))
+
+    def test_array_3d(self):
+        path = os.path.join(self.basic_data_folder, "array_3d.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.array3d))
+
+    def test_array_3dnamed(self):
+        path = os.path.join(self.basic_data_folder, "array_3d_named.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.array3d_named))
+
+    def test_matrix_integernans_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_na.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_nan))
+
+    def test_matrix_numeric_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_numeric.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_numeric))
+
+    def test_matrix_logic_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_bool.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_bool))
+
+    def test_matrix_dtime_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_dtime.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_dtime))
+
+    def test_matrix_date_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_date.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_date))
+
+    def test_matrix_string_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_str.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_str))
+
+    def test_matrix_category_rds(self):
+        path = os.path.join(self.basic_data_folder, "mat_factor.rds")
+        res = pyreadr.read_r(path)
+        df = res[None]
+        self.assertTrue(df.equals(self.mat_cat))
 
  
 if __name__ == '__main__':

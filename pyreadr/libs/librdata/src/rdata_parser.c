@@ -6,7 +6,7 @@
 rdata_parser_t *rdata_parser_init() {
     rdata_parser_t *parser = calloc(1, sizeof(rdata_parser_t));
     parser->io = calloc(1, sizeof(rdata_io_t));
-    unistd_io_init(parser);
+    rdata_unistd_io_init(parser);
     return parser;
 }
 
@@ -45,6 +45,16 @@ rdata_error_t rdata_set_text_value_handler(rdata_parser_t *parser, rdata_text_va
 
 rdata_error_t rdata_set_value_label_handler(rdata_parser_t *parser, rdata_text_value_handler value_label_handler) {
     parser->value_label_handler = value_label_handler;
+    return RDATA_OK;
+}
+
+rdata_error_t rdata_set_dim_handler(rdata_parser_t *parser, rdata_column_handler dim_handler) {
+    parser->dim_handler = dim_handler;
+    return RDATA_OK;
+}
+
+rdata_error_t rdata_set_dim_name_handler(rdata_parser_t *parser, rdata_text_value_handler dim_name_handler) {
+    parser->dim_name_handler = dim_name_handler;
     return RDATA_OK;
 }
 

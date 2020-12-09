@@ -56,7 +56,7 @@ elif platform.system() == 'Linux':
     libraries.append('z')
     libraries.append('bz2')
     libraries.append('lzma')
-    #extra_compile_args.append("-std=c99")
+    #extra_compile_args.append("--std=gnu99")
 else:
     raise RuntimeError('Unsupported OS')
 
@@ -83,7 +83,7 @@ short_description = "Reads/writes R RData and Rds files into/from pandas data fr
 
 setup(
     name='pyreadr',
-    version='0.3.8',
+    version='0.3.9',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=True,

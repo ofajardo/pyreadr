@@ -11,6 +11,7 @@
 #include <limits.h>
 #include <iconv.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #if HAVE_BZIP2
 #include <bzlib.h>
@@ -35,6 +36,7 @@
 #define RDATA_CLASS_DATE    0x02
 
 #define STREAM_BUFFER_SIZE   65536
+#define MAX_ARRAY_DIMENSIONS     3
 
 /* ICONV_CONST defined by autotools during configure according
  * to the current platform. Some people copy-paste the source code, so
@@ -56,6 +58,8 @@ typedef struct rdata_ctx_s {
     rdata_column_name_handler    row_name_handler;
     rdata_text_value_handler     text_value_handler;
     rdata_text_value_handler     value_label_handler;
+    rdata_column_handler         dim_handler;
+    rdata_text_value_handler     dim_name_handler;
     rdata_error_handler       error_handler;
     void                        *user_ctx;
 #if HAVE_BZIP2
@@ -78,6 +82,9 @@ typedef struct rdata_ctx_s {
     unsigned int                 column_class;
 
     iconv_t                      converter;
+
+    int32_t                      dims[MAX_ARRAY_DIMENSIONS];
+    bool                         is_dimnames;
 } rdata_ctx_t;
 
 static int atom_table_add(rdata_atom_table_t *table, char *key);
@@ -665,7 +672,11 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
     ctx->row_name_handler = parser->row_name_handler;
     ctx->text_value_handler = parser->text_value_handler;
     ctx->value_label_handler = parser->value_label_handler;
+    ctx->dim_handler = parser->dim_handler;
+    ctx->dim_name_handler = parser->dim_name_handler;
     ctx->error_handler = parser->error_handler;
+
+    ctx->is_dimnames = false;
     
     if ((retval = init_stream(ctx)) != RDATA_OK) {
         goto cleanup;
@@ -941,9 +952,38 @@ static int handle_vector_attribute(char *key, rdata_sexptype_info_t val_info, rd
     } else if (strcmp(key, "class") == 0) {
         ctx->column_class = 0;
         retval = read_string_vector(val_info.header.attributes, &handle_class_name, &ctx->column_class, ctx);
+    } else if (strcmp(key, "dim") == 0) {
+        if (val_info.header.type == RDATA_SEXPTYPE_INTEGER_VECTOR) {
+            int32_t length;
+            if ((retval = read_length(&length, ctx)) != RDATA_OK)
+                goto cleanup;
+
+            if (length <= sizeof(ctx->dims)/sizeof(ctx->dims[0])) {
+                int buf_len = length * sizeof(int32_t);
+                if (read_st(ctx, ctx->dims, buf_len) != buf_len) {
+                    retval = RDATA_ERROR_READ;
+                    goto cleanup;
+                }
+                if (ctx->machine_needs_byteswap) {
+                    int i;
+                    for (i=0; i<length; i++) {
+                        ctx->dims[i] = byteswap4(ctx->dims[i]);
+                    }
+                }
+                if (ctx->dim_handler) {
+                    if (ctx->dim_handler(key, RDATA_TYPE_INT32, ctx->dims, length, ctx->user_ctx)) {
+                        retval = RDATA_ERROR_USER_ABORT;
+                    }
+                }
+            }
+        }
+    } else if (strcmp(key, "dimnames") == 0) {
+        ctx->is_dimnames = true;
+        retval = read_generic_list(val_info.header.attributes, ctx);
     } else {
         retval = recursive_discard(val_info.header, ctx);
     }
+cleanup:
     return retval;
 }
 
@@ -1282,16 +1322,28 @@ static rdata_error_t read_generic_list(int attributes, rdata_ctx_t *ctx) {
             
             if ((retval = read_length(&vec_length, ctx)) != RDATA_OK)
                 goto cleanup;
-            if (ctx->column_handler) {
-                if (ctx->column_handler(NULL, RDATA_TYPE_STRING, NULL, vec_length, ctx->user_ctx)) {
-                    retval = RDATA_ERROR_USER_ABORT;
-                    goto cleanup;
+            if (ctx->is_dimnames) {
+                retval = read_string_vector_n(sexptype_info.header.attributes, vec_length,
+                    ctx->dim_name_handler, ctx->user_ctx, ctx);
+            } else {
+                if (ctx->column_handler) {
+                    if (ctx->column_handler(NULL, RDATA_TYPE_STRING, NULL, vec_length, ctx->user_ctx)) {
+                        retval = RDATA_ERROR_USER_ABORT;
+                        goto cleanup;
+                    }
                 }
-            }
-            retval = read_string_vector_n(sexptype_info.header.attributes, vec_length,
+                retval = read_string_vector_n(sexptype_info.header.attributes, vec_length,
                     ctx->text_value_handler, ctx->user_ctx, ctx);
+            }
         } else if (sexptype_info.header.type == RDATA_PSEUDO_SXP_ALTREP) {
             retval = read_altrep_vector(NULL, ctx);
+        } else if (sexptype_info.header.type == RDATA_PSEUDO_SXP_NIL) {
+            if (ctx->is_dimnames && ctx->dim_name_handler && i < sizeof(ctx->dims)/sizeof(ctx->dims[0])) {
+                int j;
+                for (j=0; j<ctx->dims[i]; j++) {
+                    ctx->dim_name_handler(NULL, j, ctx->user_ctx);
+                }
+            }
         } else {
             retval = read_value_vector(sexptype_info.header, NULL, ctx);
         }
@@ -1305,7 +1357,10 @@ static rdata_error_t read_generic_list(int attributes, rdata_ctx_t *ctx) {
     }
     
 cleanup:
-    
+
+    if (ctx->is_dimnames)
+        ctx->is_dimnames = false;
+
     return retval;
 }
 
@@ -1460,27 +1515,29 @@ static rdata_error_t read_value_vector_cb(rdata_sexptype_header_t header, const 
 
     buf_len = length * input_elem_size;
     
-    vals = rdata_malloc(buf_len);
-    if (vals == NULL) {
-        retval = RDATA_ERROR_MALLOC;
-        goto cleanup;
-    }
-    
-    if (read_st(ctx, vals, buf_len) != buf_len) {
-        retval = RDATA_ERROR_READ;
-        goto cleanup;
-    }
-    
-    if (ctx->machine_needs_byteswap) {
-        if (input_elem_size == sizeof(double)) {
-            double *d_vals = (double *)vals;
-            for (i=0; i<buf_len/sizeof(double); i++) {
-                d_vals[i] = byteswap_double(d_vals[i]);
-            }
-        } else {
-            uint32_t *i_vals = (uint32_t *)vals;
-            for (i=0; i<buf_len/sizeof(uint32_t); i++) {
-                i_vals[i] = byteswap4(i_vals[i]);
+    if (buf_len) {
+        vals = rdata_malloc(buf_len);
+        if (vals == NULL) {
+            retval = RDATA_ERROR_MALLOC;
+            goto cleanup;
+        }
+        
+        if (read_st(ctx, vals, buf_len) != buf_len) {
+            retval = RDATA_ERROR_READ;
+            goto cleanup;
+        }
+        
+        if (ctx->machine_needs_byteswap) {
+            if (input_elem_size == sizeof(double)) {
+                double *d_vals = (double *)vals;
+                for (i=0; i<buf_len/sizeof(double); i++) {
+                    d_vals[i] = byteswap_double(d_vals[i]);
+                }
+            } else {
+                uint32_t *i_vals = (uint32_t *)vals;
+                for (i=0; i<buf_len/sizeof(uint32_t); i++) {
+                    i_vals[i] = byteswap4(i_vals[i]);
+                }
             }
         }
     }
