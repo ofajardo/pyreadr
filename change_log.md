@@ -1,3 +1,6 @@
+# 0.4.0 (github, pypi and conda: 2020.12.23)
+* fixing seg fault with linux wheels #62
+
 # 0.3.9 (github, pypi and conda: 2020.12.09)
 * Implemented reading dataframe rownames as pandas index
 * Implementing reading matrices, arrays, tables, solves #5.
