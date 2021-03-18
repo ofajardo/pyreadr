@@ -414,6 +414,8 @@ account in case you get a "Unable to allocate memory" error (see [this](https://
 * When writing numeric missing values are translated
 to NaN instead of NA.
 
+* Writing rownames is currently not supported.
+
 * Writing is supported only for a single pandas data frame to a single
 R data frame. Other data types are not supported. Multiple data frames
 for rdata files are not supported.
