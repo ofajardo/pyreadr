@@ -1,3 +1,6 @@
+# 0.4.1 (github, pypi and conda: 2021.04.02)
+* removed warnings about np.bool and np.object
+
 # 0.4.0 (github, pypi and conda: 2020.12.23)
 * fixing seg fault with linux wheels #62
 
