@@ -55,7 +55,7 @@ def get_pyreadr_column_types(df):
             result[col_name] = "INTEGER"
         elif col_type in float_types:
             result[col_name] = "NUMERIC"
-        elif col_type == np.bool:
+        elif col_type == bool:
             result[col_name] = "LOGICAL"
         # np.datetime64[ns]
         elif col_type == np.dtype('<M8[ns]') or col_type == np.datetime64:
@@ -63,7 +63,7 @@ def get_pyreadr_column_types(df):
                 missing = pd.isna(df[col_name])
                 if np.any(missing):
                     has_missing_values[indx] = True
-        elif col_type == np.object or col_type in int_mixed_types:
+        elif col_type == object or col_type in int_mixed_types:
             missing = pd.isna(df[col_name])
             if np.any(missing):
                 has_missing_values[indx] = True
@@ -94,7 +94,7 @@ def get_pyreadr_column_types(df):
                 result[col_name] = "INTEGER"
             elif curtype in float_types:
                 result[col_name] = "NUMERIC"
-            elif curtype == np.bool:
+            elif curtype == bool:
                 result[col_name] = "LOGICAL"
             elif curtype == str:
                 result[col_name] = "CHARACTER"

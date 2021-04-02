@@ -77,7 +77,7 @@ class Table:
 
         dtype = self.column_types[0]
         if dtype.name == "CHARACTER":
-            data = np.asarray(self.columns[0], dtype=np.object)
+            data = np.asarray(self.columns[0], dtype=object)
         else:
             data = np.asarray(self.columns[0])
 
@@ -96,11 +96,11 @@ class Table:
             na_index = data <= -2147483648
             if np.any(na_index):
                 if dtype.name == "INTEGER":
-                    data = data.astype(np.object)
+                    data = data.astype(object)
                     data[na_index] = np.nan
                 elif dtype.name == "LOGICAL":
                     data = data.astype('bool')
-                    data = data.astype(np.object)
+                    data = data.astype(object)
                     data[na_index] = np.nan
             else:
                 if dtype.name == "LOGICAL":
@@ -238,15 +238,15 @@ class Table:
                 # in pandas we only have np.nan to represent missing
                 # values, therefore we need to change the data type to
                 # object to be able to mix integers and the float nan
-                # In addition np.bool(np.nan) evaluates to True, we have to take care of that
+                # In addition bool(np.nan) evaluates to True, we have to take care of that
                 na_index = df[colname] <= -2147483648
                 if np.any(na_index):
                     if dtype.name == "INTEGER":
-                        df[colname] = df[colname].astype(np.object)
+                        df[colname] = df[colname].astype(object)
                         df.loc[na_index, colname] = np.nan
                     elif dtype.name == "LOGICAL":
                         df[colname] = df[colname].astype('bool')
-                        df[colname] = df[colname].astype(np.object)
+                        df[colname] = df[colname].astype(object)
                         df.loc[na_index, colname] = np.nan
                 else:
                     if dtype.name == "LOGICAL":

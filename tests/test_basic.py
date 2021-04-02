@@ -24,20 +24,20 @@ class PyReadRBasic(unittest.TestCase):
         self.write_data_folder = os.path.join(self.data_folder, "write")
 
         df1_dtypes = {'num': np.float64,
-                      'int': np.object,
-                      'char': np.object,
+                      'int': object,
+                      'char': object,
                       'fac': 'category'}
 
         df1_tstamp_dtypes = {'num': np.float64,
-                      'int': np.object,
-                      'char': np.object,
+                      'int': object,
+                      'char': object,
                       'fac': 'category',
                       'tstamp1': str,
                       'tstamp2': str}
                       
         df2_dtypes = {'num2': np.float64,
                       'int2': np.int32,
-                      'char2': np.object,
+                      'char2': object,
                       'fac2': 'category'}
                       
         df1 = pd.read_csv(os.path.join(self.basic_data_folder, "df1.csv"), dtype=df1_dtypes, parse_dates=[5, 6],
@@ -109,13 +109,13 @@ class PyReadRBasic(unittest.TestCase):
                                           [["A", "B","C","D"],
                                            ['V'+str(x) for x in range(1,4)],
                                            ['D'+str(x) for x in range(1,4)]])
-        matnan = np.asarray(matdata, dtype=np.object)
+        matnan = np.asarray(matdata, dtype=object)
         matnan[2:4] = np.nan
         self.mat_nan = pd.DataFrame(np.reshape(matnan, (4,3), order='F'))
         matnan_num = np.asarray(matdata, dtype=np.float64) * 100000
         self.mat_numeric = pd.DataFrame(np.reshape(matnan_num, (4,3), order='F'))
-        matnan_bool = np.asarray(matnan, dtype=np.bool)
-        matnan_bool = np.asarray(matnan_bool, dtype=np.object)
+        matnan_bool = np.asarray(matnan, dtype=bool)
+        matnan_bool = np.asarray(matnan_bool, dtype=object)
         matnan_bool[2:4] = np.nan
         self.mat_bool = pd.DataFrame(np.reshape(matnan_bool, (4,3), order='F'))
         matzeros = np.zeros(12)
@@ -127,7 +127,7 @@ class PyReadRBasic(unittest.TestCase):
         matdate = np.reshape(matdate, (4,3), order='F')
         self.mat_date = pd.DataFrame(matdate)
         # string
-        matstr = np.asarray(["james", "cecil","zoe", "amber", np.nan, "rob"]*2, dtype=np.object)
+        matstr = np.asarray(["james", "cecil","zoe", "amber", np.nan, "rob"]*2, dtype=object)
         self.mat_str = pd.DataFrame(np.reshape(matstr, (4,3), order='F'))
         # categories
         mat_cat = self.mat_str.copy()
@@ -451,12 +451,14 @@ class PyReadRBasic(unittest.TestCase):
         path = os.path.join(self.basic_data_folder, "mat_dtime.rds")
         res = pyreadr.read_r(path)
         df = res[None]
+        warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(df.equals(self.mat_dtime))
 
     def test_matrix_date_rds(self):
         path = os.path.join(self.basic_data_folder, "mat_date.rds")
         res = pyreadr.read_r(path)
         df = res[None]
+        warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(df.equals(self.mat_date))
 
     def test_matrix_string_rds(self):

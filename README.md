@@ -112,7 +112,20 @@ You can also install from the github repo directly (without cloning). Use the fl
 pip install git+https://github.com/ofajardo/pyreadr.git
 ```
 
-You need a working C compiler and cython.
+You need a working C compiler and cython. You may also need to install bzlib (on ubuntu install libbz2-dev).
+
+In order to run the tests:
+
+```
+python tests/test_basic.py
+``` 
+
+You can also install and test in place with:
+
+```
+python setup.py build_ext --inplace
+python tests/test_basic.py --inplace
+```
 
 ## Usage
 
