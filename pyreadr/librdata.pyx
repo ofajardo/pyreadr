@@ -35,7 +35,8 @@ cdef int _os_open(path, mode):
             flags = O_RDONLY
         else:
             flags = O_WRONLY | O_CREAT | O_TRUNC
-        return open(path.encode('utf-8'), flags, 0644)
+        #return open(path.encode('utf-8'), flags, 0644)
+        return open(path, flags, 0644)
 
 
 cdef int _os_close(int fd):
@@ -163,7 +164,8 @@ cdef class Parser:
         rdata_set_text_value_handler(self._this, _handle_text_value)
         rdata_set_value_label_handler(self._this, _handle_value_label)
 
-        status = rdata_parse(self._this, path.encode('utf-8'), <void*>self)
+        status = rdata_parse(self._this, path, <void*>self)
+        #status = rdata_parse(self._this, path.encode('utf-8'), <void*>self)
         rdata_parser_free(self._this)
 
         if status != RDATA_OK:

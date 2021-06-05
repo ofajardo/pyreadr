@@ -209,7 +209,7 @@ class PyreadrWriter(Writer):
         original_path = path
         
         if compress:
-            path = original_path + "_temp"
+            path = original_path + b"_temp"
             if compress != "gzip":
                 PyreadrError("compression {0} not implemented!, Please use gzip".format(compress))
 

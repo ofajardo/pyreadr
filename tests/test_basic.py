@@ -12,6 +12,13 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 
+is_pathlib_available = False
+try:
+    from pathlib import Path
+    is_pathlib_available = True
+except:
+    pass
+
 
 class PyReadRBasic(unittest.TestCase):
 
@@ -142,6 +149,16 @@ class PyReadRBasic(unittest.TestCase):
         warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(self.df1.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
+    
+    def test_rdata_pathlib(self):
+        if is_pathlib_available:
+            rdata_path = Path(self.basic_data_folder).joinpath("two.RData")
+            res = pyreadr.read_r(rdata_path)
+            self.assertListEqual(list(res.keys()), self.rdata_objects)
+            # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            self.assertTrue(self.df1.equals(res['df1']))
+            self.assertTrue(self.df2.equals(res['df2']))
         
     def test_rdata_rownames(self):
 
@@ -215,13 +232,14 @@ class PyReadRBasic(unittest.TestCase):
             os.remove(path)
         pyreadr.write_rdata(path, self.df_out)
         self.assertTrue(os.path.isfile(path))
-        #res = pyreadr.read_r(path)
-        #d = res["dataset"]
-        #d['datetime'].loc[pd.isna(d['datetime'])] = pd.NaT
-        #d['datetime'] = d['datetime'].to_timestamp()
-        #d['categ'] = d['categ'].astype(int)
-        #d['categ'] = d['categ'].astype('category')
-        #self.assertTrue(self.df_out.equals(d))
+
+    def test_write_rdata_pathlib(self):
+        if is_pathlib_available:    
+            path = Path(self.write_data_folder).joinpath('test_pathlib.RData')
+            if os.path.isfile(path):
+                os.remove(path)
+            pyreadr.write_rdata(path, self.df_out)
+            self.assertTrue(os.path.isfile(path))
         
     def test_write_rds(self):
         
