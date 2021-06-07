@@ -23,12 +23,13 @@ cdef int _os_open(path, mode):
     cdef int flags
     IF UNAME_SYSNAME == 'Windows':
         cdef Py_ssize_t length
-        u16_path = PyUnicode_AsWideCharString(path, &length)
         if mode == 'r':
             flags = _O_RDONLY | _O_BINARY
+            u16_path = PyUnicode_AsWideCharString(path, &length)
             return _wsopen(u16_path, flags, _SH_DENYWR, _S_IREAD | _S_IWRITE)
         else:
             flags = _O_WRONLY | _O_CREAT | _O_BINARY
+            u16_path = PyUnicode_AsWideCharString(os.fsdecode(path), &length)
             return _wsopen(u16_path, flags, _SH_DENYRW, _S_IREAD | _S_IWRITE)
     ELSE:
         if mode == 'r':
