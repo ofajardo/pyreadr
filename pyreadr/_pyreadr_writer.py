@@ -160,8 +160,8 @@ def transform_data(pd_series, dtype, has_missing, dateformat, datetimeformat):
         # https://stackoverflow.com/questions/39673816/want-to-perform-date-time-value-manipulation-using-struct-tm
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(dateformat))
     elif dtype == "DATETIME":
-        if type(pd_series.dtype) is pd.core.dtypes.dtypes.CategoricalDtype:
-            pd_series = pd_series.astype('object')
+        #if type(pd_series.dtype) is pd.core.dtypes.dtypes.CategoricalDtype:
+        pd_series = pd_series.astype('object')
         # transforming to string to avoid issues with timezones
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: x.strftime(datetimeformat))
     else:

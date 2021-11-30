@@ -1,4 +1,7 @@
-# 0.4.1 (github, pypi and conda: 2021.04.02)
+# 0.4.3 (github, pypi and conda: 2021.11.30)
+* fixed bug when translating datetime to string when writing.
+
+# 0.4.2 (github, pypi and conda: 2021.04.02)
 *  Added support for pathlib, solves #70
 
 # 0.4.1 (github, pypi and conda: 2021.04.02)
