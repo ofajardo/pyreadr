@@ -21,7 +21,8 @@ int_types = {np.dtype('int32'), np.dtype('int16'), np.dtype('int8'), np.dtype('u
              np.int32, np.int16, np.int8, np.uint8, np.uint16}
 int_mixed_types = {pd.Int8Dtype(), pd.Int16Dtype(), pd.Int32Dtype(), pd.UInt8Dtype(), pd.UInt16Dtype()}
 float_types = {np.dtype('int64'), np.dtype('uint64'), np.dtype('uint32'), np.dtype('float'),
-               np.int64, np.uint64, np.uint32, np.float, pd.Int64Dtype(), pd.UInt32Dtype(), pd.UInt64Dtype()}
+               np.int64, np.uint64, np.uint32, np.float, pd.Int64Dtype(), pd.UInt32Dtype(), pd.UInt64Dtype(),
+               pd.Float64Dtype(), pd.Float32Dtype()}
 datetime_types = {datetime.datetime, np.datetime64}
 
 pyreadr_to_librdata_types = {"INTEGER": "INTEGER", "NUMERIC": "NUMERIC",

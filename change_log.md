@@ -1,3 +1,8 @@
+# 0.4.4 (github, pypi and conda: 2021.12.02)
+* Introducing new pandas data types Float64Dtype and Float32Dtype when writing.
+  This requires pandas > 1.2.0. Python 3.6 taken out of wheels as there
+  is no 1.2.0 version.
+
 # 0.4.3 (github, pypi and conda: 2021.11.30)
 * fixed bug when translating datetime to string when writing.
 
