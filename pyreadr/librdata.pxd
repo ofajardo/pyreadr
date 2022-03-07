@@ -135,7 +135,7 @@ cdef extern from 'libs/librdata/src/rdata_io_unistd.h':
 IF UNAME_SYSNAME == 'Windows':
 
     cdef extern from 'Python.h':
-        wchar_t* PyUnicode_AsWideCharString(object, Py_ssize_t *)
+        wchar_t* PyUnicode_AsWideCharString(object, Py_ssize_t *) except NULL
 
     cdef extern from '<fcntl.h>':
         int _wsopen(const wchar_t *filename, int oflag, int shflag, int pmode)
