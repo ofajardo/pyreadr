@@ -7,11 +7,11 @@ environment:
     # The list here is complete (excluding Python 2.6, which
     # isn't covered by this document) at the time of writing.
 
-    - PYTHON_VERSION: "3.7"
+    - PYTHON: C:\Python38
+    #- PYTHON_VERSION: "3.7"
     #- PYTHON: C:\Python37-x64
     #- PYTHON: C:\Python37
     #- PYTHON: C:\Python38-x64
-    #- PYTHON: C:\Python38
     #- PYTHON: C:\Python36-x64
     #- PYTHON: C:\Python36
     #- PYTHON: C:\Python35-x64
@@ -27,7 +27,7 @@ install:
   #- "%PYTHON%\\python.exe -m pip install wheel"
   - cmd: echo "Using cmd"
 
-  - set CONDAPATH=C:\Miniconda37
+  - set CONDAPATH=C:\Miniconda38
   - if "%PLATFORM%" == "x64" set CONDAPATH=%CONDAPATH%-x64
   - call %CONDAPATH%\Scripts\activate
   # prepare environment with conda
