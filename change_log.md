@@ -1,4 +1,7 @@
-# 0.4.5 (github, pypi and conda: 2022.06.2X)
+# 0.4.6 (github, pypi and conda: 2022.06.23)
+* fixed signature #84
+
+# 0.4.5 (github, pypi and conda: 2022.06.23)
 * fixed numpy.float deprecation
 * fixed truncation of files when writing on windows
 
