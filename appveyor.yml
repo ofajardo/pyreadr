@@ -1,3 +1,6 @@
+image:
+  - Visual Studio 2019
+
 environment:
 
   matrix:
@@ -7,16 +10,8 @@ environment:
     # The list here is complete (excluding Python 2.6, which
     # isn't covered by this document) at the time of writing.
 
-    - PYTHON_VERSION: "3.7"
-    #- PYTHON: C:\Python37-x64
-    #- PYTHON: C:\Python37
-    #- PYTHON: C:\Python38-x64
-    #- PYTHON: C:\Python38
-    #- PYTHON: C:\Python36-x64
-    #- PYTHON: C:\Python36
-    #- PYTHON: C:\Python35-x64
-    #- PYTHON: C:\Python35
-    #- PYTHON: C:\Python27-x64
+    - PYTHON: C:\Python38
+    - PYTHON_VERSION: "3.8"
     
 platform:
   - x64
@@ -27,7 +22,7 @@ install:
   #- "%PYTHON%\\python.exe -m pip install wheel"
   - cmd: echo "Using cmd"
 
-  - set CONDAPATH=C:\Miniconda37
+  - set CONDAPATH=C:\Miniconda38
   - if "%PLATFORM%" == "x64" set CONDAPATH=%CONDAPATH%-x64
   - call %CONDAPATH%\Scripts\activate
   # prepare environment with conda
@@ -40,7 +35,9 @@ install:
   - python --version
   - python -c "import struct; print(struct.calcsize('P') * 8)"
   # install necessary packages
-  - conda install -q setuptools pip libpython cython wheel
+  #- conda install -q setuptools pip libpython cython wheel
+  - pip install cython
+  - conda install -c conda-forge libpython
   # mingw64 toolchain to compile python extensions
   - conda install -q -c msys2 m2w64-toolchain
 

@@ -1,3 +1,7 @@
+# 0.4.5 (github, pypi and conda: 2022.06.2X)
+* fixed numpy.float deprecation
+* fixed truncation of files when writing on windows
+
 # 0.4.4 (github, pypi and conda: 2021.12.02)
 * Introducing new pandas data types Float64Dtype and Float32Dtype when writing.
   This requires pandas > 1.2.0. Python 3.6 taken out of wheels as there

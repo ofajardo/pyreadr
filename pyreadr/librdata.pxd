@@ -143,6 +143,7 @@ IF UNAME_SYSNAME == 'Windows':
         cdef int _O_BINARY
         cdef int _O_CREAT
         cdef int _O_WRONLY
+        cdef int _O_TRUNC
 
     cdef extern from '<io.h>':
         cdef int _close(int fd)
