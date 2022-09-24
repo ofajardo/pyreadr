@@ -1,3 +1,7 @@
+# 0.4.7 (github, pypi and conda: 2022.09.24)
+* added toml file, fixes #88
+* Added Citation
+
 # 0.4.6 (github, pypi and conda: 2022.06.23)
 * fixed signature #84
 
