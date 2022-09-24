@@ -6,6 +6,6 @@ authors:
   orcid: "https://orcid.org/0000-0002-3363-9287"
 title: "Pyreadr"
 version: 0.4.7
-doi: 
+doi: 10.5281/zenodo.7110170
 date-released: 2018-12-28
 url: "https://github.com/ofajardo/pyreadr"
