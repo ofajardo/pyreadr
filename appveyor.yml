@@ -25,6 +25,8 @@ install:
   - if "%PLATFORM%" == "x64" set CONDAPATH=%CONDAPATH%-x64
   - call %CONDAPATH%\Scripts\activate
   # prepare environment with conda
+  - conda config --add channels conda-forge
+  - conda config --set channel_priority strict
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   # create an environment with the appropiate python
