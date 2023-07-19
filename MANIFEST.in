@@ -8,3 +8,7 @@ include *.c
 recursive-include pyreadr/libs *.c
 recursive-include win_libs/64bit *.dll
 recursive-include win_libs/64bit *.lib
+recursive-include pyreadr *.dll
+recursive-include pyreadr *.lib
+
+

@@ -26,8 +26,7 @@ libraries = []
 include_dirs = []
 extra_link_args = []
 extra_compile_args = ['-DHAVE_ZLIB', '-DHAVE_BZIP2', '-DHAVE_LZMA']
-data_files = []
-data_folder = ""
+package_data = {}
 
 if platform.system() == 'Darwin':
     libraries.append("iconv")
@@ -44,14 +43,8 @@ elif platform.system() == 'Windows':
     include_dirs.append('pyreadr/libs/librdata')
     include_dirs.append('pyreadr/libs/iconv')
     library_dirs.append('pyreadr/libs/librdata')
-    
-    data_folder = "win_libs/64bit/"
-    data_files = [("Lib/site-packages/pyreadr", [data_folder + "zlib.dll", data_folder + "iconv.dll",
-                        data_folder + "charset.dll", data_folder + "iconv.lib",
-                        data_folder + "libbz2-1.dll",
-                        data_folder + "liblzma-5.dll"])]
-                        
-    library_dirs.append(data_folder)
+    package_data ={'pryeadr': ["*.dll", "*.lib"]}
+    library_dirs.append("pyreadr")
     libraries.append('z')
     libraries.append('iconv')
     libraries.append('bz2')
@@ -91,7 +84,6 @@ setup(
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=True,
-    data_files=data_files,
     install_requires=['pandas>=1.2.0'],
     license="AGPLv3",
     classifiers=[
