@@ -27,6 +27,7 @@ include_dirs = []
 extra_link_args = []
 extra_compile_args = ['-DHAVE_ZLIB', '-DHAVE_BZIP2', '-DHAVE_LZMA']
 package_data = {}
+include_package_data=False
 
 if platform.system() == 'Darwin':
     libraries.append("iconv")
@@ -44,6 +45,7 @@ elif platform.system() == 'Windows':
     include_dirs.append('pyreadr/libs/iconv')
     library_dirs.append('pyreadr/libs/librdata')
     package_data ={'pryeadr': ["*.dll", "*.lib"]}
+    include_package_data=True
     library_dirs.append("pyreadr")
     libraries.append('z')
     libraries.append('iconv')
@@ -83,7 +85,7 @@ setup(
     version='0.4.7',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
-    include_package_data=True,
+    include_package_data=include_package_data,
     install_requires=['pandas>=1.2.0'],
     license="AGPLv3",
     classifiers=[
