@@ -13,11 +13,9 @@ from setuptools import setup, Extension
 from Cython.Build import cythonize
 import Cython
 
-comp_dir = {}
 cyver = int(Cython.__version__.split(".")[0])
-print(cyver)
-if cyver > 2:
-    comp_dir = {'legacy_implicit_noexcept': True}
+if cyver < 3:
+    raise Exception("cython 3.0.0 or newer is required")
 
 librdata_source_files = []
 librdata_source_files += glob.glob('pyreadr/libs/librdata/src/*.c')
@@ -90,7 +88,7 @@ short_description = "Reads/writes R RData and Rds files into/from pandas data fr
 setup(
     name='pyreadr',
     version='0.4.7',
-    ext_modules=cythonize([librdata], force=True, compiler_directives=comp_dir),
+    ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=True,
     data_files=data_files,

@@ -1,5 +1,6 @@
 # cython: c_string_type=str, c_string_encoding=utf8, language_level=3
 
+import platform
 from enum import Enum
 import numpy as np
 import pandas as pd
@@ -19,10 +20,10 @@ class DataType(Enum):
     DATE       = rdata_type_t.RDATA_TYPE_DATE
 
 
-cdef int _os_open(path, mode):
+cdef int _os_open(path, mode) noexcept:
     cdef int flags
-    IF UNAME_SYSNAME == 'Windows':
-        cdef Py_ssize_t length
+    cdef Py_ssize_t length
+    if platform.system() == 'Windows':
         if mode == 'r':
             flags = _O_RDONLY | _O_BINARY
             u16_path = PyUnicode_AsWideCharString(path, &length)
@@ -31,7 +32,7 @@ cdef int _os_open(path, mode):
             flags = _O_WRONLY | _O_CREAT | _O_BINARY | _O_TRUNC
             u16_path = PyUnicode_AsWideCharString(os.fsdecode(path), &length)
             return _wsopen(u16_path, flags, _SH_DENYRW, _S_IREAD | _S_IWRITE)
-    ELSE:
+    else:
         if mode == 'r':
             flags = O_RDONLY
         else:
@@ -40,14 +41,14 @@ cdef int _os_open(path, mode):
         return open(path, flags, 0644)
 
 
-cdef int _os_close(int fd):
-    IF UNAME_SYSNAME == 'Windows':
+cdef int _os_close(int fd) noexcept:
+    if platform.system() == 'Windows':
         return _close(fd)
-    ELSE:
+    else:
         return close(fd)
 
 
-cdef int _handle_open(const char* path, void* io_ctx):
+cdef int _handle_open(const char* path, void* io_ctx) noexcept:
     cdef rdata_unistd_io_ctx_t* ctx = <rdata_unistd_io_ctx_t*>io_ctx
     cdef int fd
     if not os.path.isfile(path):
@@ -56,7 +57,7 @@ cdef int _handle_open(const char* path, void* io_ctx):
     ctx.fd = fd
     return fd
 
-cdef int _handle_table(const char *name, void *ctx):
+cdef int _handle_table(const char *name, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         Parser.__handle_table(parser, name)
@@ -66,7 +67,7 @@ cdef int _handle_table(const char *name, void *ctx):
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
 
-cdef int _handle_column(const char *name, rdata_type_t type, void *data, long count, void *ctx):
+cdef int _handle_column(const char *name, rdata_type_t type, void *data, long count, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         if parser.parse_current_table:
@@ -76,7 +77,7 @@ cdef int _handle_column(const char *name, rdata_type_t type, void *data, long co
         parser._error = e
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
-cdef int _handle_dim(const char *name, rdata_type_t type, void *data, long count, void *ctx):
+cdef int _handle_dim(const char *name, rdata_type_t type, void *data, long count, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         if parser.parse_current_table:
@@ -87,7 +88,7 @@ cdef int _handle_dim(const char *name, rdata_type_t type, void *data, long count
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
 
-cdef int _handle_column_name(const char *name, int index, void *ctx):
+cdef int _handle_column_name(const char *name, int index, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         Parser.__handle_column_name(parser, name, index)
@@ -96,7 +97,7 @@ cdef int _handle_column_name(const char *name, int index, void *ctx):
         parser._error = e
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
-cdef int _handle_dim_name(const char *name, int index, void *ctx):
+cdef int _handle_dim_name(const char *name, int index, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         Parser.__handle_dim_name(parser, name, index)
@@ -105,7 +106,7 @@ cdef int _handle_dim_name(const char *name, int index, void *ctx):
         parser._error = e
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
-cdef int _handle_row_name(const char *name, int index, void *ctx):
+cdef int _handle_row_name(const char *name, int index, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         Parser.__handle_row_name(parser, name, index)
@@ -115,7 +116,7 @@ cdef int _handle_row_name(const char *name, int index, void *ctx):
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
 
-cdef int _handle_text_value(const char *value, int index, void *ctx):
+cdef int _handle_text_value(const char *value, int index, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         if parser.parse_current_table:
@@ -126,7 +127,7 @@ cdef int _handle_text_value(const char *value, int index, void *ctx):
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
 
-cdef int _handle_value_label(const char *value, int index, void *ctx):
+cdef int _handle_value_label(const char *value, int index, void *ctx) noexcept:
     parser = <Parser>ctx
     try:
         if parser.parse_current_table:
@@ -145,7 +146,7 @@ cdef class Parser:
     cdef int _var_count
     parse_current_table = True
 
-    cpdef parse(self, path):
+    cpdef parse(self, path) noexcept:
 
         cdef rdata_error_t status
 
@@ -153,7 +154,7 @@ cdef class Parser:
         self._fd = 0
         self._error = None
 
-        IF UNAME_SYSNAME == 'Windows':  # custom file opener for windows *sigh*
+        if platform.system() == 'Windows':
             rdata_set_open_handler(self._this, _handle_open)
 
         rdata_set_table_handler(self._this, _handle_table)
@@ -200,13 +201,13 @@ cdef class Parser:
     def handle_value_label(self, name, index):
         pass
 
-    cdef __handle_table(self, const char* name):
+    cdef __handle_table(self, const char* name) noexcept:
         if name == NULL:
             self.handle_table(None)
         else:
             self.handle_table(name)
 
-    cdef __handle_column(self, const char *name, rdata_type_t type, void *data, long count):
+    cdef __handle_column(self, const char *name, rdata_type_t type, void *data, long count) noexcept:
         cdef double *doubles = <double*>data
         cdef int *ints = <int*>data
 
@@ -228,10 +229,10 @@ cdef class Parser:
         data_type = DataType(type)
         self.handle_column(new_name, data_type, array, count)
 
-    cdef __handle_column_name(self, const char *name, int index):
+    cdef __handle_column_name(self, const char *name, int index) noexcept: 
         self.handle_column_name(name, index)
 
-    cdef __handle_dim(self, const char *name, rdata_type_t datatype, void *data, long count):
+    cdef __handle_dim(self, const char *name, rdata_type_t datatype, void *data, long count) noexcept:
         cdef int *ints = <int*>data
 
         data_type = DataType(datatype)
@@ -248,31 +249,31 @@ cdef class Parser:
             new_name = name
         self.handle_dim(new_name, data_type, array, count)
 
-    cdef __handle_dim_name(self, const char *name, int index):
+    cdef __handle_dim_name(self, const char *name, int index) noexcept:
         if name == NULL:
             new_name = None
         else:
             new_name = name
         self.handle_dim_name(new_name, index)
 
-    cdef __handle_row_name(self, const char *name, int index):
+    cdef __handle_row_name(self, const char *name, int index) noexcept:
         self.handle_row_name(name, index)
 
-    cdef __handle_text_value(self, const char *value, int index):
+    cdef __handle_text_value(self, const char *value, int index) noexcept:
         if value != NULL:
             self.handle_text_value(value, index)
         else:
             self.handle_text_value(np.nan, index)
 
-    cdef __handle_value_label(self, const char *value, int index):
+    cdef __handle_value_label(self, const char *value, int index) noexcept:
         self.handle_value_label(value, index)
 
 
-cdef ssize_t _handle_write(const void *data, size_t len, void *ctx):
+cdef ssize_t _handle_write(const void *data, size_t len, void *ctx) noexcept:
     cdef int fd = deref(<int*>ctx)
-    IF UNAME_SYSNAME == 'Windows':
+    if platform.system() == 'Windows':
         return _write(fd, data, len)
-    ELSE:
+    else:
         return write(fd, data, len)
 
 
