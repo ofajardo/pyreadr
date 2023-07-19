@@ -11,6 +11,13 @@ import glob
 
 from setuptools import setup, Extension
 from Cython.Build import cythonize
+import Cython
+
+comp_dir = {}
+cyver = int(Cython.__version__.split(".")[0])
+print(cyver)
+if cyver > 2:
+    comp_dir = {'legacy_implicit_noexcept': True}
 
 librdata_source_files = []
 librdata_source_files += glob.glob('pyreadr/libs/librdata/src/*.c')
@@ -80,11 +87,10 @@ https://github.com/ofajardo/pyreadr
 """
 
 short_description = "Reads/writes R RData and Rds files into/from pandas data frames."
-
 setup(
     name='pyreadr',
     version='0.4.7',
-    ext_modules=cythonize([librdata], force=True),
+    ext_modules=cythonize([librdata], force=True, compiler_directives=comp_dir),
     packages=["pyreadr"],
     include_package_data=True,
     data_files=data_files,
