@@ -26,8 +26,9 @@ libraries = []
 include_dirs = []
 extra_link_args = []
 extra_compile_args = ['-DHAVE_ZLIB', '-DHAVE_BZIP2', '-DHAVE_LZMA']
-package_data = {}
-include_package_data=False
+package_data ={'pryeadr': ["*.c", "*.pyx", "*.pxd"]}
+exclude_package_data = {'pyreadr': ["*.dll", "*.lib"]}
+include_package_data=True
 
 if platform.system() == 'Darwin':
     libraries.append("iconv")
@@ -44,7 +45,8 @@ elif platform.system() == 'Windows':
     include_dirs.append('pyreadr/libs/librdata')
     include_dirs.append('pyreadr/libs/iconv')
     library_dirs.append('pyreadr/libs/librdata')
-    package_data ={'pryeadr': ["*.dll", "*.lib"]}
+    package_data ={'pryeadr': ["*.c", "*.pyx", "*.pxd", "*.dll", "*.lib"]}
+    exclude_package_data = {}
     include_package_data=True
     library_dirs.append("pyreadr")
     libraries.append('z')
@@ -82,10 +84,11 @@ https://github.com/ofajardo/pyreadr
 short_description = "Reads/writes R RData and Rds files into/from pandas data frames."
 setup(
     name='pyreadr',
-    version='0.4.7',
+    version='0.4.8',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=include_package_data,
+    exclude_package_data=exclude_package_data,
     install_requires=['pandas>=1.2.0'],
     license="AGPLv3",
     classifiers=[
