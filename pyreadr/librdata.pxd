@@ -132,43 +132,68 @@ cdef extern from 'libs/librdata/src/rdata_io_unistd.h':
     cdef struct rdata_unistd_io_ctx_t 'rdata_unistd_io_ctx_s':
         int fd
 
-IF UNAME_SYSNAME == 'Windows':
+cdef extern from "conditional_includes.h":
+    wchar_t* PyUnicode_AsWideCharString(object, Py_ssize_t *) except NULL
+    int _wsopen(const wchar_t *filename, int oflag, int shflag, int pmode)
+    int _O_RDONLY
+    int _O_BINARY
+    int _O_WRONLY
+    int _O_CREAT
+    int _O_TRUNC
+    int _SH_DENYRW  # Denies read and write access to a file.
+    int _SH_DENYWR  # Denies write access to a file.
+    int _SH_DENYRD  # Denies read access to a file.
+    int _SH_DENYNO
+    void assign_fd(void *io_ctx, int fd)
+    int _close(int fd)
+    ssize_t _write(int fd, const void *buf, size_t nbyte)
+    int _S_IREAD
+    int _S_IWRITE
+    int open(const char *path, int oflag, int mode)
+    int close(int fd)
+    ssize_t write(int fd, const void *buf, size_t nbyte)
+    int O_WRONLY
+    int O_RDONLY
+    int O_CREAT
+    int O_TRUNC
 
-    cdef extern from 'Python.h':
-        wchar_t* PyUnicode_AsWideCharString(object, Py_ssize_t *) except NULL
+#IF UNAME_SYSNAME == 'Windows':
 
-    cdef extern from '<fcntl.h>':
-        int _wsopen(const wchar_t *filename, int oflag, int shflag, int pmode)
-        cdef int _O_RDONLY
-        cdef int _O_BINARY
-        cdef int _O_CREAT
-        cdef int _O_WRONLY
-        cdef int _O_TRUNC
+    #cdef extern from 'Python.h':
+        #wchar_t* PyUnicode_AsWideCharString(object, Py_ssize_t *) except NULL
 
-    cdef extern from '<io.h>':
-        cdef int _close(int fd)
-        ssize_t _write(int fd, const void *buf, size_t nbyte)
+    #cdef extern from '<fcntl.h>':
+        #int _wsopen(const wchar_t *filename, int oflag, int shflag, int pmode)
+        #cdef int _O_RDONLY
+        #cdef int _O_BINARY
+        #cdef int _O_CREAT
+        #cdef int _O_WRONLY
+        #cdef int _O_TRUNC
 
-    cdef extern from '<share.h>':
-        cdef int _SH_DENYRW  # Denies read and write access to a file.
-        cdef int _SH_DENYWR  # Denies write access to a file.
-        cdef int _SH_DENYRD  # Denies read access to a file.
-        cdef int _SH_DENYNO
+    #cdef extern from '<io.h>':
+        #cdef int _close(int fd)
+        #ssize_t _write(int fd, const void *buf, size_t nbyte)
 
-    cdef extern from '<sys/stat.h>':
-        cdef int _S_IREAD
-        cdef int _S_IWRITE
+    #cdef extern from '<share.h>':
+        #cdef int _SH_DENYRW  # Denies read and write access to a file.
+        #cdef int _SH_DENYWR  # Denies write access to a file.
+        #cdef int _SH_DENYRD  # Denies read access to a file.
+        #cdef int _SH_DENYNO
 
-ELSE:
-    cdef extern from '<sys/stat.h>':
-        int open(const char *path, int oflag, int mode)
+    #cdef extern from '<sys/stat.h>':
+        #cdef int _S_IREAD
+        #cdef int _S_IWRITE
 
-    cdef extern from '<unistd.h>':
-        int close(int fd)
-        ssize_t write(int fd, const void *buf, size_t nbyte)
+#ELSE:
+    #cdef extern from '<sys/stat.h>':
+        #int open(const char *path, int oflag, int mode)
 
-    cdef extern from '<fcntl.h>':
-        cdef int O_WRONLY
-        cdef int O_RDONLY
-        cdef int O_CREAT
-        cdef int O_TRUNC
+    #cdef extern from '<unistd.h>':
+        #int close(int fd)
+	#ssize_t write(int fd, const void *buf, size_t nbyte)
+
+    #cdef extern from '<fcntl.h>':
+        #cdef int O_WRONLY
+        #cdef int O_RDONLY
+        #cdef int O_CREAT
+        #cdef int O_TRUNC

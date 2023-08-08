@@ -11,6 +11,11 @@ import glob
 
 from setuptools import setup, Extension
 from Cython.Build import cythonize
+import Cython
+
+cyver = int(Cython.__version__.split(".")[0])
+if cyver < 3:
+    raise Exception("cython 3.0.0 or newer is required")
 
 librdata_source_files = []
 librdata_source_files += glob.glob('pyreadr/libs/librdata/src/*.c')
@@ -21,8 +26,9 @@ libraries = []
 include_dirs = []
 extra_link_args = []
 extra_compile_args = ['-DHAVE_ZLIB', '-DHAVE_BZIP2', '-DHAVE_LZMA']
-data_files = []
-data_folder = ""
+package_data ={'pryeadr': ["*.c", "*.pyx", "*.pxd"]}
+exclude_package_data = {'pyreadr': ["*.dll", "*.lib"]}
+include_package_data=True
 
 if platform.system() == 'Darwin':
     libraries.append("iconv")
@@ -39,14 +45,10 @@ elif platform.system() == 'Windows':
     include_dirs.append('pyreadr/libs/librdata')
     include_dirs.append('pyreadr/libs/iconv')
     library_dirs.append('pyreadr/libs/librdata')
-    
-    data_folder = "win_libs/64bit/"
-    data_files = [("Lib/site-packages/pyreadr", [data_folder + "zlib.dll", data_folder + "iconv.dll",
-                        data_folder + "charset.dll", data_folder + "iconv.lib",
-                        data_folder + "libbz2-1.dll",
-                        data_folder + "liblzma-5.dll"])]
-                        
-    library_dirs.append(data_folder)
+    package_data ={'pryeadr': ["*.c", "*.pyx", "*.pxd", "*.dll", "*.lib"]}
+    exclude_package_data = {}
+    include_package_data=True
+    library_dirs.append("pyreadr")
     libraries.append('z')
     libraries.append('iconv')
     libraries.append('bz2')
@@ -80,14 +82,13 @@ https://github.com/ofajardo/pyreadr
 """
 
 short_description = "Reads/writes R RData and Rds files into/from pandas data frames."
-
 setup(
     name='pyreadr',
-    version='0.4.7',
+    version='0.4.8',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
-    include_package_data=True,
-    data_files=data_files,
+    include_package_data=include_package_data,
+    exclude_package_data=exclude_package_data,
     install_requires=['pandas>=1.2.0'],
     license="AGPLv3",
     classifiers=[

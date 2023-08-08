@@ -1,0 +1,86 @@
+/* The include and declarations in this file exists because when cython translates to c it cannot translate an IF UNAME_SYSNAME=="Windows" to
+ * a c #ifdef. That means the resulting c file will be different if produced on windows or on unix. We want our c files to be portable and 
+ * therefore do the right includes for windows here, and just declare dummy symbols for unix. 
+ */
+
+/*
+IF UNAME_SYSNAME == 'Windows':
+
+    cdef extern from 'Python.h':
+        wchar_t* PyUnicode_AsWideCharString(object, Py_ssize_t *) except NULL
+
+    cdef extern from '<fcntl.h>':
+        int _wsopen(const wchar_t *filename, int oflag, int shflag, int pmode)
+        cdef int _O_RDONLY
+        cdef int _O_BINARY
+        cdef int _O_CREAT
+        cdef int _O_WRONLY
+        cdef int _O_TRUNC
+
+    cdef extern from '<io.h>':
+        cdef int _close(int fd)
+        ssize_t _write(int fd, const void *buf, size_t nbyte)
+
+    cdef extern from '<share.h>':
+        cdef int _SH_DENYRW  # Denies read and write access to a file.
+        cdef int _SH_DENYWR  # Denies write access to a file.
+        cdef int _SH_DENYRD  # Denies read access to a file.
+        cdef int _SH_DENYNO
+
+    cdef extern from '<sys/stat.h>':
+        cdef int _S_IREAD
+        cdef int _S_IWRITE
+
+ELSE:
+    cdef extern from '<sys/stat.h>':
+        int open(const char *path, int oflag, int mode)
+
+    cdef extern from '<unistd.h>':
+        int close(int fd)
+        ssize_t write(int fd, const void *buf, size_t nbyte)
+
+    cdef extern from '<fcntl.h>':
+        cdef int O_WRONLY
+        cdef int O_RDONLY
+        cdef int O_CREAT
+        cdef int O_TRUNC
+*/
+ 
+
+#ifdef _WIN32
+
+    #include <Python.h>
+    #include <fcntl.h>
+    #include <share.h>
+    #include <io.h>
+    #include <sys/stat.h>
+    
+    // Stuff for handling paths with international characters on windows
+    void assign_fd(void *io_ctx, int fd) { ((rdata_unistd_io_ctx_t*)io_ctx)->fd = fd; }
+//    ssize_t write(int fd, const void *buf, size_t nbyte){return 0;};
+        
+#else
+
+    #include<sys/stat.h>
+    #include<unistd.h>
+    #include<fcntl.h>
+
+    //int open(const char *path, int oflag, int mode);
+    //int close(int fd);
+    ssize_t _write(int fd, const void *buf, size_t nbyte){return 0;};
+    int _wsopen(const wchar_t *filename, int oflag, int shflag, int pmode){ return 0; };
+    int _O_RDONLY;
+    int _O_BINARY;
+    int _O_WRONLY;
+    int _O_TRUNC;
+    int _O_CREAT;
+    int _SH_DENYRW;  
+    int _SH_DENYWR; 
+    int _SH_DENYRD;
+    int _SH_DENYNO;
+    int _S_IWRITE;
+    int _S_IREAD;
+    void assign_fd(void *io_ctx, int fd){};
+    int _close(int fd){ return 0; };
+    
+#endif

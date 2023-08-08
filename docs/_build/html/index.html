@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to pyreadr’s documentation! &mdash; pyreadr 0.4.7 documentation</title>
+  <title>Welcome to pyreadr’s documentation! &mdash; pyreadr 0.4.8 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -12,9 +12,8 @@
   <![endif]-->
   
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" /> 
@@ -25,11 +24,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="#" class="icon icon-home"> pyreadr
+
+          
+          
+          <a href="#" class="icon icon-home">
+            pyreadr
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -37,7 +40,14 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <!-- Local TOC -->
               <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">Welcome to pyreadr’s documentation!</a></li>
+<li><a class="reference internal" href="#">Welcome to pyreadr’s documentation!</a><ul>
+<li><a class="reference internal" href="#pyreadr.pyreadr.download_file"><code class="docutils literal notranslate"><span class="pre">download_file()</span></code></a></li>
+<li><a class="reference internal" href="#pyreadr.pyreadr.list_objects"><code class="docutils literal notranslate"><span class="pre">list_objects()</span></code></a></li>
+<li><a class="reference internal" href="#pyreadr.pyreadr.read_r"><code class="docutils literal notranslate"><span class="pre">read_r()</span></code></a></li>
+<li><a class="reference internal" href="#pyreadr.pyreadr.write_rdata"><code class="docutils literal notranslate"><span class="pre">write_rdata()</span></code></a></li>
+<li><a class="reference internal" href="#pyreadr.pyreadr.write_rds"><code class="docutils literal notranslate"><span class="pre">write_rds()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
 </ul>
 </div>
@@ -54,8 +64,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="#" class="icon icon-home"></a> &raquo;</li>
-      <li>Welcome to pyreadr’s documentation!</li>
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Welcome to pyreadr’s documentation!</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -66,7 +76,7 @@
            <div itemprop="articleBody">
              
   <section id="welcome-to-pyreadr-s-documentation">
-<h1>Welcome to pyreadr’s documentation!<a class="headerlink" href="#welcome-to-pyreadr-s-documentation" title="Permalink to this headline">¶</a></h1>
+<h1>Welcome to pyreadr’s documentation!<a class="headerlink" href="#welcome-to-pyreadr-s-documentation" title="Permalink to this heading">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
 <span class="target" id="module-pyreadr.pyreadr"></span><p>&#64;author: Otto Fajardo</p>
@@ -75,16 +85,16 @@
 <span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">download_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.download_file" title="Permalink to this definition">¶</a></dt>
 <dd><p>Downloads a file from a web url to destination_path.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>url</strong> (<em>str</em>) – url of the file</p></li>
 <li><p><strong>destination_path</strong> (<em>str</em>) – path to write the file to disk</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>it gives back the path to where the file was written.</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>str</p>
 </dd>
 </dl>
@@ -97,14 +107,14 @@
 Not all objects are readable, and also it is not always possible to read the column names without parsing the
 whole file, in those cases this method will return Nones instead of column names.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</p>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>result</strong> – a list of dictionaries, where each dictionary has a key “object_name” with the name of the object and
 columns with a list of columns.</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>list</p>
 </dd>
 </dl>
@@ -115,7 +125,7 @@ columns with a list of columns.</p>
 <span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">read_r</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_objects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timezone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.read_r" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read an R RData or Rds file into pandas data frames</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</p></li>
 <li><p><strong>use_objects</strong> (<em>list</em><em>, </em><em>optional</em>) – a list with object names to read from the file. Only those objects will be imported. Case sensitive!</p></li>
@@ -125,10 +135,10 @@ user or implicitly to local zone) when displaying it in R. librdata cannot recov
 therefore timestamps are displayed in UTC, unless this parameter is set.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>result</strong> – object name as key and pandas data frame as value</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>OrderedDict</p>
 </dd>
 </dl>
@@ -139,7 +149,7 @@ therefore timestamps are displayed in UTC, unless this parameter is set.</p></li
 <span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">write_rdata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dataset'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dateformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datetimeformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rdata" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write a single pandas data frame to a rdata file.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</p></li>
 <li><p><strong>df</strong> (<em>pandas data frame</em>) – the dataframe to write</p></li>
@@ -158,7 +168,7 @@ By default “%Y-%m-%d”.</p></li>
 <span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">write_rds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dateformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datetimeformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rds" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write a single pandas data frame to a rds file.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</p></li>
 <li><p><strong>df</strong> (<em>pandas data frame</em>) – the dataframe to write</p></li>
@@ -173,7 +183,7 @@ By default “%Y-%m-%d”.</p></li>
 
 </section>
 <section id="indices-and-tables">
-<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this heading">¶</a></h1>
 <ul class="simple">
 <li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
 <li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>

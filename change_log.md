@@ -1,3 +1,9 @@
+# 0.4.8 (github, pypi and conda: 2023.08.08)
+* Updated code to work with Cython 3.0.0, earlier versions no longer supported.
+* Including dll files in pyreadr folder and putting them as package data for windows,
+  this solves issue #72. For unix no package data meaning no dll files but also no
+  .c translated files in the wheel.
+
 # 0.4.7 (github, pypi and conda: 2022.09.24)
 * added toml file, fixes #88
 * Added Citation
