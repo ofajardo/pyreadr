@@ -1,5 +1,6 @@
 include *.h
 recursive-include pyreadr/libs *.h
+recursive-include pyreadr *.h
 include *.pyx
 recursive-include pyreadr *.pyx
 include *.pxd

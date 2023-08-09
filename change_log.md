@@ -1,4 +1,8 @@
-# 0.4.8 (github, pypi and conda: 2023.08.08)
+# 0.4.9 (github, pypi and conda: 2023.08.09)
+* conda forge of 0.4.8 failed due to missing file in source distribution, adding
+  file to manifest and releasing again, otherwise no changes.
+
+# 0.4.8 (github, pypi: 2023.08.08, no conda)
 * Updated code to work with Cython 3.0.0, earlier versions no longer supported.
 * Including dll files in pyreadr folder and putting them as package data for windows,
   this solves issue #72. For unix no package data meaning no dll files but also no
