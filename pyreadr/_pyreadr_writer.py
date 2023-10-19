@@ -85,7 +85,7 @@ def get_pyreadr_column_types(df):
                 if col_type in int_mixed_types:
                     result[col_name] = "INTEGER"
                     continue
-                curtype = type(df[col_name][0])
+                curtype = type(df[col_name].iloc[0])
                 equal = np.array(df[col_name].apply(lambda x: type(x) == curtype))
                 if not np.all(equal):
                     result[col_name] = "OBJECT"
