@@ -1,3 +1,6 @@
+# 0.5.0 (github, pypi and conda: 2023.xx.xx)
+* fixing bug when writing an object column filtered so that the first row has not index 0
+
 # 0.4.9 (github, pypi and conda: 2023.08.09)
 * conda forge of 0.4.8 failed due to missing file in source distribution, adding
   file to manifest and releasing again, otherwise no changes.
