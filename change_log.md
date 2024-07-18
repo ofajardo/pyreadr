@@ -1,4 +1,7 @@
 # 0.5.0 (github, pypi and conda: 2023.10.23)
+* fixing tests removing np.NaN to work with latest numpy version.
+
+# 0.5.0 (github, pypi and conda: 2023.10.23)
 * fixing bug when writing an object column filtered so that the first row has not index 0
 
 # 0.4.9 (github, pypi and conda: 2023.08.09)
