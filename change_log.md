@@ -1,5 +1,6 @@
-# 0.5.0 (github, pypi and conda: 2023.10.23)
+# 0.5.1 (github, pypi and conda: 2024.07.23)
 * fixing tests removing np.NaN to work with latest numpy version.
+* updating zlib windows libs and h files to 1.3.1 fixes #100
 
 # 0.5.0 (github, pypi and conda: 2023.10.23)
 * fixing bug when writing an object column filtered so that the first row has not index 0
