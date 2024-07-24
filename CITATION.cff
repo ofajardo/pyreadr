@@ -5,7 +5,7 @@ authors:
   given-names: "Otto"
   orcid: "https://orcid.org/0000-0002-3363-9287"
 title: "Pyreadr"
-version: 0.5.0
+version: 0.5.1
 doi: 10.5281/zenodo.7110170
 date-released: 2018-12-28
 url: "https://github.com/ofajardo/pyreadr"

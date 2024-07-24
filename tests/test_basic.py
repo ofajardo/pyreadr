@@ -76,9 +76,9 @@ class PyReadRBasic(unittest.TestCase):
         self.use_objects = ["df1"]
         
         t = datetime.datetime(1960, 1, 1)
-        sec = [np.NaN] * 8
+        sec = [np.nan] * 8
         sec[7] = 2
-        third = [np.NaN] * 8
+        third = [np.nan] * 8
         third[7] = 3
         third[0] = ""
         colnames = ["char", "int", "num", "log", "datetime", "date", "object", "categ"]
@@ -145,7 +145,7 @@ class PyReadRBasic(unittest.TestCase):
         rdata_path = os.path.join(self.basic_data_folder, "two.RData")
         res = pyreadr.read_r(rdata_path)
         self.assertListEqual(list(res.keys()), self.rdata_objects)
-        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        # numpy comparing nans raises a runtimewarning, let's ignore that here
         warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(self.df1.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
@@ -155,7 +155,7 @@ class PyReadRBasic(unittest.TestCase):
             rdata_path = Path(self.basic_data_folder).joinpath("two.RData")
             res = pyreadr.read_r(rdata_path)
             self.assertListEqual(list(res.keys()), self.rdata_objects)
-            # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+            # numpy comparing nans raises a runtimewarning, let's ignore that here
             warnings.simplefilter("ignore", category=RuntimeWarning)
             self.assertTrue(self.df1.equals(res['df1']))
             self.assertTrue(self.df2.equals(res['df2']))
@@ -164,7 +164,7 @@ class PyReadRBasic(unittest.TestCase):
 
         rdata_path = os.path.join(self.basic_data_folder, "two_rownames.RData")
         res = pyreadr.read_r(rdata_path)
-        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        # numpy comparing nans raises a runtimewarning, let's ignore that here
         warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(self.df1_rownames.equals(res['df1_rownames']))
         
@@ -176,7 +176,7 @@ class PyReadRBasic(unittest.TestCase):
         rdata_path = os.path.join(self.basic_data_folder, "two_r36.RData")
         res = pyreadr.read_r(rdata_path)
         self.assertListEqual(list(res.keys()), self.rdata_objects)
-        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        # numpy comparing nans raises a runtimewarning, let's ignore that here
         warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(self.df1.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
@@ -322,7 +322,7 @@ class PyReadRBasic(unittest.TestCase):
         rdata_path = os.path.join(self.basic_data_folder, "two_bzip2.RData")
         res = pyreadr.read_r(rdata_path)
         self.assertListEqual(list(res.keys()), self.rdata_objects)
-        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        # numpy comparing nans raises a runtimewarning, let's ignore that here
         warnings.simplefilter("ignore", category=RuntimeWarning)
         # for some reason when R saves with bzip2 compression dates go to character -> probably it's coming from my R script
         self.assertTrue(self.df1_tstamp.equals(res['df1']))
@@ -333,7 +333,7 @@ class PyReadRBasic(unittest.TestCase):
         rdata_path = os.path.join(self.basic_data_folder, "two_xz.RData")
         res = pyreadr.read_r(rdata_path)
         self.assertListEqual(list(res.keys()), self.rdata_objects)
-        # numpy comparing NaNs raises a runtimewarning, let's ignore that here
+        # numpy comparing nans raises a runtimewarning, let's ignore that here
         warnings.simplefilter("ignore", category=RuntimeWarning)
         df1 = res['df1']
         df2 = res['df2']
