@@ -1,4 +1,4 @@
-# 0.5.1 (github, pypi and conda: 2024.07.23)
+# 0.5.1 (github, pypi and conda: 2024.07.25)
 * fixing tests removing np.NaN to work with latest numpy version.
 * updating zlib windows libs and h files to 1.3.1 fixes #100
 
