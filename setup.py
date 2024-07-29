@@ -84,7 +84,7 @@ https://github.com/ofajardo/pyreadr
 short_description = "Reads/writes R RData and Rds files into/from pandas data frames."
 setup(
     name='pyreadr',
-    version='0.5.1',
+    version='0.5.2',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=include_package_data,
