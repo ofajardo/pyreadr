@@ -6,4 +6,5 @@ From here we are using zlib.h.
 The files in the libzlib folder have been obtained from conda-forge libzlib
 (https://anaconda.org/conda-forge/libzlib/files), version 1.3.1 for windows 64 bit
 (https://anaconda.org/conda-forge/libzlib/1.3.1/download/win-64/libzlib-1.3.1-h2466b09_1.conda)
-from here we are using zlib.dll
+from here we are using zlib.dll. zlib.dll was copied to zlib1.dll as for some reason that is the
+name of the dll that is imported.
