@@ -36,7 +36,6 @@ install:
   - python --version
   - python -c "import struct; print(struct.calcsize('P') * 8)"
   # install necessary packages
-  #- conda install -q setuptools pip libpython cython wheel
   - pip install cython
   - conda install -c conda-forge libpython gxx
   # mingw64 toolchain to compile python extensions
