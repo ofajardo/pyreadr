@@ -1,3 +1,7 @@
+# 0.5.3 (github, pypi and conda: 2025.03.xx)
+* renaming libbz2-1.dll to libbz2.dll, introducing lib files for zlib and bizp2 from 
+conda-forge, in order to be able to compile with the new ming2w from conda-forge
+
 # 0.5.2 (github, pypi and conda: 2024.07.30)
 * introducing zlib.dll from conda forge libzlib and removing z*.lib files fixes #104 
 
