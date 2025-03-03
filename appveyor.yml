@@ -38,10 +38,9 @@ install:
   # install necessary packages
   #- conda install -q setuptools pip libpython cython wheel
   - pip install cython
-  - conda install -c conda-forge libpython
+  - conda install -c conda-forge libpython gxx
   # mingw64 toolchain to compile python extensions
   #- conda install -q -c msys2 m2w64-toolchain
-  - conda install -q -c conda-forge m2w64-toolchain
 
 
 build_script:
