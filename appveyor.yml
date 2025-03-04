@@ -10,7 +10,7 @@ environment:
     # The list here is complete (excluding Python 2.6, which
     # isn't covered by this document) at the time of writing.
 
-    - PYTHON_VERSION: "3.8"
+    - PYTHON_VERSION: "3.13"
     
 platform:
   - x64
@@ -36,11 +36,10 @@ install:
   - python --version
   - python -c "import struct; print(struct.calcsize('P') * 8)"
   # install necessary packages
-  #- conda install -q setuptools pip libpython cython wheel
   - pip install cython
-  - conda install -c conda-forge libpython
+  - conda install -c conda-forge libpython gxx
   # mingw64 toolchain to compile python extensions
-  - conda install -q -c msys2 m2w64-toolchain
+  #- conda install -q -c msys2 m2w64-toolchain
 
 
 build_script:
