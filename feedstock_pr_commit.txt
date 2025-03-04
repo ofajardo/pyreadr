@@ -1,0 +1,18 @@
+Instructions on how to commit and push to a PR on the pyreadr feedstock
+initiated by the bot.
+
+https://tighten.com/insights/adding-commits-to-a-pull-request/
+
+1- fork the feedstock and clone
+2- add the fork from the bot to the remotes:
+git remote add regro-cf-autotick-bot git@github.com:regro-cf-autotick-bot/pyreadr-feedstock.git
+check:
+git remote -v
+3- fetch from the new remote 
+git fetch regro-cf-autotick-bot
+4- checkout their branch locally
+git checkout -b regro-ming regro-cf-autotick-bot/rebuild-r-base44_and_m2w64-ucrt-0-1_h743d02
+5- commit 
+git commit --allow-empty
+6- push the HEAD to the remote branch
+git push regro-cf-autotick-bot HEAD:rebuild-r-base44_and_m2w64-ucrt-0-1_h743d02

@@ -1,4 +1,4 @@
-# 0.5.3 (github, pypi and conda: 2025.03.xx)
+# 0.5.3 (github, pypi and conda: 2025.03.04)
 * renaming libbz2-1.dll to libbz2.dll, introducing lib files for zlib and bizp2 from 
 conda-forge, in order to be able to compile with the new ming2w from conda-forge. bzip2 from 
 [here](https://anaconda.org/conda-forge/bzip2/files/win-64/bzip2-1.0.8-h2466b09_7.conda) and zlib from 
