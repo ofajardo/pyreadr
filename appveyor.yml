@@ -17,18 +17,18 @@ platform:
   #- x86
 
 install:
-  # We need wheel installed to build wheels
-  #- "%PYTHON%\\python.exe -m pip install wheel"
-  - cmd: echo "Using cmd"
-
-  - set CONDAPATH=C:\Miniconda38
-  - if "%PLATFORM%" == "x64" set CONDAPATH=%CONDAPATH%-x64
-  - call %CONDAPATH%\Scripts\activate
+  # install Miniforge
+  - set MINIFORGE=%UserProfile%\MINIFORGE
+  - ps: |
+        Write-Output "Downloading and installing Miniforge"
+        Invoke-WebRequest https://github.com/conda-forge/miniforge/releases/download/25.3.0-3/Miniforge3-Windows-x86_64.exe -OutFile miniforge.exe
+        Start-Process -FilePath "miniforge.exe" -ArgumentList "/NoRegistry=1","/S","/D=$env:MINIFORGE" -Wait
+  - cmd: set PATH=%MINIFORGE%;%MINIFORGE%\Scripts;%MINIFORGE%\Library\bin;%PATH%
+  # activate conda base environment
+  - call %MINIFORGE%\Scripts\activate
   # prepare environment with conda
-  - conda config --add channels conda-forge
-  - conda config --set channel_priority strict
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
+  - cmd: conda config --set always_yes yes --set changeps1 no --set channel_priority strict
+  - cmd: conda update -n base -c conda-forge conda
   # create an environment with the appropiate python
   - conda create -y -n currentenv python=%PYTHON_VERSION%
   - conda activate currentenv

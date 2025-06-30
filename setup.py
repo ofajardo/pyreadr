@@ -17,6 +17,30 @@ cyver = int(Cython.__version__.split(".")[0])
 if cyver < 3:
     raise Exception("cython 3.0.0 or newer is required")
 
+def is_ubuntu():
+    """
+    Checks if the current operating system is Ubuntu.
+    
+    This function is safe to run on any OS. It returns False if not on Linux
+    or if the distribution is not Ubuntu.
+    """
+    if not sys.platform.startswith('linux'):
+        return False
+    
+    try:
+        with open('/etc/os-release', 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip().startswith('ID='):
+                    # The value might have quotes, which we strip
+                    distro_id = line.split('=', 1)[1].strip().strip('"\'')
+                    if distro_id == 'ubuntu':
+                        return True
+    except FileNotFoundError:
+        # If /etc/os-release doesn't exist, it's not a standard modern Linux.
+        return False
+        
+    return False
+
 librdata_source_files = []
 librdata_source_files += glob.glob('pyreadr/libs/librdata/src/*.c')
 librdata_source_files += ['pyreadr/librdata.pyx']
@@ -59,6 +83,8 @@ elif platform.system() == 'Linux':
     libraries.append('bz2')
     libraries.append('lzma')
     #extra_compile_args.append("--std=gnu99")
+    if is_ubuntu():
+        libraries.append('iconv')
 else:
     raise RuntimeError('Unsupported OS')
 
@@ -90,7 +116,7 @@ setup(
     include_package_data=include_package_data,
     exclude_package_data=exclude_package_data,
     install_requires=['pandas>=1.2.0'],
-    license="AGPLv3",
+    license="AGPL-3.0-or-later",
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Cython",
@@ -98,7 +124,6 @@ setup(
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering",
         "Environment :: Console",
-        "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
     ],
     description=short_description,
     author="Otto Fajardo",

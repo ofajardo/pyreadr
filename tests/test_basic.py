@@ -474,9 +474,9 @@ class PyReadRBasic(unittest.TestCase):
 
     def test_matrix_date_rds(self):
         path = os.path.join(self.basic_data_folder, "mat_date.rds")
+        warnings.simplefilter("ignore", category=RuntimeWarning)
         res = pyreadr.read_r(path)
         df = res[None]
-        warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(df.equals(self.mat_date))
 
     def test_matrix_string_rds(self):
