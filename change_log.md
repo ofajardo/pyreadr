@@ -1,3 +1,9 @@
+# 0.5.4 (github, pypi and conda: 2025.11.25)
+* new pipeline to produce wheels based on cibuildwheel. For windows, mingw64 is used and 
+   there is remediation, so that
+  dlls are not needed in the same folder, but still needed there for compile and if conda would be 
+  used for compiling.
+
 # 0.5.3 (github, pypi and conda: 2025.03.04)
 * renaming libbz2-1.dll to libbz2.dll, introducing lib files for zlib and bizp2 from 
 conda-forge, in order to be able to compile with the new ming2w from conda-forge. bzip2 from 
