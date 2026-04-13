@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      # --- Linux system dependencies ---
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libbz2-dev liblzma-dev zlib1g-dev
+
+      # --- macOS system dependencies ---
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install xz
+          echo "CFLAGS=-I$(brew --prefix xz)/include" >> $GITHUB_ENV
+          echo "LDFLAGS=-L$(brew --prefix xz)/lib" >> $GITHUB_ENV
+
+      # --- Windows: MSYS2 MINGW64 toolchain ---
+      - name: Set up MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          location: C:\msys_build
+          install: >-
+            mingw-w64-x86_64-toolchain
+
+      - name: Add MINGW64 to PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "C:/msys_build/msys64/mingw64/bin" >> $GITHUB_PATH
+
+      - name: Configure MinGW compiler (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          # Generate MinGW-compatible Python import library
+          PYTHON_DIR=$(dirname "$(which python)")
+          cd "$PYTHON_DIR"
+          gendef python313.dll
+          dlltool -D python313.dll -d python313.def -l libs/libpython313.a
+
+          # Write distutils config to use MinGW compiler
+          cat > "$USERPROFILE/pydistutils.cfg" << 'EOF'
+          [build]
+          compiler=mingw32
+
+          [build_ext]
+          compiler=mingw32
+          define=MS_WIN64,SIZEOF_VOID_P=8
+          EOF
+
+      - name: Set Windows build environment
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=g++" >> $GITHUB_ENV
+
+      # --- Python dependencies (all platforms) ---
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install cython pandas xarray setuptools
+
+      # --- Build ---
+      - name: Build extension
+        run: python setup.py build_ext --inplace
+
+      # --- Tests ---
+      - name: Run basic tests
+        run: python tests/test_basic.py --inplace
+
+      - name: Run integration tests
+        run: python tests/test_http_integration.py --inplace
