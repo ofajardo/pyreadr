@@ -53,7 +53,11 @@ jobs:
       - name: Add MINGW64 to PATH (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: echo "C:/msys_build/msys64/mingw64/bin" >> $GITHUB_PATH
+        run: |
+          # Rename msys2 Python so it doesn't shadow actions/setup-python
+          mv "C:/msys_build/msys64/mingw64/bin/python.exe" "C:/msys_build/msys64/mingw64/bin/_python_msys2.exe"
+          mv "C:/msys_build/msys64/mingw64/bin/python3.exe" "C:/msys_build/msys64/mingw64/bin/_python3_msys2.exe" 2>/dev/null || true
+          echo "C:/msys_build/msys64/mingw64/bin" >> $GITHUB_PATH
 
       - name: Configure MinGW compiler (Windows)
         if: runner.os == 'Windows'

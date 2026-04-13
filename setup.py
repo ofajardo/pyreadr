@@ -64,7 +64,7 @@ elif platform.system() == 'Linux':
     libraries.append('bz2')
     libraries.append('lzma')
     #extra_compile_args.append("--std=gnu99")
-    PYREADR_LINK_ICONV = os.environ.get('PYREADR_LINK_ICONV')
+    PYREADR_LINK_ICONV = os.environ.get('PYREADR_LINK_ICONV', '').lower() not in ('', '0', 'false', 'no')
     if PYREADR_LINK_ICONV or is_conda():
         libraries.append('iconv')
 else:
