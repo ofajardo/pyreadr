@@ -19,6 +19,8 @@ try:
 except:
     pass
 
+is_pandas_3 = int(pd.__version__.split(".")[0]) > 2
+
 
 class PyReadRBasic(unittest.TestCase):
 
@@ -32,25 +34,22 @@ class PyReadRBasic(unittest.TestCase):
 
         df1_dtypes = {'num': np.float64,
                       'int': object,
-                      'char': object,
                       'fac': 'category'}
 
         df1_tstamp_dtypes = {'num': np.float64,
                       'int': object,
-                      'char': object,
                       'fac': 'category',
                       'tstamp1': str,
                       'tstamp2': str}
-                      
+
         df2_dtypes = {'num2': np.float64,
                       'int2': np.int32,
-                      'char2': object,
                       'fac2': 'category'}
                       
         df1 = pd.read_csv(os.path.join(self.basic_data_folder, "df1.csv"), dtype=df1_dtypes, parse_dates=[5, 6],
                           keep_default_na=False, na_values=["NA"])
         df1.loc[df1['int'].notnull(), 'int'] = df1.loc[df1['int'].notnull(), 'int'].astype(np.int32)
-        
+
         df1_tstamp = pd.read_csv(os.path.join(self.basic_data_folder, "df1.csv"), dtype=df1_tstamp_dtypes,
                           keep_default_na=False, na_values=["NA"])
         df1_tstamp.loc[df1['int'].notnull(), 'int'] = df1.loc[df1['int'].notnull(), 'int'].astype(np.int32)
@@ -58,6 +57,14 @@ class PyReadRBasic(unittest.TestCase):
         df2 = pd.read_csv(os.path.join(self.basic_data_folder, "df2.csv"), dtype=df2_dtypes)
 
         df3 = pd.read_csv(os.path.join(self.basic_data_folder, "df3.csv"), parse_dates=[0, 1])
+
+        # pandas 3.0: pd.to_datetime(..., unit='s') returns datetime64[s],
+        # but read_csv parse_dates returns datetime64[ns]. Normalize to match parser output.
+        if is_pandas_3:
+            for col in df1.select_dtypes(include=['datetime64']).columns:
+                df1[col] = df1[col].astype('datetime64[s]')
+            for col in df3.select_dtypes(include=['datetime64']).columns:
+                df3[col] = df3[col].astype('datetime64[s]')
 
         self.df1 = df1
         self.df1_tstamp = df1_tstamp
@@ -127,7 +134,10 @@ class PyReadRBasic(unittest.TestCase):
         self.mat_bool = pd.DataFrame(np.reshape(matnan_bool, (4,3), order='F'))
         matzeros = np.zeros(12)
         matzeros[2:4] = np.nan
-        matdtime = pd.to_datetime(matzeros)
+        if is_pandas_3:
+            matdtime = pd.to_datetime(matzeros, unit='s')
+        else:
+            matdtime = pd.to_datetime(matzeros)
         matdtime = np.reshape(matdtime.values, (4,3), order='F')
         self.mat_dtime = pd.DataFrame(matdtime)
         matdate = matzeros.astype("datetime64[D]").astype(datetime.datetime)
@@ -254,15 +264,15 @@ class PyReadRBasic(unittest.TestCase):
         rdata_path = os.path.join(self.basic_data_folder, "international.Rdata")
         res = pyreadr.read_r(rdata_path)
         df = res['df']
-        df.a = df.a.astype('object')
+        df.a = df.a.astype(str)
         self.assertTrue(self.df_international_win.equals(df))
-        
+
     def test_rds_international_win(self):
 
         rds_path = os.path.join(self.basic_data_folder, "international.rds")
         res = pyreadr.read_r(rds_path)
         df = res[None]
-        df.a = df.a.astype('object')
+        df.a = df.a.astype(str)
         self.assertTrue(self.df_international_win.equals(df))
 
     def test_rdata_dates(self):

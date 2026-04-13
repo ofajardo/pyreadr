@@ -52,7 +52,7 @@ jobs:
 
       - name: Configure MinGW compiler (Windows)
         if: runner.os == 'Windows'
-        shell: msys2 {0}
+        shell: bash
         run: |
           # Generate MinGW-compatible Python import library
           PYTHON_DIR=$(dirname "$(which python)")
@@ -70,10 +70,6 @@ jobs:
           define=MS_WIN64,SIZEOF_VOID_P=8
           EOF
 
-      - name: Set Windows build environment
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
           echo "CC=gcc" >> $GITHUB_ENV
           echo "CXX=g++" >> $GITHUB_ENV
 

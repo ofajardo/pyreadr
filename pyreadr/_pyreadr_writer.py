@@ -58,8 +58,8 @@ def get_pyreadr_column_types(df):
             result[col_name] = "NUMERIC"
         elif col_type == bool:
             result[col_name] = "LOGICAL"
-        # np.datetime64[ns]
-        elif col_type == np.dtype('<M8[ns]') or col_type == np.datetime64:
+        # np.datetime64 (any resolution: ns, us, s, etc.)
+        elif hasattr(col_type, 'kind') and col_type.kind == 'M':
                 result[col_name] = "DATETIME"
                 missing = pd.isna(df[col_name])
                 if np.any(missing):
@@ -149,8 +149,7 @@ def transform_data(pd_series, dtype, has_missing, dateformat, datetimeformat):
     elif dtype == "CHARACTER":
         pass
     elif dtype == "OBJECT":
-        if type(pd_series.dtype) is pd.core.dtypes.dtypes.CategoricalDtype:
-            pd_series = pd_series.astype('object')
+        pd_series = pd_series.astype('object')
         pd_series.loc[pd.notnull(pd_series)] = pd_series.loc[pd.notnull(pd_series)].apply(lambda x: str(x))
     elif dtype == "DATE":
         if type(pd_series.dtype) is pd.core.dtypes.dtypes.CategoricalDtype:
