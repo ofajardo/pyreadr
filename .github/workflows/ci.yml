@@ -44,6 +44,10 @@ jobs:
           location: C:\msys_build
           install: >-
             mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-bzip2
+            mingw-w64-x86_64-libiconv
+            mingw-w64-x86_64-xz
 
       - name: Add MINGW64 to PATH (Windows)
         if: runner.os == 'Windows'
@@ -54,12 +58,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          # Generate MinGW-compatible Python import library
-          PYTHON_DIR=$(dirname "$(which python)")
-          cd "$PYTHON_DIR"
-          gendef python313.dll
-          dlltool -D python313.dll -d python313.def -l libs/libpython313.a
-
           # Write distutils config to use MinGW compiler
           cat > "$USERPROFILE/pydistutils.cfg" << 'EOF'
           [build]
