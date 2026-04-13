@@ -115,8 +115,8 @@ pip install git+https://github.com/ofajardo/pyreadr.git
 You need a working C compiler and cython. You may also need to install bzlib (on ubuntu install libbz2-dev).
 
 On some Linux distros, iconv needs to be linked at compilation time, while in some other distros it must not 
-be linked. Currently static iconv linking happens only for Ubuntu. You can force however a static iconv linking
-with the env variable PYREADR_LINK_ICONV=1
+be linked. Currently iconv linking happens automatically when building inside a conda/miniforge environment.
+You can force iconv linking with the env variable PYREADR_LINK_ICONV=1 (set to 0, false or no to disable).
 
 In order to run the tests:
 
