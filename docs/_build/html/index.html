@@ -6,12 +6,12 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to pyreadr’s documentation! &mdash; pyreadr 0.5.6 documentation</title>
+  <title>Welcome to pyreadr’s documentation! &mdash; pyreadr 0.5.7 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
-      <script src="_static/documentation_options.js?v=722679d6"></script>
+      <script src="_static/documentation_options.js?v=d65efdcf"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -122,8 +122,8 @@ columns with a list of columns.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pyreadr.pyreadr.read_r">
-<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">read_r</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_objects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timezone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.read_r" title="Link to this definition">¶</a></dt>
-<dd><p>Read an R RData or Rds file into pandas data frames</p>
+<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">read_r</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_objects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timezone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pandas'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.read_r" title="Link to this definition">¶</a></dt>
+<dd><p>Read an R RData or Rds file into pandas or polars data frames</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -133,10 +133,11 @@ columns with a list of columns.</p>
 R datetimes (POSIXct and POSIXlt) are stored as UTC, but coverted to some timezone (explicitly if set by the
 user or implicitly to local zone) when displaying it in R. librdata cannot recover that timezone information
 therefore timestamps are displayed in UTC, unless this parameter is set.</p></li>
+<li><p><strong>output_format</strong> (<em>str</em><em>, </em><em>optional</em>) – format of the output data frames. “pandas” (default) or “polars”.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>result</strong> – object name as key and pandas data frame as value</p>
+<dd class="field-even"><p><strong>result</strong> – object name as key and data frame as value</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>OrderedDict</p>
@@ -147,12 +148,12 @@ therefore timestamps are displayed in UTC, unless this parameter is set.</p></li
 <dl class="py function">
 <dt class="sig sig-object py" id="pyreadr.pyreadr.write_rdata">
 <span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">write_rdata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dataset'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dateformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datetimeformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compresslevel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">9</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rdata" title="Link to this definition">¶</a></dt>
-<dd><p>Write a single pandas data frame to a rdata file.</p>
+<dd><p>Write a single pandas or polars data frame to a rdata file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</p></li>
-<li><p><strong>df</strong> (<em>pandas data frame</em>) – the dataframe to write</p></li>
+<li><p><strong>df</strong> (<em>pandas</em><em> or </em><em>polars data frame</em>) – the dataframe to write</p></li>
 <li><p><strong>df_name</strong> (<em>str</em>) – name for the R dataframe object, cannot be empty string. If
 not supplied will default to “dataset”</p></li>
 <li><p><strong>dateformat</strong> (<em>str</em>) – string to format datetime.date objects.
@@ -166,12 +167,12 @@ By default “%Y-%m-%d”.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="pyreadr.pyreadr.write_rds">
 <span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">write_rds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dateformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datetimeformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compresslevel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">9</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rds" title="Link to this definition">¶</a></dt>
-<dd><p>Write a single pandas data frame to a rds file.</p>
+<dd><p>Write a single pandas or polars data frame to a rds file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</p></li>
-<li><p><strong>df</strong> (<em>pandas data frame</em>) – the dataframe to write</p></li>
+<li><p><strong>df</strong> (<em>pandas</em><em> or </em><em>polars data frame</em>) – the dataframe to write</p></li>
 <li><p><strong>dateformat</strong> (<em>str</em>) – string to format datetime.date objects.
 By default “%Y-%m-%d”.</p></li>
 <li><p><strong>datetimeformat</strong> (<em>str</em>) – string to format datetime like objects. By default “%Y-%m-%d %H:%M:%S”.</p></li>

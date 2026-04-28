@@ -5,16 +5,16 @@ from collections import OrderedDict
 import os
 from urllib.request import urlopen
 
-import pandas as pd
+import narwhals.stable.v2 as nw
 
 from ._pyreadr_parser import PyreadrParser, ListObjectsParser
 from ._pyreadr_writer import PyreadrWriter
 from .custom_errors import PyreadrError
 
 
-def read_r(path, use_objects=None, timezone=None):
+def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
     """
-    Read an R RData or Rds file into pandas data frames
+    Read an R RData or Rds file into pandas or polars data frames
 
     Parameters
     ----------
@@ -27,18 +27,24 @@ def read_r(path, use_objects=None, timezone=None):
             R datetimes (POSIXct and POSIXlt) are stored as UTC, but coverted to some timezone (explicitly if set by the
             user or implicitly to local zone) when displaying it in R. librdata cannot recover that timezone information
             therefore timestamps are displayed in UTC, unless this parameter is set.
+        output_format : str, optional
+            format of the output data frames. "pandas" (default) or "polars".
 
     Returns
     -------
         result : OrderedDict
-            object name as key and pandas data frame as value
+            object name as key and data frame as value
     """
+
+    if output_format not in ("pandas", "polars"):
+        raise PyreadrError("output_format must be 'pandas' or 'polars'")
 
     parser = PyreadrParser()
     if use_objects:
         parser.set_use_objects(use_objects)
     if timezone:
         parser.set_timezone(timezone)
+    parser.set_output_format(output_format)
 
     if hasattr(path, 'read') and hasattr(path, 'seek'):
         parser.parse(b"", file_object=path)
@@ -104,13 +110,13 @@ def list_objects(path):
     
 def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9):
     """
-    Write a single pandas data frame to a rdata file.
+    Write a single pandas or polars data frame to a rdata file.
 
     Parameters
     ----------
         path : str
             path to the file. The string is assumed to be utf-8 encoded.
-        df : pandas data frame
+        df : pandas or polars data frame
             the dataframe to write
         df_name : str
             name for the R dataframe object, cannot be empty string. If 
@@ -125,10 +131,11 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
     if not df_name:
         msg = "df_name must be a valid string"
         raise PyreadrError(msg)
-        
-    if not isinstance(df, pd.DataFrame):
-        msg = "df must be a pandas data frame"
-        raise PyreadrError(msg)
+
+    try:
+        nw.from_native(df, eager_only=True)
+    except Exception:
+        raise PyreadrError("df must be a pandas or polars DataFrame")
     
     file_format = "rdata"
     writer = PyreadrWriter()
@@ -159,13 +166,13 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
 
 def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9):
     """
-    Write a single pandas data frame to a rds file.
+    Write a single pandas or polars data frame to a rds file.
 
     Parameters
     ----------
         path : str
             path to the file. The string is assumed to be utf-8 encoded.
-        df : pandas data frame
+        df : pandas or polars data frame
             the dataframe to write
         dateformat : str
             string to format datetime.date objects. 
@@ -176,10 +183,11 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
             compression to use, defaults to no compression. Only "gzip" supported.
     """
     
-    if not isinstance(df, pd.DataFrame):
-        msg = "df must be a pandas data frame"
-        raise PyreadrError(msg)
-    
+    try:
+        nw.from_native(df, eager_only=True)
+    except Exception:
+        raise PyreadrError("df must be a pandas or polars DataFrame")
+
     file_format = "rds"
     df_name = ""   # this is irrelevant in this case, but we need to pass something
     

@@ -3,7 +3,6 @@
 import platform
 from enum import Enum
 import numpy as np
-import pandas as pd
 import os.path
 from cython.operator cimport dereference as deref
 from libc.string cimport strlen, memcpy
@@ -180,6 +179,7 @@ cdef class Parser:
     cdef int _row_count
     cdef int _var_count
     parse_current_table = True
+    output_format = "pandas"
 
     cpdef parse(self, path, file_object=None):
 
@@ -255,13 +255,19 @@ cdef class Parser:
         cdef int *ints = <int*>data
 
         if type in [rdata_type_t.RDATA_TYPE_REAL, rdata_type_t.RDATA_TYPE_TIMESTAMP, rdata_type_t.RDATA_TYPE_DATE]:
-            array = np.empty([count], dtype=np.float64)
-            for i in range(count):
-                array[i] = doubles[i];
+            if self.output_format == "polars":
+                array = [doubles[i] for i in range(count)]
+            else:
+                array = np.empty([count], dtype=np.float64)
+                for i in range(count):
+                    array[i] = doubles[i];
         elif type == rdata_type_t.RDATA_TYPE_INT32 or type == rdata_type_t.RDATA_TYPE_LOGICAL:
-            array = np.empty([count], dtype=np.int32)
-            for i in range(count):
-                array[i] = ints[i];
+            if self.output_format == "polars":
+                array = [None if ints[i] <= -2147483648 else ints[i] for i in range(count)]
+            else:
+                array = np.empty([count], dtype=np.int32)
+                for i in range(count):
+                    array[i] = ints[i];
         else:
             array = None
 
@@ -306,7 +312,10 @@ cdef class Parser:
         if value != NULL:
             self.handle_text_value(value, index)
         else:
-            self.handle_text_value(np.nan, index)
+            if self.output_format == "polars":
+                self.handle_text_value(None, index)
+            else:
+                self.handle_text_value(np.nan, index)
 
     cdef __handle_value_label(self, const char *value, int index):
         self.handle_value_label(value, index)
@@ -395,7 +404,7 @@ cdef class Writer:
         elif dtype == "CHARACTER":
             # in the case of character we could also pass NULL as value to become R's NA
             # right now passing an empty string has the same effect
-            if pd.isnull(value):
+            if value is None or value != value:
                 status = rdata_append_string_value(self._writer, NULL)
             else:
                 status = rdata_append_string_value(self._writer, value.encode('utf-8'))

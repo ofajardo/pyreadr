@@ -1,7 +1,7 @@
 # py<span style="color:blue">r</span>ead<span style="color:blue">r</span>
 
 A python package to read and write R RData and Rds files into/from 
-pandas dataframes. It does not need to have R or other external
+pandas or polars dataframes. It does not need to have R or other external
 dependencies installed.
 <br> 
 
@@ -50,8 +50,9 @@ dataframes, take a look to [pysummaries](https://github.com/Genentech/pysummarie
 
 ## Dependencies
 
-The package depends on pandas, which you normally have installed if you got Anaconda (highly recommended.) If creating
-a new conda or virtual environment or if you don't have it in your base installation, pandas should get installed automatically.
+The package depends on narwhals which gets installed automatically. You will also need either pandas or polars
+(or both) installed. When using `output_format="polars"` in `read_r`, you get polars DataFrames back. You can also
+pass polars DataFrames directly to `write_rdata`/`write_rds`.
 
 If you are reading 3D arrays, you will need to install xarray manually. This is not installed automatically as most users
 won't need it.
@@ -136,7 +137,7 @@ python tests/test_basic.py --inplace
 ### Basic Usage: reading files
 
 Pass the path to a RData or Rds file to the function read_r. It will return a dictionary 
-with object names as keys and pandas data frames as values.
+with object names as keys and data frames as values (pandas by default, or polars with `output_format="polars"`).
 
 For example, in order to read a RData file:
 
@@ -147,7 +148,7 @@ result = pyreadr.read_r('test_data/basic/two.RData')
 
 # done! let's see what we got
 print(result.keys()) # let's check what objects we got
-df1 = result["df1"] # extract the pandas data frame for object df1
+df1 = result["df1"] # extract the data frame for object df1
 ```
 
 reading a Rds file is equally simple. Rds files have one single object, 
@@ -160,7 +161,16 @@ result = pyreadr.read_r('test_data/basic/one.Rds')
 
 # done! let's see what we got
 print(result.keys()) # let's check what objects we got: there is only None
-df1 = result[None] # extract the pandas data frame for the only object available
+df1 = result[None] # extract the data frame for the only object available
+```
+
+You can also read directly into polars DataFrames:
+
+```python
+import pyreadr
+
+result = pyreadr.read_r('test_data/basic/two.RData', output_format="polars")
+df1 = result["df1"] # this is a polars DataFrame
 ```
 
 Here there is a relation of all functions available. 
@@ -176,7 +186,7 @@ You can also check the [Module documentation](https://ofajardo.github.io/pyreadr
 
 ### Basic Usage: writing files
 
-Pyreadr allows you to write one single pandas data frame into a single R dataframe
+Pyreadr allows you to write a single pandas or polars data frame into a single R dataframe
 and store it into a RData or Rds file. Other python or R object types 
 are not supported. Writing more than one object is not supported.
 
@@ -199,7 +209,18 @@ pyreadr.write_rds("test.Rds", df)
 
 ```
 
-now you can check the result in R:
+Writing polars DataFrames works the same way:
+
+```python
+import pyreadr
+import polars as pl
+
+df = pl.DataFrame({"A": ["a", "b"], "B": [1, 2]})
+pyreadr.write_rdata("test.RData", df, df_name="dataset")
+pyreadr.write_rds("test.Rds", df)
+```
+
+Now you can check the result in R:
 
 ```r
 load("test.RData")
@@ -290,7 +311,7 @@ result = pyreadr.read_r('test_data/basic/two.RData', use_objects=["df1"])
 
 # done! let's see what we got
 print(result.keys()) # let's check what objects we got, now only df1 is listed
-df1 = result["df1"] # extract the pandas data frame for object df1
+df1 = result["df1"] # extract the data frame for object df1
 ```
 
 ### List objects and column names
@@ -358,25 +379,25 @@ and POSIXlt), date, logical atomic vectors. Factors are also supported.
 Tibbles are also supported.
 
 Atomic vectors as described before can also be directly read and are 
-translated to a pandas data frame with one column. 
+translated to a data frame with one column. 
 
-Matrices, arrays and tables are also read and translated to pandas data frames
+Matrices, arrays and tables are also read and translated to data frames
 (because those objects in R can be named, and plain numpy arrays do not support
 dimension names). The only exception is 3D arrays, which are translated to a
-xarray DataArray (as pandas does not support more than 2 dimensions). This is also
-the only time that an object different from a pandas dataframe is returned by read_r.
+xarray DataArray (as neither pandas nor polars support more than 2 dimensions). This is also
+the only time that an object different from a data frame is returned by read_r.
 
 For 3D arrays, consider that python prints these in a different way as R does, but still
 you are looking at the same array (see for example [here](https://rstudio.github.io/reticulate/articles/arrays.html#displaying-arrays) for an explanation.)
 
-Only single pandas data frames can be written into R data frames.
+Only single pandas or polars data frames can be written into R data frames.
 
 Lists and S4 objects (such as those coming from Bioconductor are not supported. Please read the Known limitations section for more
 information.
 
 ### More on writing files
 
-For converting python/numpy types to R types the following rules are
+For converting python/numpy/polars types to R types the following rules are
 followed:
 
 | Python Type         | R Type    |
@@ -399,12 +420,12 @@ but can be controlled with the arguments dateformat and datetimeformat
 for write_rdata and write_rds. Those arguments take python standard
 formatting strings.
 
-* Pandas categories are NOT translated to R factors. Instead the original
+* Pandas/polars categories are NOT translated to R factors. Instead the original
 data type of the category is preserved and transformed according to the
 rules. This is because R factors are integers and levels are always
-strings, in pandas factors can be any type and leves any type as well, therefore
-it is not always adecquate to coerce everything to the integer/character system.
-In the other hand, pandas category level information is lost in the process.
+strings, in pandas/polars categories can be any type and levels any type as well, therefore
+it is not always adequate to coerce everything to the integer/character system.
+On the other hand, category level information is lost in the process.
 
 * Any other object is transformed to a character using the str representation
 of the object.
@@ -415,17 +436,16 @@ cotaining np.nan, where the missing values are correctly translated.
 * R integers are 32 bit. Therefore python 64 bit integer have to be 
 promoted to numeric in order to fit.
 
-* A pandas column containing only missing values is transformed to logical,
+* A column containing only missing values is transformed to logical,
 following R's behavior.
 
-* librdata writes Numeric missing values as NaN instead of NA. In pandas we only have np.nan both as 
-NaN and missing value representation, and it will always be written as NaN in R.
+* librdata writes Numeric missing values as NaN instead of NA.
 
 ## Known limitations
 
 * POSIXct and POSIXlt objects in R are stored internally as UTC timestamps and may have
 in addition time zone information. librdata does not return time zone information and
-thefore the display of the tiemstamps in R and in pandas may differ.
+therefore the display of the timestamps in R and in python may differ.
 
 * Librdata reads arrays with a maximum of 3 dimensions. If more dimensions are present
 you will get an error. Please submit an issue if this is the case. 
@@ -453,7 +473,7 @@ to NaN instead of NA.
 
 * Writing rownames is currently not supported.
 
-* Writing is supported only for a single pandas data frame to a single
+* Writing is supported only for a single pandas or polars data frame to a single
 R data frame. Other data types are not supported. Multiple data frames
 for rdata files are not supported.
 
