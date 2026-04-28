@@ -596,7 +596,7 @@ class TestPolars(unittest.TestCase):
         self.write_data_folder = os.path.join(self.data_folder, "write")
 
     def test_read_rds_output_polars(self):
-        path = os.path.join(self.basic_data_folder, "one.rds")
+        path = os.path.join(self.basic_data_folder, "one.Rds")
         result = pyreadr.read_r(path, output_format="polars")
         for name, df in result.items():
             self.assertIsInstance(df, pl.DataFrame)
