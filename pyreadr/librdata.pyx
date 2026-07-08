@@ -256,7 +256,7 @@ cdef class Parser:
 
         if type in [rdata_type_t.RDATA_TYPE_REAL, rdata_type_t.RDATA_TYPE_TIMESTAMP, rdata_type_t.RDATA_TYPE_DATE]:
             if self.output_format == "polars":
-                array = [doubles[i] for i in range(count)]
+                array = [None if doubles[i] != doubles[i] else doubles[i] for i in range(count)]
             else:
                 array = np.empty([count], dtype=np.float64)
                 for i in range(count):

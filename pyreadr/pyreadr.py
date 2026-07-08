@@ -14,17 +14,18 @@ from .custom_errors import PyreadrError
 
 def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
     """
-    Read an R RData or Rds file into pandas or polars data frames
+    Read an R RData or Rds file into pandas or polars data frames.
 
     Parameters
     ----------
-        path : str
-            path to the file. The string is assumed to be utf-8 encoded.
+        path : str, bytes, Path, or file-like object
+            path to the file, or a file-like object with read() and seek() methods (e.g. io.BytesIO).
+            String paths are assumed to be utf-8 encoded.
         use_objects : list, optional
             a list with object names to read from the file. Only those objects will be imported. Case sensitive!
         timezone : str, optional
             timezone to localize datetimes, UTC otherwise.
-            R datetimes (POSIXct and POSIXlt) are stored as UTC, but coverted to some timezone (explicitly if set by the
+            R datetimes (POSIXct and POSIXlt) are stored as UTC, but converted to some timezone (explicitly if set by the
             user or implicitly to local zone) when displaying it in R. librdata cannot recover that timezone information
             therefore timestamps are displayed in UTC, unless this parameter is set.
         output_format : str, optional
@@ -33,7 +34,7 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
     Returns
     -------
         result : OrderedDict
-            object name as key and data frame as value
+            object name as key and pandas or polars data frame as value.
     """
 
     if output_format not in ("pandas", "polars"):
@@ -75,7 +76,7 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
 
     result = OrderedDict()
     for table_index, table in enumerate(parser.table_data):
-        result[table.name] = table.convert_to_pandas_dataframe()
+        result[table.name] = table.convert_to_dataframe()
     return result
 
 
@@ -110,22 +111,26 @@ def list_objects(path):
     
 def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9):
     """
-    Write a single pandas or polars data frame to a rdata file.
+    Write a single pandas or polars data frame to a RData file.
 
     Parameters
     ----------
-        path : str
+        path : str, bytes, or Path
             path to the file. The string is assumed to be utf-8 encoded.
-        df : pandas or polars data frame
-            the dataframe to write
+        df : pandas or polars DataFrame
+            the data frame to write.
         df_name : str
-            name for the R dataframe object, cannot be empty string. If 
-            not supplied will default to "dataset"
+            name for the R dataframe object, cannot be empty string. If
+            not supplied will default to "dataset".
         dateformat : str
-            string to format datetime.date objects. 
+            string to format datetime.date objects.
             By default "%Y-%m-%d".
         datetimeformat : str
             string to format datetime like objects. By default "%Y-%m-%d %H:%M:%S".
+        compress : str, optional
+            compression to use, defaults to no compression. Only "gzip" supported.
+        compresslevel : int, optional
+            compression level for gzip (1-9), default 9.
     """
     
     if not df_name:
@@ -166,21 +171,23 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
 
 def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9):
     """
-    Write a single pandas or polars data frame to a rds file.
+    Write a single pandas or polars data frame to a Rds file.
 
     Parameters
     ----------
-        path : str
+        path : str, bytes, or Path
             path to the file. The string is assumed to be utf-8 encoded.
-        df : pandas or polars data frame
-            the dataframe to write
+        df : pandas or polars DataFrame
+            the data frame to write.
         dateformat : str
-            string to format datetime.date objects. 
+            string to format datetime.date objects.
             By default "%Y-%m-%d".
         datetimeformat : str
             string to format datetime like objects. By default "%Y-%m-%d %H:%M:%S".
-        compress : str
+        compress : str, optional
             compression to use, defaults to no compression. Only "gzip" supported.
+        compresslevel : int, optional
+            compression level for gzip (1-9), default 9.
     """
     
     try:

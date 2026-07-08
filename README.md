@@ -36,6 +36,7 @@ dataframes, take a look to [pysummaries](https://github.com/Genentech/pysummarie
 - [Usage](#usage)
   * [Basic Usage: reading files](#basic-usage--reading-files)
   * [Basic Usage: writing files](#basic-usage--writing-files)
+  * [Differences between pandas and polars output](#differences-between-pandas-and-polars-output)
   * [Reading from file-like objects](#reading-from-file-like-objects)
   * [Reading files from internet (download to disk)](#reading-files-from-internet-download-to-disk)
   * [Reading selected objects](#reading-selected-objects)
@@ -256,6 +257,32 @@ pyreadr.write_rds("test.Rds", df, compress="gzip", compresslevel=6)
 
 ```
 
+### Differences between pandas and polars output
+
+When using `output_format="polars"`, the output differs from pandas in several ways:
+
+| Aspect | pandas | polars |
+| ------ | ------ | ------ |
+| **Missing numeric values** | `NaN` (float) | `null` |
+| **Missing integer values** | `object` dtype with `NaN` | `Int32` with `null` |
+| **Missing logical values** | `object` dtype with `NaN` | `Boolean` with `null` |
+| **Row names** | Set as DataFrame index | Added as a `rownames` string column |
+| **Unnamed columns** | `None` as column name | Empty string `""` as column name |
+| **Date columns** | Python `datetime` objects (`object` dtype) | Native `Date` dtype |
+
+**Missing values:** R's `NA` maps to `NaN` in pandas and `null` in polars. This means
+you use `pd.isna()` to check for missing values in pandas, and `.is_null()` in polars.
+R's `NaN` in numeric data is also mapped to `null` in polars, since the distinction
+between `NA` and `NaN` is not preserved by the underlying C library.
+
+**Row names:** R data frames can have row names. In pandas these become the DataFrame
+index. Since polars does not have an index, row names are added as a regular column
+named `rownames`.
+
+**Integer and logical columns with NA:** Polars natively supports nullable integer and
+boolean types, so these columns keep their original types. In pandas, the presence of
+`NaN` forces the column to `object` dtype.
+
 ### Reading from file-like objects
 
 pyreadr can read directly from file-like objects instead of file paths. This is useful for:
@@ -430,8 +457,9 @@ On the other hand, category level information is lost in the process.
 * Any other object is transformed to a character using the str representation
 of the object.
 
-* Columns with mixed types are translated to character. This does not apply to column
-cotaining np.nan, where the missing values are correctly translated.
+* Columns with mixed types are translated to character. This does not apply to columns
+containing missing values (np.nan in pandas, null in polars), where the missing values
+are correctly translated.
 
 * R integers are 32 bit. Therefore python 64 bit integer have to be 
 promoted to numeric in order to fit.

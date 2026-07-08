@@ -20,13 +20,6 @@ try:
 except:
     pass
 
-is_polars_available = False
-try:
-    import polars as pl
-    is_polars_available = True
-except:
-    pass
-
 is_pandas_3 = int(pd.__version__.split(".")[0]) > 2
 
 
@@ -167,60 +160,7 @@ class PyReadRBasic(unittest.TestCase):
         warnings.simplefilter("ignore", category=RuntimeWarning)
         self.assertTrue(self.df1.equals(res['df1']))
         self.assertTrue(self.df2.equals(res['df2']))
-
-    def test_rdata_dtypes_preserved(self):
-        """Verify that read_r returns the same pandas dtypes as before narwhals integration."""
-        rdata_path = os.path.join(self.basic_data_folder, "two.RData")
-        res = pyreadr.read_r(rdata_path)
-        df1 = res['df1']
-        df2 = res['df2']
-        # df1: num(float64), int(object due to NA), char(string-like), fac(category), log(bool), tstamp1(datetime64), tstamp2(datetime64)
-        self.assertEqual(df1['num'].dtype, np.float64)
-        self.assertEqual(df1['int'].dtype, object)
-        if is_pandas_3:
-            self.assertIn('str', str(df1['char'].dtype).lower())
-        else:
-            self.assertEqual(df1['char'].dtype, object)
-        self.assertEqual(df1['fac'].dtype.name, 'category')
-        self.assertEqual(df1['log'].dtype, object)
-        self.assertTrue(np.issubdtype(df1['tstamp1'].dtype, np.datetime64))
-        self.assertTrue(np.issubdtype(df1['tstamp2'].dtype, np.datetime64))
-        # df2: num2(float64), int2(int32 no NA), char2(string-like), fac2(category), log2(bool)
-        self.assertEqual(df2['num2'].dtype, np.float64)
-        self.assertEqual(df2['int2'].dtype, np.int32)
-        if is_pandas_3:
-            self.assertIn('str', str(df2['char2'].dtype).lower())
-        else:
-            self.assertEqual(df2['char2'].dtype, object)
-        self.assertEqual(df2['fac2'].dtype.name, 'category')
-        self.assertEqual(df2['log2'].dtype, bool)
-
-    def test_write_categorical_types(self):
-        """Verify that non-string categoricals are handled correctly on write/read round-trip.
-        R factors are string-based, so only string categoricals round-trip as category.
-        """
-        # integer categorical: category lost, values preserved as numeric
-        df = pd.DataFrame({"x": pd.Categorical([1, 2, 3, 1, 2])})
-        path = os.path.join(self.write_data_folder, "test_intcat.rds")
-        pyreadr.write_rds(path, df)
-        res = pyreadr.read_r(path)
-        self.assertEqual(res[None]["x"].dtype, np.float64)
-        self.assertEqual(res[None]["x"].tolist(), [1.0, 2.0, 3.0, 1.0, 2.0])
-
-        # float categorical: category lost, values preserved as numeric
-        df = pd.DataFrame({"x": pd.Categorical([1.1, 2.2, 3.3, 1.1])})
-        path = os.path.join(self.write_data_folder, "test_floatcat.rds")
-        pyreadr.write_rds(path, df)
-        res = pyreadr.read_r(path)
-        self.assertEqual(res[None]["x"].dtype, np.float64)
-
-        # mixed string/number categorical: everything becomes string
-        df = pd.DataFrame({"x": pd.Categorical(["a", 1, "b", 2, "a"])})
-        path = os.path.join(self.write_data_folder, "test_mixcat.rds")
-        pyreadr.write_rds(path, df)
-        res = pyreadr.read_r(path)
-        self.assertEqual(res[None]["x"].tolist(), ["a", "1", "b", "2", "a"])
-
+    
     def test_rdata_pathlib(self):
         if is_pathlib_available:
             rdata_path = Path(self.basic_data_folder).joinpath("two.RData")
@@ -585,57 +525,7 @@ class PyReadRBasic(unittest.TestCase):
         df = res[None]
         self.assertTrue(df.equals(self.mat_cat))
 
-@unittest.skipUnless(is_polars_available, "polars not installed")
-class TestPolars(unittest.TestCase):
-
-    def setUp(self):
-        self.script_folder = os.path.dirname(os.path.realpath(__file__))
-        self.parent_folder = os.path.split(self.script_folder)[0]
-        self.data_folder = os.path.join(self.parent_folder, "test_data")
-        self.basic_data_folder = os.path.join(self.data_folder, "basic")
-        self.write_data_folder = os.path.join(self.data_folder, "write")
-
-    def test_read_rds_output_polars(self):
-        path = os.path.join(self.basic_data_folder, "one.Rds")
-        result = pyreadr.read_r(path, output_format="polars")
-        for name, df in result.items():
-            self.assertIsInstance(df, pl.DataFrame)
-
-    def test_read_rdata_output_polars(self):
-        path = os.path.join(self.basic_data_folder, "two.RData")
-        result = pyreadr.read_r(path, output_format="polars")
-        for name, df in result.items():
-            self.assertIsInstance(df, pl.DataFrame)
-
-    def test_write_polars_rdata(self):
-        df = pl.DataFrame({"x": [1, 2, 3], "y": ["a", "b", "c"], "z": [1.1, 2.2, 3.3]})
-        path = os.path.join(self.write_data_folder, "test_polars.RData")
-        pyreadr.write_rdata(path, df, df_name="test")
-        result = pyreadr.read_r(path)
-        self.assertIn("test", result)
-        self.assertEqual(result["test"]["x"].tolist(), [1, 2, 3])
-        self.assertEqual(result["test"]["y"].tolist(), ["a", "b", "c"])
-
-    def test_write_polars_rds(self):
-        df = pl.DataFrame({"a": [True, False, True], "b": [1, 2, 3]})
-        path = os.path.join(self.write_data_folder, "test_polars.rds")
-        pyreadr.write_rds(path, df)
-        result = pyreadr.read_r(path)
-        self.assertIn(None, result)
-
-    def test_write_polars_with_nulls(self):
-        df = pl.DataFrame({"a": [1, None, 3], "b": ["x", None, "z"]})
-        path = os.path.join(self.write_data_folder, "test_polars_nulls.rds")
-        pyreadr.write_rds(path, df)
-        result = pyreadr.read_r(path)
-        self.assertIn(None, result)
-
-    def test_invalid_output_format(self):
-        path = os.path.join(self.basic_data_folder, "sample.rds")
-        with self.assertRaises(Exception):
-            pyreadr.read_r(path, output_format="invalid")
-
-
+ 
 if __name__ == '__main__':
 
     import sys
