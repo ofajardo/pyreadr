@@ -1,3 +1,6 @@
+# 0.5.7 (github, pypi and conda: 2026.07.xx)
+* Added support for polars via narwhals
+
 # 0.5.6 (github, pypi and conda: 2026.04.13)
 * fixing setup.py to skip linking iconv for conda builds, to fix conda packaging
 

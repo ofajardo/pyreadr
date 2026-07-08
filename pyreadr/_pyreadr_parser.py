@@ -8,11 +8,9 @@ import numpy as np
 import narwhals.stable.v2 as nw
 
 pandas_available = False
-is_pandas_3 = False
 try:
     import pandas as pd
     pandas_available = True
-    is_pandas_3 = int(pd.__version__.split(".")[0]) > 2
 except:
     pass
 # xray is needed for 3d arrays only
