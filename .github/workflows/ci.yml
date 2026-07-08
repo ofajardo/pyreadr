@@ -89,5 +89,11 @@ jobs:
       - name: Run basic tests
         run: python tests/test_basic.py --inplace
 
+      - name: Run narwhalified tests (pandas)
+        run: python tests/test_narwhalified.py --inplace --backend=pandas
+
+      - name: Run narwhalified tests (polars)
+        run: python tests/test_narwhalified.py --inplace --backend=polars
+
       - name: Run integration tests
         run: python tests/test_http_integration.py --inplace
