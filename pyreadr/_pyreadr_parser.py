@@ -5,12 +5,26 @@ from collections import OrderedDict
 from datetime import datetime
 
 import numpy as np
-import pandas as pd
+import narwhals.stable.v2 as nw
+
+pandas_available = False
+try:
+    import pandas as pd
+    pandas_available = True
+except:
+    pass
 # xray is needed for 3d arrays only
 xray_available = False
 try:
     import xarray as xr
     xray_available = True
+except:
+    pass
+# polars is optional, needed only for output_format="polars"
+polars_available = False
+try:
+    import polars as pl
+    polars_available = True
 except:
     pass
 
@@ -23,7 +37,7 @@ class Table:
     """
     In librdata each object is parsed into a "table".
     This python object is passed to the Pyreadr parser and will collect all the data.
-    Once the parsing is finished it has methods to convert to pandas data frame.
+    Once the parsing is finished it has methods to convert to a pandas or polars data frame.
     """
 
     def __init__(self, timezone=None):
@@ -31,24 +45,23 @@ class Table:
         self.name = None
         self.column_names = dict()
         self.column_names_special = dict()
-        self.row_names = list() 
+        self.row_names = list()
         self.column_types = dict()
         self.columns = list()
         self.value_labels = dict()
         self.df = None
         self.timezone = timezone
+        self.output_format = "pandas"
         self.dim = None
         self.dim_num = 0
         self.dim_names = list()
         self.dim_names_ready = list()
         self.arraylike_data = None
 
-    def convert_to_pandas_dataframe(self):
+    def convert_to_dataframe(self):
         """
-        Coordinates all the necessary steps to convert the data collected from the parser to a pandas data frame.
-        :return: a pandas data frame
+        Coordinates all the necessary steps to convert the data collected from the parser to a pandas or polars data frame.
         """
-        # we need to handle things differently depening wether the dim attribute is set
         if self.dim_num:
             self._arraylike_todf()
         else:
@@ -76,6 +89,16 @@ class Table:
             raise PyreadrError("matrix, array or table object with more than one vector!")
 
         dtype = self.column_types[0]
+
+        if self.output_format == "polars":
+            data = np.asarray(self.columns[0], dtype=object)
+            if dtype.name == "LOGICAL":
+                for i in range(len(data)):
+                    if data[i] is not None:
+                        data[i] = bool(data[i])
+            self.arraylike_data = data
+            return
+
         if dtype.name == "CHARACTER":
             data = np.asarray(self.columns[0], dtype=object)
         else:
@@ -87,8 +110,6 @@ class Table:
             # inf values do not make sense for timestamp
             data[data == np.inf] = np.nan
             data = pd.to_datetime(data, unit='s').values
-            if self.timezone:
-                data = data.dt.tz_localize('UTC').dt.tz_convert(self.timezone)
         elif dtype.name == "DATE":
             data[data == np.inf] = np.nan
             data = data.astype("datetime64[D]").astype(datetime)
@@ -113,32 +134,73 @@ class Table:
         Transform the one dimensional array to a dataframe with several rows and columns
         """
         data = self.arraylike_data
-        dim = self.dim 
+        dim = self.dim
         if len(dim)>3:
             raise PyreadrError("Librdata currently supports arrays with up to 3 dimensions, you got %s dimensions" % str(len(dim)))
         dimtuple = tuple(dim.tolist())
         data = np.reshape(data, dimtuple, order='F')
+        rownames = None
+        colnames = None
         if self.dim_names:
             self.arrange_dimnames_arraylike()
             dim_names = self.dim_names_ready
             len_dim_names = len(dim_names)
             if self.dim_num<3:
                 rownames = dim_names[0]
-                colnames = None
                 if len_dim_names>1:
                     colnames = dim_names[1]
-                df = pd.DataFrame(data, columns=colnames, index=rownames)
             else:
                 if not xray_available:
                     raise PyreadrError("Trying to read array with >2 dimensions, please install xarray!")
-                df = xr.DataArray(data, dim_names)
+                self.df = xr.DataArray(data, dim_names)
+                return
         else:
-            if self.dim_num<3:
-                df = pd.DataFrame(data)
-            else:
+            if self.dim_num>=3:
                 if not xray_available:
                     raise PyreadrError("Trying to read array with >2 dimensions, please install xarray!")
-                df = xr.DataArray(data)
+                self.df = xr.DataArray(data)
+                return
+
+        if self.output_format == "polars":
+            cols = {}
+            if data.ndim == 1:
+                cols['0'] = data.tolist()
+            elif colnames:
+                for c in range(data.shape[1]):
+                    cols[colnames[c]] = data[:, c].tolist()
+            else:
+                for c in range(data.shape[1]):
+                    cols[str(c)] = data[:, c].tolist()
+            df = pl.DataFrame(cols)
+            dtype = self.column_types[0]
+            if dtype.name == "TIMESTAMP" or dtype.name == "DATE":
+                float_cols = list(cols.keys())
+                df = df.with_columns(
+                    pl.when(pl.col(c) == float('inf')).then(None).otherwise(pl.col(c)).alias(c)
+                    for c in float_cols
+                )
+                if dtype.name == "TIMESTAMP":
+                    df = df.with_columns(
+                        pl.from_epoch(pl.col(c).cast(pl.Int64), time_unit="s").alias(c)
+                        for c in float_cols
+                    )
+                    if self.timezone:
+                        df = df.with_columns(
+                            pl.col(c).dt.convert_time_zone(self.timezone).alias(c)
+                            for c in float_cols
+                        )
+                else:
+                    df = df.with_columns(
+                        pl.from_epoch(pl.col(c).cast(pl.Int32), time_unit="d").dt.date().alias(c)
+                        for c in float_cols
+                    )
+            if rownames:
+                df = df.with_columns(pl.Series('rownames', rownames))
+        else:
+            df = pd.DataFrame(data, columns=colnames, index=rownames)
+            if self.column_types[0].name == "TIMESTAMP" and self.timezone:
+                for c in df.columns:
+                    df[c] = df[c].dt.tz_localize('UTC').dt.tz_convert(self.timezone)
         self.df = df
 
     def arrange_dimnames_arraylike(self):
@@ -160,7 +222,7 @@ class Table:
                 cnt += 1
                 allcnt += 1
                 if cnt==curdsize:
-                    if np.all(pd.isna(curdim)):
+                    if all(x is None for x in curdim):
                         curdim = None
                     dim_names.append(curdim)
                     curdim = list()
@@ -202,74 +264,114 @@ class Table:
 
     def _todf(self):
         """
-        Converts the data to a pandas data frame, which still needs some further processing.
+        Converts the data to a data frame, which still needs some further processing.
         """
 
         # normal data frames
         data = OrderedDict()
         for indx, column in enumerate(self.columns):
             colname = self.final_names[indx]
+            if colname is None and self.output_format == "polars":
+                colname = ""
             data[colname] = column
-        df = pd.DataFrame.from_dict(data)
+
+        schema = None
+        if self.output_format == "polars":
+            schema = {}
+            for colindx, dtype in self.column_types.items():
+                colname = self.final_names[colindx]
+                if colname is None:
+                    colname = ""
+                if dtype.name == "INTEGER" or dtype.name == "LOGICAL":
+                    schema[colname] = nw.Int32
+                else:
+                    schema[colname] = None
+
+        df = nw.from_dict(data, backend=self.output_format, schema=schema).to_native()
         self.df = df
 
     def _covert_data(self):
         """
-        Downstream processing of the data inside the pandas data frame
+        Downstream processing of the data inside the data frame
         """
 
         df = self.df
-        # handle timestamps
-        for colindx, dtype in self.column_types.items():
-            colname = self.final_names[colindx]
-            if dtype.name == "TIMESTAMP":
-                # inf values do not make sense for timestamp
-                df.loc[df[colname] == np.inf, colname] = np.nan
-                df[colname] = pd.to_datetime(df[colname], unit='s')
-                if self.timezone:
-                    df[colname] = df[colname].dt.tz_localize('UTC').dt.tz_convert(self.timezone)
-            elif dtype.name == "DATE":
-                df.loc[df[colname] == np.inf, colname] = np.nan
-                df[colname] = df[colname].values.astype("datetime64[D]").astype(datetime)
-            elif dtype.name == "LOGICAL" or dtype.name == "INTEGER":
-                # iscategorical = value_labels.get(colindx)
-                # if not iscategorical:
-                # R NA values are represented by large negative integers
-                # in pandas we only have np.nan to represent missing
-                # values, therefore we need to change the data type to
-                # object to be able to mix integers and the float nan
-                # In addition bool(np.nan) evaluates to True, we have to take care of that
-                na_index = df[colname] <= -2147483648
-                if np.any(na_index):
-                    if dtype.name == "INTEGER":
-                        df[colname] = df[colname].astype(object)
-                        df.loc[na_index, colname] = np.nan
-                    elif dtype.name == "LOGICAL":
-                        df[colname] = df[colname].astype('bool')
-                        df[colname] = df[colname].astype(object)
-                        df.loc[na_index, colname] = np.nan
-                else:
-                    if dtype.name == "LOGICAL":
-                        df[colname] = df[colname].astype('bool')
+        if self.output_format == "polars":
+            if not polars_available:
+                raise PyreadrError("polars is required for output_format='polars'. Please install polars.")
+            for colindx, dtype in self.column_types.items():
+                colname = self.final_names[colindx]
+                if colname is None:
+                    colname = ""
+                if dtype.name == "TIMESTAMP":
+                    df = df.with_columns(
+                        pl.when(pl.col(colname) == float('inf'))
+                          .then(None).otherwise(pl.col(colname)).alias(colname)
+                    )
+                    df = df.with_columns(
+                        pl.from_epoch(pl.col(colname).cast(pl.Int64), time_unit="s").alias(colname)
+                    )
+                    if self.timezone:
+                        df = df.with_columns(
+                            pl.col(colname).dt.convert_time_zone(self.timezone).alias(colname)
+                        )
+                elif dtype.name == "DATE":
+                    df = df.with_columns(
+                        pl.when(pl.col(colname) == float('inf'))
+                          .then(None).otherwise(pl.col(colname)).alias(colname)
+                    )
+                    df = df.with_columns(
+                        pl.from_epoch(pl.col(colname).cast(pl.Int32), time_unit="d").dt.date().alias(colname)
+                    )
+                elif dtype.name == "LOGICAL":
+                    df = df.with_columns(pl.col(colname).cast(pl.Boolean))
+            self.df = df
+        else:
+            for colindx, dtype in self.column_types.items():
+                colname = self.final_names[colindx]
+                if dtype.name == "TIMESTAMP":
+                    df.loc[df[colname] == np.inf, colname] = np.nan
+                    df[colname] = pd.to_datetime(df[colname], unit='s')
+                    if self.timezone:
+                        df[colname] = df[colname].dt.tz_localize('UTC').dt.tz_convert(self.timezone)
+                elif dtype.name == "DATE":
+                    df.loc[df[colname] == np.inf, colname] = np.nan
+                    df[colname] = df[colname].values.astype("datetime64[D]").astype(datetime)
+                elif dtype.name == "LOGICAL" or dtype.name == "INTEGER":
+                    na_index = df[colname] <= -2147483648
+                    if np.any(na_index):
+                        if dtype.name == "INTEGER":
+                            df[colname] = df[colname].astype(object)
+                            df.loc[na_index, colname] = np.nan
+                        elif dtype.name == "LOGICAL":
+                            df[colname] = df[colname].astype('bool')
+                            df[colname] = df[colname].astype(object)
+                            df.loc[na_index, colname] = np.nan
+                    else:
+                        if dtype.name == "LOGICAL":
+                            df[colname] = df[colname].astype('bool')
 
     def _handle_row_names(self):
         """
-        For dataframes, set rownames as index
+        For dataframes, set rownames as index (pandas) or add as column (polars)
         """
         if self.row_names:
-            self.df['rownames'] = self.row_names
-            self.df.set_index('rownames', inplace=True)
+            if self.output_format == "polars":
+                self.df = self.df.with_columns(pl.Series("rownames", self.row_names))
+            else:
+                self.df['rownames'] = self.row_names
+                self.df.set_index('rownames', inplace=True)
 
     # methods for both dim and no dim
 
     def _handle_value_labels(self):
         """
         R factors are represented as integer vectors, and their string equivalences are stored somewhere else. This
-        method replaces the integers by the correspondent strings and transforms the data into a pandas category.
+        method replaces the integers by the correspondent strings and transforms the data into a categorical type.
         """
 
         if self.value_labels:
-            colnames = self.df.columns.tolist()
+            colnames = list(self.df.columns)
             if self.dim_num>0:
                 if len(self.dim)>1:
                     dim = self.dim[1]
@@ -277,11 +379,20 @@ class Table:
                     dim = 1
                 indx_labels = [(x, self.value_labels[0]) for x in range(0, dim)]
             else:
-               indx_labels = list(self.value_labels.items()) 
-            for colindx, labels in indx_labels:
-                colname = colnames[colindx]
-                self.df = self.df.replace({colname: labels})
-                self.df[colname] = self.df[colname].astype("category")
+               indx_labels = list(self.value_labels.items())
+            if self.output_format == "polars":
+                for colindx, labels in indx_labels:
+                    colname = colnames[colindx]
+                    int_to_str = {str(k): v for k, v in labels.items()}
+                    self.df = self.df.with_columns(
+                        pl.col(colname).cast(pl.String).replace_strict(int_to_str, default=pl.col(colname).cast(pl.String))
+                          .cast(pl.Categorical).alias(colname)
+                    )
+            else:
+                for colindx, labels in indx_labels:
+                    colname = colnames[colindx]
+                    self.df = self.df.replace({colname: labels})
+                    self.df[colname] = self.df[colname].astype("category")
 
 
 class PyreadrParser(Parser):
@@ -299,12 +410,16 @@ class PyreadrParser(Parser):
         self.use_objects = None
         self.parse_current_table = True
         self.timezone = None
+        self.output_format = "pandas"
 
     def set_use_objects(self, use_objects):
         self.use_objects = use_objects
 
     def set_timezone(self, timezone):
         self.timezone = timezone
+
+    def set_output_format(self, output_format):
+        self.output_format = output_format
 
     def handle_table(self, name):
         """
@@ -320,6 +435,7 @@ class PyreadrParser(Parser):
 
             table = Table()
             table.timezone = self.timezone
+            table.output_format = self.output_format
             table.name = name
             self.table_data.append(table)
             self.current_table = table
