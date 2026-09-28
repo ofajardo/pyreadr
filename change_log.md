@@ -1,4 +1,4 @@
-# 0.5.7 (github, pypi and conda: 2026.07.xx)
+# 0.5.7 (github, pypi and conda: 2026.09.28)
 * Added support for polars via narwhals
 
 # 0.5.6 (github, pypi and conda: 2026.04.13)
