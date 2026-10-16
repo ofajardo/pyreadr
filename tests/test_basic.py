@@ -219,6 +219,18 @@ class PyReadRBasic(unittest.TestCase):
         res = pyreadr.list_objects(rdata_path)
         self.assertListEqual(self.rdata_objects_description, res)
 
+    def test_list_objects_rownames(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "two_rownames.RData")
+        res = pyreadr.list_objects(rdata_path)
+        expected = [dict(self.rdata_objects_description[0], object_name="df1_rownames")] + self.rdata_objects_description[1:]
+        self.assertListEqual(expected, res)
+
+        rds_path = os.path.join(self.basic_data_folder, "one_rownames.Rds")
+        res = pyreadr.list_objects(rds_path)
+        expected = [dict(self.rdata_objects_description[0], object_name=None)]
+        self.assertListEqual(expected, res)
+
     def test_rdata_use_objects(self):
 
         rdata_path = os.path.join(self.basic_data_folder, "two.RData")
