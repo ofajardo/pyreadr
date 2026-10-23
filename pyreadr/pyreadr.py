@@ -12,7 +12,7 @@ from ._pyreadr_writer import PyreadrWriter
 from .custom_errors import PyreadrError
 
 
-def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
+def read_r(path, use_objects=None, timezone=None, output_format="pandas", encoding=None):
     """
     Read an R RData or Rds file into pandas or polars data frames.
 
@@ -30,6 +30,11 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
             therefore timestamps are displayed in UTC, unless this parameter is set.
         output_format : str, optional
             format of the output data frames. "pandas" (default) or "polars".
+        encoding : str, optional
+            encoding of strings that have no encoding mark in the file, for example "latin1" or "WINDOWS-1252".
+            It overrides the encoding declared in the file (version 3 files) or supplies it (version 2 files).
+            Strings explicitly marked as UTF-8 or latin1 in the file are not affected. Set it if reading
+            fails with a UnicodeDecodeError.
 
     Returns
     -------
@@ -39,12 +44,16 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
 
     if output_format not in ("pandas", "polars"):
         raise PyreadrError("output_format must be 'pandas' or 'polars'")
+    if encoding is not None and not isinstance(encoding, str):
+        raise PyreadrError("encoding must be a string")
 
     parser = PyreadrParser()
     if use_objects:
         parser.set_use_objects(use_objects)
     if timezone:
         parser.set_timezone(timezone)
+    if encoding:
+        parser.set_encoding(encoding)
     parser.set_output_format(output_format)
 
     if hasattr(path, 'read') and hasattr(path, 'seek'):
@@ -80,7 +89,7 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
     return result
 
 
-def list_objects(path):
+def list_objects(path, encoding=None):
     """
     Read an R RData or Rds file and lists objects and their column names.
     Not all objects are readable, and also it is not always possible to read the column names without parsing the
@@ -90,6 +99,9 @@ def list_objects(path):
     ----------
         path : str
             path to the file. The string is assumed to be utf-8 encoded.
+        encoding : str, optional
+            encoding of strings that have no encoding mark in the file, for example "latin1" or "WINDOWS-1252".
+            See read_r for details.
 
     Returns
     -------
@@ -101,6 +113,10 @@ def list_objects(path):
     parser = ListObjectsParser()
     if not isinstance(path, str):
         raise PyreadrError("path must be a string!")
+    if encoding is not None and not isinstance(encoding, str):
+        raise PyreadrError("encoding must be a string")
+    if encoding:
+        parser.set_encoding(encoding)
     path = os.path.expanduser(path)
     if not os.path.isfile(path):
         raise PyreadrError("File {0} does not exist!".format(path))

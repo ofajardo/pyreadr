@@ -495,6 +495,39 @@ class TestNarwhalified(unittest.TestCase):
         self.assertIsNotNone(res)
 
     # ==========================================================================
+    # Read tests — encoding (file declares UTF-8 but has unflagged latin1 strings, issue #49)
+    # ==========================================================================
+
+    def test_rdata_encoding_latin1(self):
+        path = os.path.join(self.basic_data_folder, "latin1_unflagged.RData")
+        res = pyreadr.read_r(path, encoding="latin1", output_format=self.backend)
+        lv = "(±)-(E)-2-Octen-4-ol"
+        if self.backend == "polars":
+            expected = pl.DataFrame({
+                'name': pl.Series('name', [lv, 'plain', lv], dtype=pl.Categorical),
+                'série': ['café', 'abc', None],
+            })
+        else:
+            expected = pd.DataFrame({'name': [lv, 'plain', lv], 'série': ['café', 'abc', np.nan]})
+            expected['name'] = expected['name'].astype('category')
+        self.assertFrameEqual(res['df_latin1'], expected)
+
+    def test_rdata_encoding_default_fails(self):
+        path = os.path.join(self.basic_data_folder, "latin1_unflagged.RData")
+        with self.assertRaises(UnicodeDecodeError):
+            pyreadr.read_r(path, output_format=self.backend)
+
+    def test_list_objects_encoding(self):
+        path = os.path.join(self.basic_data_folder, "latin1_unflagged.RData")
+        res = pyreadr.list_objects(path, encoding="latin1")
+        self.assertListEqual([{"object_name": "df_latin1", "columns": ["name", "série"]}], res)
+
+    def test_invalid_encoding(self):
+        path = os.path.join(self.basic_data_folder, "latin1_unflagged.RData")
+        with self.assertRaises(pyreadr.LibrdataError):
+            pyreadr.read_r(path, encoding="not-a-charset", output_format=self.backend)
+
+    # ==========================================================================
     # Read tests — arraylike path (matrices, arrays, tables)
     # ==========================================================================
 

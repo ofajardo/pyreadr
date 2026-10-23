@@ -180,6 +180,10 @@ cdef class Parser:
     cdef int _var_count
     parse_current_table = True
     output_format = "pandas"
+    encoding = None
+
+    def set_encoding(self, encoding):
+        self.encoding = encoding
 
     cpdef parse(self, path, file_object=None):
 
@@ -189,6 +193,14 @@ cdef class Parser:
         self._this = rdata_parser_init();
         self._fd = 0
         self._error = None
+
+        # encoding for strings without encoding mark, overrides the one declared in the file
+        if self.encoding is not None:
+            encoding_bytes = self.encoding.encode('utf-8')
+            status = rdata_set_file_character_encoding(self._this, encoding_bytes)
+            if status != RDATA_OK:
+                rdata_parser_free(self._this)
+                raise LibrdataError(rdata_error_message(status))
 
         if platform.system() == 'Windows':
             rdata_set_open_handler(self._this, _handle_open)

@@ -42,6 +42,7 @@ dataframes, take a look to [pysummaries](https://github.com/Genentech/pysummarie
   * [Reading selected objects](#reading-selected-objects)
   * [List objects and column names](#list-objects-and-column-names)
   * [Reading timestamps and timezones](#reading-timestamps-and-timezones)
+  * [Reading files with strings in other encodings](#reading-files-with-strings-in-other-encodings)
   * [What objects can be read](#what-objects-can-be-read-and-written)
   * [More on writing files](#more-on-writing-files)
 - [Known limitations](#known-limitations)
@@ -398,6 +399,22 @@ the POSIX object to character, then transform it to a datetime in python.
 When writing these kind of objects pyreadr transforms them to characters. Those can be easily
 transformed back to POSIX with as.POSIXct/lt (see later).
 
+### Reading files with strings in other encodings
+
+Strings are always returned as utf-8. R marks most strings with their encoding (utf-8 or latin1), and
+those are converted automatically. Strings without a mark are assumed to be in the encoding declared in the file
+(files saved with R >= 3.5) or utf-8 (older files). Sometimes that is not correct, for example
+if the file was produced in a latin1 session but declares utf-8, and reading fails with a UnicodeDecodeError.
+In that case you can set the encoding of those strings with the argument encoding (any encoding name
+understood by iconv, for example "latin1" or "WINDOWS-1252"). It is available for read_r and list_objects:
+
+```python
+import pyreadr
+
+result = pyreadr.read_r('test_data/basic/latin1_unflagged.RData', encoding="latin1")
+objects = pyreadr.list_objects('test_data/basic/latin1_unflagged.RData', encoding="latin1")
+```
+
 ### What objects can be read and written
 
 Data frames composed of character, numeric (double), integer, timestamp (POSIXct 
@@ -512,8 +529,6 @@ gzip compression.
 
 * Pyreadr writing is a relative slow operation
 compared to doint it in R.
-
-* Cannot read RData or rds files in encodings other than utf-8.
 
 Solutions to some of these limitations have been proposed in the upstream librdata [issues](https://github.com/WizardMac/librdata/issues) (points 1-4 are addressed by issue 12, point 5 by issue 16 and point 7 by issue 17). However there is no guarantee that these changes will be made and there are no timelines either. If you think it would be nice if these issues are solved, please express your support in the librdata issues.
 

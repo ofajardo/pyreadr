@@ -89,6 +89,7 @@ cdef extern from 'libs/librdata/src/rdata.h':
     rdata_error_t rdata_set_read_handler(rdata_parser_t *parser, rdata_read_handler read_handler);
     rdata_error_t rdata_set_update_handler(rdata_parser_t *parser, rdata_update_handler update_handler);
     rdata_error_t rdata_set_io_ctx(rdata_parser_t *parser, void *io_ctx);
+    rdata_error_t rdata_set_file_character_encoding(rdata_parser_t *parser, const char *encoding);
     # /* rdata_parse works on RData and RDS. The table handler will be called once
     #  * per data frame in RData files, and zero times on RDS files. */
     rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *user_ctx);
