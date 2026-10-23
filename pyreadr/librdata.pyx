@@ -235,7 +235,7 @@ cdef class Parser:
     def handle_dim_name(self, name, index):
         pass
 
-    def _handle_row_name(self, name, index):
+    def handle_row_name(self, name, index):
         pass
 
     def handle_text_value(self, name, index):
