@@ -27,7 +27,11 @@ try:
 except:
     pass
 
-is_pandas_3 = int(pd.__version__.split(".")[0]) > 2
+pandas_version = tuple(int(x) for x in pd.__version__.split(".")[:2])
+is_pandas_3 = pandas_version[0] > 2
+# pd.to_datetime(..., unit='s') on whole seconds infers datetime64[s] in pandas 3.0
+# and datetime64[us] from pandas 3.1 on
+pandas3_dt_unit = 'datetime64[s]' if pandas_version < (3, 1) else 'datetime64[us]'
 
 
 class TestNarwhalified(unittest.TestCase):
@@ -70,8 +74,8 @@ class TestNarwhalified(unittest.TestCase):
             df1['tstamp1'] = pd.to_datetime(df1['tstamp1'])
             df1['tstamp2'] = pd.to_datetime(df1['tstamp2'])
             if is_pandas_3:
-                df1['tstamp1'] = df1['tstamp1'].astype('datetime64[s]')
-                df1['tstamp2'] = df1['tstamp2'].astype('datetime64[s]')
+                df1['tstamp1'] = df1['tstamp1'].astype(pandas3_dt_unit)
+                df1['tstamp2'] = df1['tstamp2'].astype(pandas3_dt_unit)
             df1 = nw.from_native(df1)
         else:
             df1_native = df1.to_native()
@@ -137,8 +141,8 @@ class TestNarwhalified(unittest.TestCase):
             df3['tstampa'] = pd.to_datetime(df3['tstampa'])
             df3['tstampb'] = pd.to_datetime(df3['tstampb'])
             if is_pandas_3:
-                df3['tstampa'] = df3['tstampa'].astype('datetime64[s]')
-                df3['tstampb'] = df3['tstampb'].astype('datetime64[s]')
+                df3['tstampa'] = df3['tstampa'].astype(pandas3_dt_unit)
+                df3['tstampb'] = df3['tstampb'].astype(pandas3_dt_unit)
         else:
             df3 = df3.to_native()
             df3 = df3.with_columns(

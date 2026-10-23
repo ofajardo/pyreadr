@@ -101,7 +101,7 @@ setup(
     packages=["pyreadr"],
     include_package_data=include_package_data,
     exclude_package_data=exclude_package_data,
-    install_requires=['narwhals>=2.10.1', 'numpy'],
+    install_requires=['narwhals>=2.26.0', 'numpy'],
     license="AGPL-3.0-or-later",
     classifiers=[
         "Programming Language :: Python",

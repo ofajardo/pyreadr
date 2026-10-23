@@ -20,7 +20,11 @@ try:
 except:
     pass
 
-is_pandas_3 = int(pd.__version__.split(".")[0]) > 2
+pandas_version = tuple(int(x) for x in pd.__version__.split(".")[:2])
+is_pandas_3 = pandas_version[0] > 2
+# pd.to_datetime(..., unit='s') on whole seconds infers datetime64[s] in pandas 3.0
+# and datetime64[us] from pandas 3.1 on
+pandas3_dt_unit = 'datetime64[s]' if pandas_version < (3, 1) else 'datetime64[us]'
 
 
 class PyReadRBasic(unittest.TestCase):
@@ -59,13 +63,13 @@ class PyReadRBasic(unittest.TestCase):
 
         df3 = pd.read_csv(os.path.join(self.basic_data_folder, "df3.csv"), parse_dates=[0, 1])
 
-        # pandas 3.0: pd.to_datetime(..., unit='s') returns datetime64[s],
+        # pandas 3: pd.to_datetime(..., unit='s') returns datetime64[s] (3.0) or [us] (3.1+),
         # but read_csv parse_dates returns datetime64[ns]. Normalize to match parser output.
         if is_pandas_3:
             for col in df1.select_dtypes(include=['datetime64']).columns:
-                df1[col] = df1[col].astype('datetime64[s]')
+                df1[col] = df1[col].astype(pandas3_dt_unit)
             for col in df3.select_dtypes(include=['datetime64']).columns:
-                df3[col] = df3[col].astype('datetime64[s]')
+                df3[col] = df3[col].astype(pandas3_dt_unit)
 
         self.df1 = df1
         self.df1_tstamp = df1_tstamp
