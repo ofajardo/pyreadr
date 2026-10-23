@@ -60,13 +60,15 @@ typedef struct rdata_ctx_s {
     rdata_text_value_handler     value_label_handler;
     rdata_column_handler         dim_handler;
     rdata_text_value_handler     dim_name_handler;
-    rdata_error_handler       error_handler;
+    rdata_error_handler          error_handler;
+    rdata_header_handler         header_handler;
     void                        *user_ctx;
 #if HAVE_BZIP2
     bz_stream                   *bz_strm;
 #endif
 #if HAVE_APPLE_COMPRESSION
     compression_stream          *compression_strm;
+    bool                         compression_ended;
 #endif
 #if HAVE_ZLIB
     z_stream                    *z_strm;
@@ -81,7 +83,8 @@ typedef struct rdata_ctx_s {
     rdata_atom_table_t          *atom_table;
     unsigned int                 column_class;
 
-    iconv_t                      converter;
+    iconv_t                      converter;         /* native encoding -> UTF-8 */
+    iconv_t                      latin1_converter;  /* opened lazily for LATIN1-flagged strings */
 
     int32_t                      dims[MAX_ARRAY_DIMENSIONS];
     bool                         is_dimnames;
@@ -101,12 +104,41 @@ static rdata_error_t read_string_vector(int attributes, rdata_text_value_handler
 static rdata_error_t read_value_vector(rdata_sexptype_header_t header, const char *name, rdata_ctx_t *ctx);
 static rdata_error_t read_value_vector_cb(rdata_sexptype_header_t header, const char *name,
         rdata_column_handler column_handler, void *user_ctx, rdata_ctx_t *ctx);
-static rdata_error_t read_character_string(char **key, rdata_ctx_t *ctx);
+static rdata_error_t read_value_vector_data(rdata_sexptype_header_t header, void **out_vals,
+        int32_t *out_length, rdata_type_t *out_type, rdata_ctx_t *ctx);
+static rdata_error_t read_character_string(char **key, unsigned int gp, rdata_ctx_t *ctx);
 static rdata_error_t read_generic_list(int attributes, rdata_ctx_t *ctx);
 static rdata_error_t read_altrep_vector(const char *name, rdata_ctx_t *ctx);
+static rdata_error_t read_altrep_vector_cb(const char *name,
+        rdata_column_handler column_handler, void *user_ctx, rdata_ctx_t *ctx);
 static rdata_error_t read_attributes(int (*handle_attribute)(char *key, rdata_sexptype_info_t val_info, rdata_ctx_t *ctx),
                            rdata_ctx_t *ctx);
+static rdata_error_t read_attributes_after_header(rdata_sexptype_info_t pairlist_info,
+        int (*handle_attribute)(char *key, rdata_sexptype_info_t val_info, rdata_ctx_t *ctx),
+        rdata_ctx_t *ctx);
 static rdata_error_t recursive_discard(rdata_sexptype_header_t sexptype_header, rdata_ctx_t *ctx);
+
+/* Pick the iconv converter for a CHARSXP based on its encoding flags.
+ * Strings flagged as ASCII, UTF-8, or raw bytes are passed through untouched.
+ * Strings flagged as Latin-1 are converted from ISO-8859-1. Anything else is
+ * "native" and uses the file-level (or user-supplied) encoding. */
+static iconv_t string_converter(unsigned int gp, rdata_ctx_t *ctx) {
+    if (gp & (RDATA_CHARSXP_ASCII | RDATA_CHARSXP_UTF8 | RDATA_CHARSXP_BYTES))
+        return NULL;
+
+    if (gp & RDATA_CHARSXP_LATIN1) {
+        if (ctx->latin1_converter == NULL) {
+            ctx->latin1_converter = iconv_open("UTF-8", "ISO-8859-1");
+            if (ctx->latin1_converter == (iconv_t)-1) {
+                /* Fall back to passing the bytes through */
+                ctx->latin1_converter = NULL;
+            }
+        }
+        return ctx->latin1_converter;
+    }
+
+    return ctx->converter;
+}
 
 static void *rdata_malloc(size_t len) {
     if (len == 0)
@@ -191,6 +223,9 @@ static ssize_t read_st_compression(rdata_ctx_t *ctx, void *buffer, size_t len) {
     compression_status result = COMPRESSION_STATUS_OK;
     size_t start_size = len;
 
+    if (ctx->compression_ended)
+        return 0;
+
     ctx->compression_strm->dst_ptr = (unsigned char *)buffer;
     ctx->compression_strm->dst_size = len;
 
@@ -199,16 +234,26 @@ static ssize_t read_st_compression(rdata_ctx_t *ctx, void *buffer, size_t len) {
 
         result = compression_stream_process(ctx->compression_strm, 0);
 
-        if (result == COMPRESSION_STATUS_OK) {
-            bytes_written += start_size - ctx->compression_strm->dst_size;
-        } else {
+        if (result == COMPRESSION_STATUS_ERROR) {
             error = -1;
             break;
         }
-        
+
+        /* COMPRESSION_STATUS_END is returned together with the final bytes
+         * of output, so count them before stopping */
+        bytes_written += start_size - ctx->compression_strm->dst_size;
+
+        if (result == COMPRESSION_STATUS_END) {
+            ctx->compression_ended = true;
+            break;
+        }
+
+        if (bytes_written == len)
+            break;
+
         if (ctx->compression_strm->src_size == 0) {
             int bytes_read = 0;
-            bytes_read = ctx->io->read(ctx->compression_strm, STREAM_BUFFER_SIZE, ctx->io->io_ctx);
+            bytes_read = ctx->io->read(ctx->strm_buffer, STREAM_BUFFER_SIZE, ctx->io->io_ctx);
             if (bytes_read < 0) {
                 error = bytes_read;
                 break;
@@ -216,19 +261,18 @@ static ssize_t read_st_compression(rdata_ctx_t *ctx, void *buffer, size_t len) {
             if (bytes_read == 0) {
                 start_size = ctx->compression_strm->dst_size;
                 result = compression_stream_process(ctx->compression_strm, COMPRESSION_STREAM_FINALIZE);
-                if (result == COMPRESSION_STATUS_END) {
+                if (result == COMPRESSION_STATUS_END || result == COMPRESSION_STATUS_OK) {
                     bytes_written += start_size - ctx->compression_strm->dst_size;
                 } else {
                     error = -1;
                 }
+                ctx->compression_ended = true;
                 break;
             }
 
             ctx->compression_strm->src_ptr = ctx->strm_buffer;
             ctx->compression_strm->src_size = bytes_read;
         }
-        if (bytes_written == len)
-            break;
     }
 
     if (error != 0)
@@ -332,11 +376,13 @@ static ssize_t read_st_lzma(rdata_ctx_t *ctx, void *buffer, size_t len) {
 }
 #endif /* HAVE_LZMA */
 
-static ssize_t read_st(rdata_ctx_t *ctx, void *buffer, size_t len) {
-    ssize_t bytes_read = 0;
+/* Upper bound on a single request to a decompressor or read handler. zlib
+ * and bzip2 count output space in unsigned ints, and some platforms' read(2)
+ * reject sizes above INT_MAX, so larger reads are split up by read_st. */
+#define READ_ST_MAX_CHUNK (1 << 30)
 
-    if (len == 0)
-        return 0;
+static ssize_t read_st_chunk(rdata_ctx_t *ctx, void *buffer, size_t len) {
+    ssize_t bytes_read = 0;
 
 #if HAVE_BZIP2
     if (ctx->bz_strm) {
@@ -367,6 +413,26 @@ static ssize_t read_st(rdata_ctx_t *ctx, void *buffer, size_t len) {
     }
 
     return bytes_read;
+}
+
+static ssize_t read_st(rdata_ctx_t *ctx, void *buffer, size_t len) {
+    size_t total = 0;
+
+    while (total < len) {
+        size_t chunk = len - total;
+        if (chunk > READ_ST_MAX_CHUNK)
+            chunk = READ_ST_MAX_CHUNK;
+
+        ssize_t bytes_read = read_st_chunk(ctx, (char *)buffer + total, chunk);
+        if (bytes_read < 0)
+            return bytes_read;
+
+        total += bytes_read;
+        if ((size_t)bytes_read < chunk)
+            break;
+    }
+
+    return total;
 }
 
 static int lseek_st(rdata_ctx_t *ctx, size_t len) {
@@ -465,6 +531,7 @@ static rdata_error_t init_lzma_stream(rdata_ctx_t *ctx) {
 
 #if HAVE_APPLE_COMPRESSION
     ctx->compression_strm = calloc(1, sizeof(compression_stream));
+    ctx->compression_ended = false;
 
     if (compression_stream_init(ctx->compression_strm,
                 COMPRESSION_STREAM_DECODE, COMPRESSION_LZMA) == COMPRESSION_STATUS_ERROR) {
@@ -650,15 +717,19 @@ void free_rdata_ctx(rdata_ctx_t *ctx) {
     if (ctx->converter) {
         iconv_close(ctx->converter);
     }
+    if (ctx->latin1_converter) {
+        iconv_close(ctx->latin1_converter);
+    }
     free(ctx);
 }
 
 rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *user_ctx) {
     int is_rdata = 0;
     rdata_error_t retval = RDATA_OK;
-    rdata_v2_header_t v2_header;
+    rdata_header_t v2_header;
     rdata_ctx_t *ctx = rdata_ctx_init(parser->io, filename);
     char *encoding = NULL;
+    rdata_compression_t compression = RDATA_COMPRESSION_NONE;
 
     if (ctx == NULL) {
         retval = RDATA_ERROR_OPEN;
@@ -675,6 +746,7 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
     ctx->dim_handler = parser->dim_handler;
     ctx->dim_name_handler = parser->dim_name_handler;
     ctx->error_handler = parser->error_handler;
+    ctx->header_handler = parser->header_handler;
 
     ctx->is_dimnames = false;
     
@@ -682,8 +754,8 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
         goto cleanup;
     }
 
-    char header_line[5];
-    if (read_st(ctx, &header_line, sizeof(header_line)) != sizeof(header_line)) {
+    char header_line[RDATA_HEADER_LENGTH] = "";
+    if (read_st(ctx, &header_line, RDATA_HEADER_LENGTH) != RDATA_HEADER_LENGTH) {
         retval = RDATA_ERROR_READ;
         goto cleanup;
     }
@@ -704,22 +776,56 @@ rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *us
         v2_header.reader_version = byteswap4(v2_header.reader_version);
     }
 
+    if (ctx->header_handler) {
+#if HAVE_BZIP2
+        if (ctx->bz_strm) {
+            compression = RDATA_COMPRESSION_BZIP2;
+        }
+#endif
+#if HAVE_APPLE_COMPRESSION
+        if (ctx->compression_strm) {
+            compression = RDATA_COMPRESSION_LZMA;
+        }
+#endif
+#if HAVE_ZLIB
+        if (ctx->z_strm) {
+            compression = RDATA_COMPRESSION_GZIP;
+        }
+#endif
+#if HAVE_LZMA
+        if (ctx->lzma_strm) {
+            compression = RDATA_COMPRESSION_LZMA;
+        }
+#endif
+        if(ctx->header_handler(compression, header_line, &v2_header, ctx->user_ctx)) {
+            retval = RDATA_ERROR_USER_ABORT;
+            goto cleanup;
+        }
+    }
+
     if (is_rdata && v2_header.format_version != header_line[3] - '0') {
         retval = RDATA_ERROR_PARSE;
         goto cleanup;
     }
 
     if (v2_header.format_version == 3) {
-        retval = read_character_string(&encoding, ctx);
+        retval = read_character_string(&encoding, 0, ctx);
         if (retval != RDATA_OK)
             goto cleanup;
+    }
 
-        if (strcmp("UTF-8", encoding) != 0) {
-            if ((ctx->converter = iconv_open("UTF-8", encoding)) == (iconv_t)-1) {
-                ctx->converter = NULL;
-                retval = RDATA_ERROR_UNSUPPORTED_CHARSET;
-                goto cleanup;
-            }
+    /* Version 3 files declare the encoding of "native" strings; version 2
+     * files do not. The user can override (or supply) it with
+     * rdata_set_file_character_encoding. */
+    const char *native_encoding = parser->file_character_encoding;
+    if (native_encoding == NULL)
+        native_encoding = encoding;
+
+    if (native_encoding && native_encoding[0] && strcmp("UTF-8", native_encoding) != 0) {
+        if ((ctx->converter = iconv_open("UTF-8", native_encoding)) == (iconv_t)-1) {
+            ctx->converter = NULL;
+            retval = RDATA_ERROR_UNSUPPORTED_CHARSET;
+            goto cleanup;
         }
     }
     
@@ -846,7 +952,16 @@ static rdata_error_t read_environment(const char *table_name, rdata_ctx_t *ctx) 
             retval = RDATA_ERROR_PARSE;
             goto cleanup;
         }
-        
+
+        if (table_name == NULL && strcmp(key, ".Random.seed") == 0) {
+            /* RNG state saved by save.image(); hidden in R and not user data */
+            if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
+                goto cleanup;
+            if ((retval = recursive_discard(sexptype_info.header, ctx)) != RDATA_OK)
+                goto cleanup;
+            continue;
+        }
+
         if ((retval = read_toplevel_object(table_name, key, ctx)) != RDATA_OK)
             goto cleanup;
     }
@@ -908,7 +1023,7 @@ static rdata_error_t read_sexptype_header(rdata_sexptype_info_t *header_info, rd
             }
                         
             char *key = NULL;
-            if ((retval = read_character_string(&key, ctx)) != RDATA_OK)
+            if ((retval = read_character_string(&key, key_info.header.gp, ctx)) != RDATA_OK)
                 goto cleanup;
 
             ref = atom_table_add(ctx->atom_table, key);
@@ -987,12 +1102,13 @@ cleanup:
     return retval;
 }
 
-static rdata_error_t read_character_string(char **key, rdata_ctx_t *ctx) {
+static rdata_error_t read_character_string(char **key, unsigned int gp, rdata_ctx_t *ctx) {
     uint32_t length;
     char *string = NULL;
     char *utf8_string = NULL;
     rdata_error_t retval = RDATA_OK;
-    
+    iconv_t converter = string_converter(gp, ctx);
+
     if (read_st(ctx, &length, sizeof(length)) != sizeof(length)) {
         retval = RDATA_ERROR_READ;
         goto cleanup;
@@ -1025,10 +1141,10 @@ static rdata_error_t read_character_string(char **key, rdata_ctx_t *ctx) {
         goto cleanup;
     }
 
-    retval = rdata_convert(utf8_string, 4*length+1, string, length, ctx->converter);
+    retval = rdata_convert(utf8_string, 4*length+1, string, length, converter);
     if (retval != RDATA_OK)
         goto cleanup;
-    
+
 cleanup:
     if (string)
         free(string);
@@ -1060,14 +1176,25 @@ static int handle_data_frame_attribute(char *key, rdata_sexptype_info_t val_info
 
 static rdata_error_t read_attributes(int (*handle_attribute)(char *key, rdata_sexptype_info_t val_info, rdata_ctx_t *ctx),
                            rdata_ctx_t *ctx) {
-    rdata_sexptype_info_t pairlist_info, val_info;
+    rdata_sexptype_info_t pairlist_info;
     rdata_error_t retval = RDATA_OK;
-    char *key = NULL;
-    
+
     retval = read_sexptype_header(&pairlist_info, ctx);
     if (retval != RDATA_OK)
-        goto cleanup;
-    
+        return retval;
+
+    return read_attributes_after_header(pairlist_info, handle_attribute, ctx);
+}
+
+/* Same as read_attributes, but the caller has already consumed the header of
+ * the first pairlist node (or of the terminating NIL). */
+static rdata_error_t read_attributes_after_header(rdata_sexptype_info_t pairlist_info,
+        int (*handle_attribute)(char *key, rdata_sexptype_info_t val_info, rdata_ctx_t *ctx),
+        rdata_ctx_t *ctx) {
+    rdata_sexptype_info_t val_info;
+    rdata_error_t retval = RDATA_OK;
+    char *key = NULL;
+
     while (pairlist_info.header.type == RDATA_SEXPTYPE_PAIRLIST) {
         /* value */
         if ((retval = read_sexptype_header(&val_info, ctx)) != RDATA_OK)
@@ -1094,9 +1221,20 @@ cleanup:
     return retval;
 }
 
-static rdata_error_t read_wrap_real(const char *name, rdata_ctx_t *ctx) {
+/* The "wrap_*" ALTREP classes (wrap_integer, wrap_real, wrap_logical,
+ * wrap_string, ...) are produced by R when it attaches metadata such as
+ * sortedness to an ordinary vector, e.g. when subsetting a data frame column.
+ * The serialized state is a pairlist whose CAR is the wrapped vector and whose
+ * CDR is the metadata, followed by the attributes of the wrapper (or NIL). */
+static rdata_error_t read_wrap_vector(const char *name,
+        rdata_column_handler column_handler, void *user_ctx, rdata_ctx_t *ctx) {
     rdata_error_t retval = RDATA_OK;
     rdata_sexptype_info_t sexptype_info;
+    void *vals = NULL;
+    int32_t length = 0;
+    rdata_type_t type = RDATA_TYPE_INT32;
+    bool is_string = false;
+
     /* pairlist */
     if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
         goto cleanup;
@@ -1104,32 +1242,88 @@ static rdata_error_t read_wrap_real(const char *name, rdata_ctx_t *ctx) {
         retval = RDATA_ERROR_PARSE;
         goto cleanup;
     }
-    /* representation */
+    /* wrapped vector */
     if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
         goto cleanup;
 
-    if ((retval = read_value_vector(sexptype_info.header, name, ctx)) != RDATA_OK)
-        goto cleanup;
+    if (sexptype_info.header.type == RDATA_SEXPTYPE_CHARACTER_VECTOR) {
+        is_string = true;
+        if ((retval = read_length(&length, ctx)) != RDATA_OK)
+            goto cleanup;
 
-    /* alt representation */
+        if (ctx->is_dimnames) {
+            retval = read_string_vector_n(sexptype_info.header.attributes, length,
+                    ctx->dim_name_handler, ctx->user_ctx, ctx);
+        } else {
+            if (ctx->column_handler) {
+                if (ctx->column_handler(name, RDATA_TYPE_STRING, NULL, length, ctx->user_ctx)) {
+                    retval = RDATA_ERROR_USER_ABORT;
+                    goto cleanup;
+                }
+            }
+            retval = read_string_vector_n(sexptype_info.header.attributes, length,
+                    ctx->text_value_handler, ctx->user_ctx, ctx);
+        }
+        if (retval != RDATA_OK)
+            goto cleanup;
+    } else if (sexptype_info.header.type == RDATA_SEXPTYPE_REAL_VECTOR ||
+            sexptype_info.header.type == RDATA_SEXPTYPE_INTEGER_VECTOR ||
+            sexptype_info.header.type == RDATA_SEXPTYPE_LOGICAL_VECTOR) {
+        if ((retval = read_value_vector_data(sexptype_info.header, &vals, &length, &type, ctx)) != RDATA_OK)
+            goto cleanup;
+    } else {
+        if (ctx->error_handler) {
+            char error_buf[1024];
+            snprintf(error_buf, sizeof(error_buf), "Unsupported wrapped ALTREP type: %d\n",
+                    sexptype_info.header.type);
+            ctx->error_handler(error_buf, ctx->user_ctx);
+        }
+        retval = RDATA_ERROR_UNSUPPORTED_STORAGE_CLASS;
+        goto cleanup;
+    }
+
+    /* metadata */
     if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
         goto cleanup;
     if ((retval = recursive_discard(sexptype_info.header, ctx)) != RDATA_OK)
         goto cleanup;
 
-    /* nil */
+    /* attributes of the wrapper (e.g. factor levels and class), or nil */
     if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
         goto cleanup;
-    if (sexptype_info.header.type != RDATA_PSEUDO_SXP_NIL) {
+    if (sexptype_info.header.type == RDATA_SEXPTYPE_PAIRLIST) {
+        if ((retval = read_attributes_after_header(sexptype_info, &handle_vector_attribute, ctx)) != RDATA_OK)
+            goto cleanup;
+    } else if (sexptype_info.header.type != RDATA_PSEUDO_SXP_NIL) {
         retval = RDATA_ERROR_PARSE;
         goto cleanup;
     }
 
+    if (!is_string) {
+        if (ctx->column_class == RDATA_CLASS_POSIXCT)
+            type = RDATA_TYPE_TIMESTAMP;
+        if (ctx->column_class == RDATA_CLASS_DATE)
+            type = RDATA_TYPE_DATE;
+
+        if (column_handler) {
+            if (column_handler(name, type, vals, length, user_ctx)) {
+                retval = RDATA_ERROR_USER_ABORT;
+                goto cleanup;
+            }
+        }
+    }
+
 cleanup:
+    if (vals)
+        free(vals);
+
     return retval;
 }
 
-static rdata_error_t read_compact_intseq(const char *name, rdata_ctx_t *ctx) {
+/* compact_intseq and compact_realseq: state is a REALSXP of length 3
+ * holding (length, first value, increment). */
+static rdata_error_t read_compact_seq(const char *name, bool is_real,
+        rdata_column_handler column_handler, void *user_ctx, rdata_ctx_t *ctx) {
     rdata_error_t retval = RDATA_OK;
     rdata_sexptype_info_t sexptype_info;
     if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
@@ -1153,21 +1347,38 @@ static rdata_error_t read_compact_intseq(const char *name, rdata_ctx_t *ctx) {
         vals[1] = byteswap_double(vals[1]);
         vals[2] = byteswap_double(vals[2]);
     }
+    if (vals[0] < 0 || vals[0] > INT32_MAX) {
+        retval = RDATA_ERROR_PARSE;
+        goto cleanup;
+    }
 
     if (sexptype_info.header.attributes) {
         if ((retval = read_attributes(&handle_vector_attribute, ctx)) != RDATA_OK)
             goto cleanup;
     }
 
-    if (ctx->column_handler) {
-        int32_t *integers = rdata_malloc(vals[0] * sizeof(int32_t));
-        int32_t val = vals[1];
-        for (int i=0; i<vals[0]; i++) {
-            integers[i] = val;
-            val += vals[2];
+    if (column_handler) {
+        int32_t count = vals[0];
+        int cb_retval = 0;
+        if (is_real) {
+            double *reals = rdata_malloc(count * sizeof(double));
+            double val = vals[1];
+            for (int i=0; i<count; i++) {
+                reals[i] = val;
+                val += vals[2];
+            }
+            cb_retval = column_handler(name, RDATA_TYPE_REAL, reals, count, user_ctx);
+            free(reals);
+        } else {
+            int32_t *integers = rdata_malloc(count * sizeof(int32_t));
+            int32_t val = vals[1];
+            for (int i=0; i<count; i++) {
+                integers[i] = val;
+                val += vals[2];
+            }
+            cb_retval = column_handler(name, RDATA_TYPE_INT32, integers, count, user_ctx);
+            free(integers);
         }
-        int cb_retval = ctx->column_handler(name, RDATA_TYPE_INT32, integers, vals[0], ctx->user_ctx);
-        free(integers);
         if (cb_retval) {
             retval = RDATA_ERROR_USER_ABORT;
             goto cleanup;
@@ -1185,6 +1396,41 @@ cleanup:
     return retval;
 }
 
+/* Formats a double the way R's as.character() does: up to 15 significant
+ * digits, using the shorter of fixed and scientific notation (fixed wins
+ * ties), e.g. 1.5 -> "1.5", 100000 -> "1e+05", 123456 -> "123456". */
+static void format_real_like_r(double val, char *buf, size_t buf_len) {
+    char sci[64], fixed[64];
+    int sig, exponent = 0;
+
+    if (isinf(val)) {
+        snprintf(buf, buf_len, "%s", val > 0 ? "Inf" : "-Inf");
+        return;
+    }
+
+    snprintf(sci, sizeof(sci), "%.14e", val);
+    double reference = strtod(sci, NULL);
+
+    /* Smallest number of significant digits that still represents the value */
+    for (sig=1; sig<15; sig++) {
+        snprintf(sci, sizeof(sci), "%.*e", sig-1, val);
+        if (strtod(sci, NULL) == reference)
+            break;
+    }
+    snprintf(sci, sizeof(sci), "%.*e", sig-1, val);
+
+    char *e = strchr(sci, 'e');
+    if (e)
+        exponent = atoi(e+1);
+
+    int decimals = sig - 1 - exponent;
+    if (decimals < 0)
+        decimals = 0;
+    snprintf(fixed, sizeof(fixed), "%.*f", decimals, val);
+
+    snprintf(buf, buf_len, "%s", strlen(fixed) <= strlen(sci) ? fixed : sci);
+}
+
 static int deferred_string_handler(const char *name, enum rdata_type_e type, void *vals, long length, void *user_ctx) {
     rdata_ctx_t *ctx = (rdata_ctx_t *)user_ctx;
     if (ctx->column_handler)
@@ -1192,12 +1438,23 @@ static int deferred_string_handler(const char *name, enum rdata_type_e type, voi
     if (ctx->text_value_handler) {
         for (int i=0; i<length; i++) {
             char buf[128] = { 0 };
+            const char *value = buf;
             if (type == RDATA_TYPE_REAL) {
-                snprintf(buf, sizeof(buf), "%.0lf", ((double *)vals)[i]);
+                double val = ((double *)vals)[i];
+                if (isnan(val)) {
+                    value = NULL; /* NA_character_ */
+                } else {
+                    format_real_like_r(val, buf, sizeof(buf));
+                }
             } else if (type == RDATA_TYPE_INT32) {
-                snprintf(buf, sizeof(buf), "%d", ((int32_t *)vals)[i]);
+                int32_t val = ((int32_t *)vals)[i];
+                if (val == INT32_MIN) {
+                    value = NULL; /* NA_character_ */
+                } else {
+                    snprintf(buf, sizeof(buf), "%d", val);
+                }
             }
-            ctx->text_value_handler(buf, i, ctx->user_ctx);
+            ctx->text_value_handler(value, i, ctx->user_ctx);
         }
     }
     return 0;
@@ -1213,11 +1470,17 @@ static rdata_error_t read_deferred_string(const char *name, rdata_ctx_t *ctx) {
         retval = RDATA_ERROR_PARSE;
         goto cleanup;
     }
-    /* representation */
+    /* representation: a numeric vector, or (since R 4.0) possibly another
+     * ALTREP such as a compact integer sequence */
     if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
         goto cleanup;
 
-    if ((retval = read_value_vector_cb(sexptype_info.header, name, &deferred_string_handler, ctx, ctx)) != RDATA_OK)
+    if (sexptype_info.header.type == RDATA_PSEUDO_SXP_ALTREP) {
+        retval = read_altrep_vector_cb(name, &deferred_string_handler, ctx, ctx);
+    } else {
+        retval = read_value_vector_cb(sexptype_info.header, name, &deferred_string_handler, ctx, ctx);
+    }
+    if (retval != RDATA_OK)
         goto cleanup;
 
     /* alt representation */
@@ -1238,9 +1501,12 @@ cleanup:
     return retval;
 }
 
-static rdata_error_t read_altrep_vector(const char *name, rdata_ctx_t *ctx) {
+static rdata_error_t read_altrep_vector_cb(const char *name,
+        rdata_column_handler column_handler, void *user_ctx, rdata_ctx_t *ctx) {
     rdata_error_t retval = RDATA_OK;
     rdata_sexptype_info_t sexptype_info;
+    char *class = NULL;
+    char *class_owned = NULL;
     /* pairlist */
     if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
         goto cleanup;
@@ -1249,7 +1515,6 @@ static rdata_error_t read_altrep_vector(const char *name, rdata_ctx_t *ctx) {
         goto cleanup;
     }
     /* class name */
-    char *class = NULL;
     if ((retval = read_sexptype_header(&sexptype_info, ctx)) != RDATA_OK)
         goto cleanup;
     if (sexptype_info.header.type == RDATA_SEXPTYPE_SYMBOL) {
@@ -1259,10 +1524,12 @@ static rdata_error_t read_altrep_vector(const char *name, rdata_ctx_t *ctx) {
             retval = RDATA_ERROR_PARSE;
             goto cleanup;
         }
-        if ((retval = read_character_string(&class, ctx)) != RDATA_OK)
+        if ((retval = read_character_string(&class, sexptype_info.header.gp, ctx)) != RDATA_OK)
             goto cleanup;
 
         atom_table_add(ctx->atom_table, class);
+        /* The atom table keeps its own copy; free ours once we're done */
+        class_owned = class;
     } else if (sexptype_info.header.type == RDATA_PSEUDO_SXP_REF) {
         if ((class = atom_table_lookup(ctx->atom_table, sexptype_info.ref)) == NULL) {
             retval = RDATA_ERROR_PARSE;
@@ -1283,11 +1550,14 @@ static rdata_error_t read_altrep_vector(const char *name, rdata_ctx_t *ctx) {
     if ((retval = recursive_discard(sexptype_info.header, ctx)) != RDATA_OK)
         goto cleanup;
 
-    if (strcmp(class, "wrap_real") == 0) {
-        if ((retval = read_wrap_real(name, ctx)) != RDATA_OK)
+    if (strncmp(class, "wrap_", sizeof("wrap_")-1) == 0) {
+        if ((retval = read_wrap_vector(name, column_handler, user_ctx, ctx)) != RDATA_OK)
             goto cleanup;
     } else if (strcmp(class, "compact_intseq") == 0) {
-        if ((retval = read_compact_intseq(name, ctx)) != RDATA_OK)
+        if ((retval = read_compact_seq(name, false, column_handler, user_ctx, ctx)) != RDATA_OK)
+            goto cleanup;
+    } else if (strcmp(class, "compact_realseq") == 0) {
+        if ((retval = read_compact_seq(name, true, column_handler, user_ctx, ctx)) != RDATA_OK)
             goto cleanup;
     } else if (strcmp(class, "deferred_string") == 0) {
         if ((retval = read_deferred_string(name, ctx)) != RDATA_OK)
@@ -1301,7 +1571,14 @@ static rdata_error_t read_altrep_vector(const char *name, rdata_ctx_t *ctx) {
         retval = RDATA_ERROR_UNSUPPORTED_STORAGE_CLASS;
     }
 cleanup:
+    if (class_owned)
+        free(class_owned);
+
     return retval;
+}
+
+static rdata_error_t read_altrep_vector(const char *name, rdata_ctx_t *ctx) {
+    return read_altrep_vector_cb(name, ctx->column_handler, ctx->user_ctx, ctx);
 }
 
 static rdata_error_t read_generic_list(int attributes, rdata_ctx_t *ctx) {
@@ -1396,13 +1673,11 @@ static rdata_error_t read_string_vector_n(int attributes, int32_t length,
     int i;
 
     buffer = rdata_malloc(buffer_size);
-    if (ctx->converter)
-        utf8_buffer = rdata_malloc(utf8_buffer_size);
-    
+
     for (i=0; i<length; i++) {
         if ((retval = read_sexptype_header(&info, ctx)) != RDATA_OK)
             goto cleanup;
-        
+
         if (info.header.type != RDATA_SEXPTYPE_CHARACTER_STRING) {
             retval = RDATA_ERROR_PARSE;
             goto cleanup;
@@ -1410,7 +1685,7 @@ static rdata_error_t read_string_vector_n(int attributes, int32_t length,
 
         if ((retval = read_length(&string_length, ctx)) != RDATA_OK)
             goto cleanup;
-        
+
         if (string_length + 1 > buffer_size) {
             buffer_size = string_length + 1;
             if ((buffer = rdata_realloc(buffer, buffer_size)) == NULL) {
@@ -1429,19 +1704,22 @@ static rdata_error_t read_string_vector_n(int attributes, int32_t length,
 
         if (text_value_handler) {
             int cb_retval = 0;
+            /* Each CHARSXP carries its own encoding flags */
+            iconv_t converter = string_converter(info.header.gp, ctx);
             if (string_length < 0) {
                 cb_retval = text_value_handler(NULL, i, callback_ctx);
-            } else if (!ctx->converter) {
+            } else if (!converter) {
                 cb_retval = text_value_handler(buffer, i, callback_ctx);
             } else {
-                if (4*string_length + 1 > utf8_buffer_size) {
-                    utf8_buffer_size = 4*string_length + 1;
+                if (utf8_buffer == NULL || 4*string_length + 1 > utf8_buffer_size) {
+                    if (4*string_length + 1 > utf8_buffer_size)
+                        utf8_buffer_size = 4*string_length + 1;
                     if ((utf8_buffer = rdata_realloc(utf8_buffer, utf8_buffer_size)) == NULL) {
                         retval = RDATA_ERROR_MALLOC;
                         goto cleanup;
                     }
                 }
-                retval = rdata_convert(utf8_buffer, utf8_buffer_size, buffer, string_length, ctx->converter);
+                retval = rdata_convert(utf8_buffer, utf8_buffer_size, buffer, string_length, converter);
                 if (retval != RDATA_OK)
                     goto cleanup;
 
@@ -1480,8 +1758,10 @@ static rdata_error_t read_string_vector(int attributes, rdata_text_value_handler
     return read_string_vector_n(attributes, length, text_value_handler, callback_ctx, ctx);
 }
 
-static rdata_error_t read_value_vector_cb(rdata_sexptype_header_t header, const char *name,
-        rdata_column_handler column_handler, void *user_ctx, rdata_ctx_t *ctx) {
+/* Reads the body and attributes of a numeric/logical vector. On success the
+ * caller owns *out_vals (which may be NULL for an empty vector). */
+static rdata_error_t read_value_vector_data(rdata_sexptype_header_t header, void **out_vals,
+        int32_t *out_length, rdata_type_t *out_type, rdata_ctx_t *ctx) {
     rdata_error_t retval = RDATA_OK;
     int32_t length;
     size_t input_elem_size = 0;
@@ -1551,7 +1831,29 @@ static rdata_error_t read_value_vector_cb(rdata_sexptype_header_t header, const 
         output_data_type = RDATA_TYPE_TIMESTAMP;
     if (ctx->column_class == RDATA_CLASS_DATE)
         output_data_type = RDATA_TYPE_DATE;
-    
+
+cleanup:
+    if (retval == RDATA_OK) {
+        *out_vals = vals;
+        *out_length = length;
+        *out_type = output_data_type;
+    } else if (vals) {
+        free(vals);
+    }
+
+    return retval;
+}
+
+static rdata_error_t read_value_vector_cb(rdata_sexptype_header_t header, const char *name,
+        rdata_column_handler column_handler, void *user_ctx, rdata_ctx_t *ctx) {
+    rdata_error_t retval = RDATA_OK;
+    void *vals = NULL;
+    int32_t length = 0;
+    rdata_type_t output_data_type = RDATA_TYPE_INT32;
+
+    if ((retval = read_value_vector_data(header, &vals, &length, &output_data_type, ctx)) != RDATA_OK)
+        goto cleanup;
+
     if (column_handler) {
         if (column_handler(name, output_data_type, vals, length, user_ctx)) {
             retval = RDATA_ERROR_USER_ABORT;
@@ -1581,10 +1883,13 @@ static rdata_error_t discard_vector(rdata_sexptype_header_t sexptype_header, siz
         if (lseek_st(ctx, length * element_size) == -1) {
             return RDATA_ERROR_SEEK;
         }
-    } else if (ctx->error_handler) {
-        char error_buf[1024];
-        snprintf(error_buf, sizeof(error_buf), "Vector with non-positive length: %d\n", length);
-        ctx->error_handler(error_buf, ctx->user_ctx);
+    } else if (length < 0) {
+        if (ctx->error_handler) {
+            char error_buf[1024];
+            snprintf(error_buf, sizeof(error_buf), "Vector with negative length: %d\n", length);
+            ctx->error_handler(error_buf, ctx->user_ctx);
+        }
+        return RDATA_ERROR_PARSE;
     }
     
     if (sexptype_header.attributes) {
@@ -1600,11 +1905,11 @@ cleanup:
     return retval;
 }
 
-static rdata_error_t discard_character_string(int add_to_table, rdata_ctx_t *ctx) {
+static rdata_error_t discard_character_string(int add_to_table, unsigned int gp, rdata_ctx_t *ctx) {
     rdata_error_t retval = RDATA_OK;
     char *key = NULL;
-    
-    if ((retval = read_character_string(&key, ctx)) != RDATA_OK)
+
+    if ((retval = read_character_string(&key, gp, ctx)) != RDATA_OK)
         goto cleanup;
     
     if (strlen(key) > 0 && add_to_table) {
@@ -1646,11 +1951,148 @@ done:
     return 0;
 }
 
+static rdata_error_t read_int32(int32_t *out, rdata_ctx_t *ctx) {
+    return read_length(out, ctx);
+}
+
+/* R's OutStringVec: a placeholder integer, a length, then that many CHARSXPs.
+ * Used for package, namespace, and persistent environment references. */
+static rdata_error_t discard_string_vec(rdata_ctx_t *ctx) {
+    rdata_error_t error = RDATA_OK;
+    rdata_sexptype_info_t info;
+    int32_t placeholder, length, i;
+
+    if ((error = read_int32(&placeholder, ctx)) != RDATA_OK)
+        return error;
+    if ((error = read_int32(&length, ctx)) != RDATA_OK)
+        return error;
+
+    for (i=0; i<length; i++) {
+        if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
+            return error;
+        if (info.header.type != RDATA_SEXPTYPE_CHARACTER_STRING)
+            return RDATA_ERROR_PARSE;
+        if ((error = discard_character_string(0, info.header.gp, ctx)) != RDATA_OK)
+            return error;
+    }
+
+    return RDATA_OK;
+}
+
+static rdata_error_t discard_bytecode1(rdata_ctx_t *ctx);
+
+/* Mirrors ReadBCLang in R's serialize.c. The type integer has already been read. */
+static rdata_error_t discard_bytecode_lang(int32_t type, rdata_ctx_t *ctx) {
+    rdata_error_t error = RDATA_OK;
+    rdata_sexptype_info_t info;
+    int32_t pos, next_type;
+
+    switch (type) {
+        case RDATA_PSEUDO_SXP_BYTE_CODE_REP_REF:
+            return read_int32(&pos, ctx);
+        case RDATA_PSEUDO_SXP_BYTE_CODE_REP_DEF:
+        case RDATA_SEXPTYPE_LANGUAGE_OBJECT:
+        case RDATA_SEXPTYPE_PAIRLIST:
+        case RDATA_SEXPTYPE_LANGUAGE_OBJECT_ATTR:
+        case RDATA_SEXPTYPE_PAIRLIST_ATTR:
+            if (type == RDATA_PSEUDO_SXP_BYTE_CODE_REP_DEF) {
+                if ((error = read_int32(&pos, ctx)) != RDATA_OK)
+                    return error;
+                if ((error = read_int32(&type, ctx)) != RDATA_OK)
+                    return error;
+            }
+            if (type == RDATA_SEXPTYPE_LANGUAGE_OBJECT_ATTR || type == RDATA_SEXPTYPE_PAIRLIST_ATTR) {
+                /* attributes */
+                if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
+                    return error;
+                if ((error = recursive_discard(info.header, ctx)) != RDATA_OK)
+                    return error;
+            }
+            /* tag */
+            if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
+                return error;
+            if ((error = recursive_discard(info.header, ctx)) != RDATA_OK)
+                return error;
+            /* car */
+            if ((error = read_int32(&next_type, ctx)) != RDATA_OK)
+                return error;
+            if ((error = discard_bytecode_lang(next_type, ctx)) != RDATA_OK)
+                return error;
+            /* cdr */
+            if ((error = read_int32(&next_type, ctx)) != RDATA_OK)
+                return error;
+            if ((error = discard_bytecode_lang(next_type, ctx)) != RDATA_OK)
+                return error;
+            return RDATA_OK;
+        default:
+            /* padding integer followed by an ordinary item */
+            if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
+                return error;
+            return recursive_discard(info.header, ctx);
+    }
+}
+
+/* Mirrors ReadBC1 in R's serialize.c: the code vector, then the constant pool. */
+static rdata_error_t discard_bytecode1(rdata_ctx_t *ctx) {
+    rdata_error_t error = RDATA_OK;
+    rdata_sexptype_info_t info;
+    int32_t count, type, i;
+
+    /* code */
+    if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
+        return error;
+    if ((error = recursive_discard(info.header, ctx)) != RDATA_OK)
+        return error;
+
+    /* constants */
+    if ((error = read_int32(&count, ctx)) != RDATA_OK)
+        return error;
+
+    for (i=0; i<count; i++) {
+        if ((error = read_int32(&type, ctx)) != RDATA_OK)
+            return error;
+
+        switch (type) {
+            case RDATA_SEXPTYPE_BYTE_CODE:
+                error = discard_bytecode1(ctx);
+                break;
+            case RDATA_SEXPTYPE_LANGUAGE_OBJECT:
+            case RDATA_SEXPTYPE_PAIRLIST:
+            case RDATA_PSEUDO_SXP_BYTE_CODE_REP_DEF:
+            case RDATA_PSEUDO_SXP_BYTE_CODE_REP_REF:
+            case RDATA_SEXPTYPE_LANGUAGE_OBJECT_ATTR:
+            case RDATA_SEXPTYPE_PAIRLIST_ATTR:
+                error = discard_bytecode_lang(type, ctx);
+                break;
+            default:
+                if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
+                    return error;
+                error = recursive_discard(info.header, ctx);
+                break;
+        }
+        if (error != RDATA_OK)
+            return error;
+    }
+
+    return RDATA_OK;
+}
+
+/* Mirrors ReadBC in R's serialize.c */
+static rdata_error_t discard_bytecode(rdata_ctx_t *ctx) {
+    rdata_error_t error = RDATA_OK;
+    int32_t reps_count;
+
+    if ((error = read_int32(&reps_count, ctx)) != RDATA_OK)
+        return error;
+
+    return discard_bytecode1(ctx);
+}
+
 static rdata_error_t recursive_discard(rdata_sexptype_header_t sexptype_header, rdata_ctx_t *ctx) {
     uint32_t length;
     rdata_sexptype_info_t info;
     rdata_sexptype_info_t prot, tag;
-    
+
     rdata_error_t error = 0;
     int i;
 
@@ -1658,28 +2100,50 @@ static rdata_error_t recursive_discard(rdata_sexptype_header_t sexptype_header, 
         case RDATA_SEXPTYPE_SYMBOL:
             if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
                 goto cleanup;
-            
+
             if ((error = recursive_discard(info.header, ctx)) != RDATA_OK)
                 goto cleanup;
             break;
         case RDATA_PSEUDO_SXP_PERSIST:
         case RDATA_PSEUDO_SXP_NAMESPACE:
         case RDATA_PSEUDO_SXP_PACKAGE:
-            if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
+            /* R adds these to its reference table before writing them, so
+             * add a placeholder to keep later back-references in sync */
+            atom_table_add(ctx->atom_table, "");
+            if ((error = discard_string_vec(ctx)) != RDATA_OK)
                 goto cleanup;
-            
-            if ((error = recursive_discard(info.header, ctx)) != RDATA_OK)
+            break;
+        case RDATA_SEXPTYPE_BYTE_CODE:
+            if ((error = discard_bytecode(ctx)) != RDATA_OK)
                 goto cleanup;
+            if (sexptype_header.attributes) {
+                if ((error = read_attributes(NULL, ctx)) != RDATA_OK)
+                    goto cleanup;
+            }
+            break;
+        case RDATA_SEXPTYPE_WEAK_REFERENCE:
+            atom_table_add(ctx->atom_table, "");
+            if (sexptype_header.attributes) {
+                if ((error = read_attributes(NULL, ctx)) != RDATA_OK)
+                    goto cleanup;
+            }
             break;
         case RDATA_SEXPTYPE_BUILTIN_FUNCTION:
         case RDATA_SEXPTYPE_SPECIAL_FUNCTION:
-            error = discard_character_string(0, ctx);
+            error = discard_character_string(0, RDATA_CHARSXP_ASCII, ctx);
             break;
         case RDATA_SEXPTYPE_PAIRLIST:
             error = discard_pairlist(sexptype_header, ctx);
             break;
         case RDATA_SEXPTYPE_CHARACTER_STRING:
-            error = discard_character_string(1, ctx);
+            error = discard_character_string(1, sexptype_header.gp, ctx);
+            break;
+        case RDATA_SEXPTYPE_S4_CLASS:
+            /* An S4 object is serialized as its attributes (slots) only */
+            if (sexptype_header.attributes) {
+                if ((error = read_attributes(NULL, ctx)) != RDATA_OK)
+                    goto cleanup;
+            }
             break;
         case RDATA_SEXPTYPE_RAW_VECTOR:
             error = discard_vector(sexptype_header, 1, ctx);
@@ -1715,7 +2179,7 @@ static rdata_error_t recursive_discard(rdata_sexptype_header_t sexptype_header, 
                         goto cleanup;
                     }
 
-                    if ((error = discard_character_string(0, ctx)) != RDATA_OK)
+                    if ((error = discard_character_string(0, info.header.gp, ctx)) != RDATA_OK)
                         goto cleanup;
                 } else if ((error = recursive_discard(info.header, ctx)) != RDATA_OK) {
                     goto cleanup;
@@ -1759,36 +2223,40 @@ static rdata_error_t recursive_discard(rdata_sexptype_header_t sexptype_header, 
                 goto cleanup;
             break;
         case RDATA_SEXPTYPE_EXTERNAL_POINTER:
-            read_sexptype_header(&prot, ctx);
-            recursive_discard(prot.header, ctx);
-            
-            read_sexptype_header(&tag, ctx);
-            recursive_discard(tag.header, ctx);
+            /* Added to R's reference table before its contents are written */
+            atom_table_add(ctx->atom_table, "");
+
+            if ((error = read_sexptype_header(&prot, ctx)) != RDATA_OK)
+                goto cleanup;
+            if ((error = recursive_discard(prot.header, ctx)) != RDATA_OK)
+                goto cleanup;
+
+            if ((error = read_sexptype_header(&tag, ctx)) != RDATA_OK)
+                goto cleanup;
+            if ((error = recursive_discard(tag.header, ctx)) != RDATA_OK)
+                goto cleanup;
+
+            if (sexptype_header.attributes) {
+                if ((error = read_attributes(NULL, ctx)) != RDATA_OK)
+                    goto cleanup;
+            }
             break;
         case RDATA_SEXPTYPE_ENVIRONMENT:
+            /* Added to R's reference table before its contents are written */
+            atom_table_add(ctx->atom_table, "");
+
             /* locked */
             if (lseek_st(ctx, sizeof(uint32_t)) == -1) {
                 return RDATA_ERROR_SEEK;
             }
-            
-            rdata_sexptype_info_t enclosure, frame, hash_table, attributes;
-            read_sexptype_header(&enclosure, ctx);
-            recursive_discard(enclosure.header, ctx);
-            
-            read_sexptype_header(&frame, ctx);
-            recursive_discard(frame.header, ctx);
-            
-            read_sexptype_header(&hash_table, ctx);
-            recursive_discard(hash_table.header, ctx);
-            
-            read_sexptype_header(&attributes, ctx);
-            recursive_discard(attributes.header, ctx);
-            /*
-             if (sexptype_header.attributes) {
-             if (lseek(ctx->fd, sizeof(uint32_t), SEEK_CUR) == -1) {
-             return RDATA_ERROR_SEEK;
-             }
-             } */
+
+            /* enclosure, frame, hash table, attributes (always present) */
+            for (i=0; i<4; i++) {
+                if ((error = read_sexptype_header(&info, ctx)) != RDATA_OK)
+                    goto cleanup;
+                if ((error = recursive_discard(info.header, ctx)) != RDATA_OK)
+                    goto cleanup;
+            }
             break;
         case RDATA_PSEUDO_SXP_REF:
         case RDATA_PSEUDO_SXP_NIL:

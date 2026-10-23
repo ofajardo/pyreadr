@@ -53,5 +53,11 @@ const char *rdata_error_message(rdata_error_t error_code) {
     if (error_code == RDATA_ERROR_UNSUPPORTED_STORAGE_CLASS)
         return "The file contains an unrecognized object";
 
+    if (error_code == RDATA_ERROR_COLUMN_MISMATCH)
+        return "The columns written to the table do not match the columns added to it (in count or order)";
+
+    if (error_code == RDATA_ERROR_ROW_NAME_COUNT)
+        return "The number of row names does not match the row count";
+
     return "Unknown error";
 }

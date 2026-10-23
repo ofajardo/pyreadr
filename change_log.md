@@ -2,6 +2,7 @@
 * fixing list_objects raising AttributeError for data frames with row names (#120)
 * adding numpy to install_requires in setup.py (#121)
 * raising minimum narwhals version to 2.26.0 for polars 2 compatibility
+* updated librdata to 321fd180f2b01e843a56e260cb68bdf19abaa4e2
 
 # 0.5.7 (github, pypi and conda: 2026.09.28)
 * Added support for polars via narwhals
