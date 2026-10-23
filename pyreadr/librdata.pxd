@@ -126,6 +126,7 @@ cdef extern from 'libs/librdata/src/rdata.h':
     rdata_error_t rdata_append_string_value(rdata_writer_t *writer, const char *value);
 
     rdata_error_t rdata_end_column(rdata_writer_t *writer, rdata_column_t *column);
+    rdata_error_t rdata_append_row_name(rdata_writer_t *writer, const char *name);
     rdata_error_t rdata_end_table(rdata_writer_t *writer, int32_t row_count, const char *datalabel);
     rdata_error_t rdata_end_file(rdata_writer_t *writer);
 

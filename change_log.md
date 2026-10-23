@@ -4,6 +4,11 @@
 * raising minimum narwhals version to 2.26.0 for polars 2 compatibility
 * updated librdata to 321fd180f2b01e843a56e260cb68bdf19abaa4e2
 * added encoding parameter to read_r and list_objects to read strings without encoding mark in an encoding other than the one declared in the file, solves #49
+* added writing row names: a non-default pandas index is written as row names automatically, or any column with the new rownames_column argument of write_rdata and write_rds, fixes #68
+* errors at the end of writing (in librdata's rdata_end_table/rdata_end_file) are now raised instead of silently ignored
+* fixing writing data frames with zero rows (wrote an empty, invalid file) and zero columns (segmentation fault)
+* fixing unsupported compression in write_rdata/write_rds: the error is now raised before writing, no temporary file is left behind
+* fixing column types when reading empty columns: character columns with zero rows were float64 in pandas; in polars all empty columns, and character columns with only missing values, had the Null type. They now get the type of the R vector
 
 # 0.5.7 (github, pypi and conda: 2026.09.28)
 * Added support for polars via narwhals

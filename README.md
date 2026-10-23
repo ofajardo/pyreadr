@@ -486,6 +486,25 @@ following R's behavior.
 
 * librdata writes Numeric missing values as NaN instead of NA.
 
+* Row names: the index of a pandas data frame is written as R row names, unless it is the
+default RangeIndex (0, 1, 2 ...), in which case R gets its default row names (1, 2, 3 ...).
+Alternatively, with the argument rownames_column you can write any column as row names
+(this is the only option for polars, as polars has no index); that column is then
+not written as a regular column. Row names are converted to strings and cannot contain
+missing values or duplicates (R does not allow it). A pandas MultiIndex cannot be written as
+row names.
+
+```python
+import pandas as pd
+import pyreadr
+
+df = pd.DataFrame({"id": ["a", "b", "c"], "x": [1.0, 2.0, 3.0]})
+# the index becomes the row names
+pyreadr.write_rds("test.rds", df.set_index("id"))
+# same, using a column (works for polars too)
+pyreadr.write_rds("test.rds", df, rownames_column="id")
+```
+
 ## Known limitations
 
 * POSIXct and POSIXlt objects in R are stored internally as UTC timestamps and may have
@@ -515,8 +534,6 @@ account in case you get a "Unable to allocate memory" error (see [this](https://
 
 * When writing numeric missing values are translated
 to NaN instead of NA.
-
-* Writing rownames is currently not supported.
 
 * Writing is supported only for a single pandas or polars data frame to a single
 R data frame. Other data types are not supported. Multiple data frames

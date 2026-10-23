@@ -275,6 +275,8 @@ class Table:
                 colname = ""
             data[colname] = column
 
+        # data for polars are python lists, set the type explicitly, otherwise empty columns or columns with only
+        # missing values get the polars Null type. TIMESTAMP and DATE are converted later in _covert_data
         schema = None
         if self.output_format == "polars":
             schema = {}
@@ -284,10 +286,20 @@ class Table:
                     colname = ""
                 if dtype.name == "INTEGER" or dtype.name == "LOGICAL":
                     schema[colname] = nw.Int32
+                elif dtype.name == "CHARACTER":
+                    schema[colname] = nw.String
                 else:
-                    schema[colname] = None
+                    schema[colname] = nw.Float64
 
         df = nw.from_dict(data, backend=self.output_format, schema=schema).to_native()
+
+        # pandas infers float64 for an empty character column (an empty list), use pandas string type instead
+        if self.output_format == "pandas" and len(df) == 0:
+            for colindx, dtype in self.column_types.items():
+                if dtype.name == "CHARACTER":
+                    colname = self.final_names[colindx]
+                    df[colname] = df[colname].astype(str)
+
         self.df = df
 
     def _covert_data(self):

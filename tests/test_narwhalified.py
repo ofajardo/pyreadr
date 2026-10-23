@@ -711,6 +711,119 @@ class TestNarwhalified(unittest.TestCase):
         self.assertIn(None, res)
 
     # ==========================================================================
+    # Write tests — row names
+    # ==========================================================================
+
+    def _rownames_df(self, ids):
+        data = {'id': ids, 'x': [1.0, 2.0, 3.0], 'y': ['p', 'q', 'r']}
+        if self.backend == "polars":
+            return pl.DataFrame(data)
+        return pd.DataFrame(data)
+
+    def _write_read_rownames(self, df, name, **kwargs):
+        """writes df as Rds and RData, reads both back and returns a list of (rownames, columns)"""
+        out = []
+        for ext, writer, key in ((".Rds", pyreadr.write_rds, None), (".RData", pyreadr.write_rdata, "dataset")):
+            path = os.path.join(self.write_data_folder, name + ext)
+            if os.path.isfile(path):
+                os.remove(path)
+            writer(path, df, **kwargs)
+            res = pyreadr.read_r(path, output_format=self.backend)[key]
+            if self.backend == "polars":
+                out.append((res['rownames'].to_list(), [c for c in res.columns if c != 'rownames']))
+            else:
+                out.append((list(res.index), list(res.columns)))
+        return out
+
+    def test_write_rownames_index(self):
+        if self.backend != "pandas":
+            self.skipTest("polars has no index")
+        df = self._rownames_df(['a', 'b', 'c']).set_index('id')
+        for rownames, columns in self._write_read_rownames(df, "test_nw_rownames_index"):
+            self.assertListEqual(rownames, ['a', 'b', 'c'])
+            self.assertListEqual(columns, ['x', 'y'])
+
+    def test_write_rownames_column(self):
+        df = self._rownames_df(['a', 'b', 'c'])
+        for rownames, columns in self._write_read_rownames(df, "test_nw_rownames_column", rownames_column="id"):
+            self.assertListEqual(rownames, ['a', 'b', 'c'])
+            self.assertListEqual(columns, ['x', 'y'])
+
+    def test_write_default_rownames(self):
+        df = self._rownames_df(['a', 'b', 'c'])
+        for rownames, columns in self._write_read_rownames(df, "test_nw_rownames_default"):
+            self.assertListEqual(rownames, ['1', '2', '3'])
+            self.assertListEqual(columns, ['id', 'x', 'y'])
+
+    def test_write_rownames_duplicates(self):
+        df = self._rownames_df(['a', 'a', 'c'])
+        path = os.path.join(self.write_data_folder, "test_nw_rownames_dup.Rds")
+        with self.assertRaises(pyreadr.PyreadrError):
+            pyreadr.write_rds(path, df, rownames_column="id")
+
+    def test_write_rownames_missing(self):
+        df = self._rownames_df(['a', None, 'c'])
+        path = os.path.join(self.write_data_folder, "test_nw_rownames_missing.Rds")
+        with self.assertRaises(pyreadr.PyreadrError):
+            pyreadr.write_rds(path, df, rownames_column="id")
+
+    def test_write_rownames_column_not_found(self):
+        df = self._rownames_df(['a', 'b', 'c'])
+        path = os.path.join(self.write_data_folder, "test_nw_rownames_notfound.Rds")
+        with self.assertRaises(pyreadr.PyreadrError):
+            pyreadr.write_rds(path, df, rownames_column="nope")
+
+    def test_write_zero_rows(self):
+        if self.backend == "polars":
+            df = pl.DataFrame({'a': pl.Series('a', [], dtype=pl.Float64), 'b': pl.Series('b', [], dtype=pl.String)})
+        else:
+            df = pd.DataFrame({'a': pd.Series([], dtype=float), 'b': pd.Series([], dtype=str)})
+        for ext, writer, key in ((".Rds", pyreadr.write_rds, None), (".RData", pyreadr.write_rdata, "dataset")):
+            path = os.path.join(self.write_data_folder, "test_nw_zero_rows" + ext)
+            if os.path.isfile(path):
+                os.remove(path)
+            writer(path, df)
+            res = nw.from_native(pyreadr.read_r(path, output_format=self.backend)[key])
+            self.assertListEqual(res.columns, ['a', 'b'])
+            self.assertEqual(res.shape[0], 0)
+            # empty columns keep the type of the R vector
+            self.assertEqual(res.schema['a'], nw.Float64)
+            self.assertEqual(res.schema['b'], nw.String)
+
+    def test_write_zero_columns(self):
+        # polars cannot have rows without columns
+        if self.backend == "polars":
+            df, nrows = pl.DataFrame(), 0
+        else:
+            df, nrows = pd.DataFrame(index=range(3)), 3
+        for ext, writer, key in ((".Rds", pyreadr.write_rds, None), (".RData", pyreadr.write_rdata, "dataset")):
+            path = os.path.join(self.write_data_folder, "test_nw_zero_columns" + ext)
+            if os.path.isfile(path):
+                os.remove(path)
+            writer(path, df)
+            res = pyreadr.read_r(path, output_format=self.backend)[key]
+            self.assertListEqual([c for c in res.columns if c != 'rownames'], [])
+            self.assertEqual(len(res), nrows)
+
+    def test_write_compress_not_supported(self):
+        path = os.path.join(self.write_data_folder, "test_nw_bz2.Rds")
+        for p in (path, path + "_temp"):
+            if os.path.isfile(p):
+                os.remove(p)
+        with self.assertRaises(pyreadr.PyreadrError):
+            pyreadr.write_rds(path, self.df_out, compress="bz2")
+        self.assertFalse(os.path.isfile(path + "_temp"))
+        self.assertFalse(os.path.isfile(path))
+
+    def test_write_rownames_multiindex(self):
+        if self.backend != "pandas":
+            self.skipTest("polars has no index")
+        df = self._rownames_df(['a', 'b', 'c']).set_index(['id', 'y'])
+        path = os.path.join(self.write_data_folder, "test_nw_rownames_multiindex.Rds")
+        with self.assertRaises(pyreadr.PyreadrError):
+            pyreadr.write_rds(path, df)
+
+    # ==========================================================================
     # Error handling
     # ==========================================================================
 

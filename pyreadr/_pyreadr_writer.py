@@ -142,6 +142,42 @@ def transform_data(nw_series, dtype, has_missing, dateformat, datetimeformat):
         raise PyreadrError("Unknown pyreadr data type")
 
 
+def get_row_names(df, nw_df, rownames_column):
+    """
+    Get the row names to write. They come from the column rownames_column if given, otherwise from the index
+    of a pandas data frame if it is not the default RangeIndex.
+    df: native data frame
+    nw_df: narwhals data frame
+    rownames_column: str or None: name of the column to use as row names
+    returns a tuple (row_names, nw_df), where row_names is a list of str or None and nw_df is the narwhals data
+        frame without the rownames_column
+    """
+    if rownames_column is not None:
+        if rownames_column not in nw_df.columns:
+            raise PyreadrError("rownames_column {0} not found in the data frame".format(rownames_column))
+        if nw_df[rownames_column].is_null().any():
+            raise PyreadrError("row names cannot contain missing values")
+        row_names = nw_df[rownames_column].to_list()
+        nw_df = nw_df.drop(rownames_column)
+    elif nw_df.implementation.is_pandas():
+        index = df.index
+        if index.nlevels > 1:
+            raise PyreadrError("a MultiIndex cannot be written as row names, reset the index or use rownames_column")
+        pd = nw.get_native_namespace(nw_df)
+        if isinstance(index, pd.RangeIndex) and index.start == 0 and index.step == 1:
+            return None, nw_df
+        if index.hasnans:
+            raise PyreadrError("row names cannot contain missing values")
+        row_names = index.to_list()
+    else:
+        return None, nw_df
+
+    row_names = [str(x) for x in row_names]
+    if len(set(row_names)) != len(row_names):
+        raise PyreadrError("row names cannot contain duplicates")
+    return row_names, nw_df
+
+
 class PyreadrWriter(Writer):
 
     def compress_file(self, src, dst, compression="gzip", compresslevel=9):
@@ -162,7 +198,8 @@ class PyreadrWriter(Writer):
             raise PyreadrError("compression {0} not implemented!".format(compression))
 
 
-    def write_r(self, path, file_format, df, df_name, dateformat, datetimeformat, compress, compresslevel=9):
+    def write_r(self, path, file_format, df, df_name, dateformat, datetimeformat, compress, compresslevel=9,
+                rownames_column=None):
         """
         write a RData or Rds file.
         path: str: path to the file
@@ -173,9 +210,12 @@ class PyreadrWriter(Writer):
         datetimeformat: str: string to format datetimes
         compress: str: compression to use, for now only gzip supported.
         compresslevel: int: compression level for gzip (1-9), default 9.
+        rownames_column: str: name of the column to write as row names. If None, the index of a pandas data
+            frame is written as row names unless it is the default RangeIndex.
         """
 
         nw_df = nw.from_native(df, eager_only=True)
+        row_names, nw_df = get_row_names(df, nw_df, rownames_column)
         col_names = nw_df.columns
         pyreadr_types, hasmissing = get_pyreadr_column_types(nw_df)
         librdata_types = pyreadr_types_to_librdata_types(pyreadr_types)
@@ -184,11 +224,13 @@ class PyreadrWriter(Writer):
         if compress:
             path = original_path + b"_temp"
             if compress != "gzip":
-                PyreadrError("compression {0} not implemented!, Please use gzip".format(compress))
+                raise PyreadrError("compression {0} not implemented!, Please use gzip".format(compress))
 
         self.open(path, file_format)
         self.set_row_count(nw_df.shape[0])
         self.set_table_name(df_name)
+        if row_names is not None:
+            self.set_row_names(row_names)
         for col_name in col_names:
             self.add_column(str(col_name), librdata_types[col_name])
 

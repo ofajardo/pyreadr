@@ -125,7 +125,8 @@ def list_objects(path, encoding=None):
     return parser.object_list
     
     
-def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9):
+def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9,
+                rownames_column=None):
     """
     Write a single pandas or polars data frame to a RData file.
 
@@ -147,8 +148,12 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
             compression to use, defaults to no compression. Only "gzip" supported.
         compresslevel : int, optional
             compression level for gzip (1-9), default 9.
+        rownames_column : str, optional
+            name of a column to write as R row names instead of as a regular column. If not set, the index of a
+            pandas data frame is written as row names, unless it is the default RangeIndex. Row names are converted
+            to strings and cannot contain missing values or duplicates.
     """
-    
+
     if not df_name:
         msg = "df_name must be a valid string"
         raise PyreadrError(msg)
@@ -182,10 +187,12 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
 
     filename_bytes = os.path.expanduser(filename_bytes)
 
-    writer.write_r(filename_bytes, file_format, df, df_name, dateformat, datetimeformat, compress, compresslevel)
+    writer.write_r(filename_bytes, file_format, df, df_name, dateformat, datetimeformat, compress, compresslevel,
+                   rownames_column)
 
 
-def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9):
+def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9,
+              rownames_column=None):
     """
     Write a single pandas or polars data frame to a Rds file.
 
@@ -204,8 +211,12 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
             compression to use, defaults to no compression. Only "gzip" supported.
         compresslevel : int, optional
             compression level for gzip (1-9), default 9.
+        rownames_column : str, optional
+            name of a column to write as R row names instead of as a regular column. If not set, the index of a
+            pandas data frame is written as row names, unless it is the default RangeIndex. Row names are converted
+            to strings and cannot contain missing values or duplicates.
     """
-    
+
     try:
         nw.from_native(df, eager_only=True)
     except Exception:
@@ -236,7 +247,8 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
     filename_bytes = os.path.expanduser(filename_bytes)
 
     writer = PyreadrWriter()
-    writer.write_r(filename_bytes, file_format, df, df_name, dateformat, datetimeformat, compress, compresslevel)
+    writer.write_r(filename_bytes, file_format, df, df_name, dateformat, datetimeformat, compress, compresslevel,
+                   rownames_column)
 
 def download_file(url, destination_path):
     """

@@ -357,7 +357,10 @@ cdef class Writer:
     cdef int _fd
     cdef int _current_column_no
     cdef rdata_column_t* _current_column
-    cdef bytes _table_name 
+    cdef bytes _table_name
+    cdef object _row_names
+    cdef int _column_count
+    cdef bint _started
 
     def __init__(self):
         self._format = None
@@ -367,6 +370,22 @@ cdef class Writer:
         self._current_column_no = -1
         self._current_column = NULL
         self._table_name = b""
+        self._row_names = None
+        self._column_count = 0
+        self._started = False
+
+    cdef _begin(self):
+        """
+        begins the file and the table. Has to happen before anything is written, as librdata's write callback
+        receives the file descriptor here.
+        """
+        cdef rdata_error_t status
+        status = rdata_begin_file(self._writer, &self._fd)
+        if status == RDATA_OK:
+            status = rdata_begin_table(self._writer, self._table_name)
+        if status != RDATA_OK:
+            raise LibrdataError(rdata_error_message(status))
+        self._started = True
 
     def open(self, path, format):
         cdef rdata_file_format_t fmt;
@@ -387,21 +406,51 @@ cdef class Writer:
     def set_table_name(self, name):
         self._table_name = name.encode("utf-8")
 
+    def set_row_names(self, row_names):
+        """
+        row_names: list of str, one per row
+        """
+        self._row_names = row_names
+
     def close(self):
+        cdef rdata_error_t status = RDATA_OK
+        cdef rdata_column_t* column
+
         if self._writer != NULL:
-            if self._current_column_no != -1:
-                rdata_end_column(self._writer, self._current_column)
-            rdata_end_table(self._writer, self._row_count, self._table_name)
-            rdata_end_file(self._writer)
-            _os_close(self._fd)
+            try:
+                if not self._started:
+                    self._begin()
+                if self._current_column_no != -1:
+                    status = rdata_end_column(self._writer, self._current_column)
+                else:
+                    # no values were inserted (zero rows): the columns still have to be written
+                    for col_no in range(self._column_count):
+                        column = rdata_get_column(self._writer, col_no)
+                        status = rdata_begin_column(self._writer, column, self._row_count)
+                        if status == RDATA_OK:
+                            status = rdata_end_column(self._writer, column)
+                        if status != RDATA_OK:
+                            break
+                if status == RDATA_OK and self._row_names is not None:
+                    for name in self._row_names:
+                        status = rdata_append_row_name(self._writer, name.encode('utf-8'))
+                        if status != RDATA_OK:
+                            break
+                if status == RDATA_OK:
+                    status = rdata_end_table(self._writer, self._row_count, self._table_name)
+                if status == RDATA_OK:
+                    status = rdata_end_file(self._writer)
+            finally:
+                _os_close(self._fd)
+            if status != RDATA_OK:
+                raise LibrdataError(rdata_error_message(status))
 
     def insert_value(self, row_no, col_no, value, dtype):
         cdef rdata_error_t status;
 
-        if self._current_column_no == -1:
-            rdata_begin_file(self._writer, &self._fd)
-            rdata_begin_table(self._writer, self._table_name);
-            
+        if not self._started:
+            self._begin()
+
         if col_no != self._current_column_no:
             if self._current_column_no != -1:
                 rdata_end_column(self._writer, self._current_column)
@@ -447,6 +496,7 @@ cdef class Writer:
             raise PyreadrError("Unknown data type: %s" % dtype)
 
         column = rdata_add_column(self._writer, name.encode('utf-8'), data_type)
+        self._column_count += 1
         col = Column()
         col._this = column
         return col
