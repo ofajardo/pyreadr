@@ -2,8 +2,8 @@
 * fixing list_objects raising AttributeError for data frames with row names (#120)
 * adding numpy to install_requires in setup.py (#121)
 * raising minimum narwhals version to 2.26.0 for polars 2 compatibility
-* updated librdata to 321fd180f2b01e843a56e260cb68bdf19abaa4e2
-* added encoding parameter to read_r and list_objects to read strings without encoding mark in an encoding other than the one declared in the file, solves #49
+* updated librdata to 321fd180f2b01e843a56e260cb68bdf19abaa4e2. Among others it fixes reading files with vectors larger than 2 GB (#99) and files that raised "The file contains an unrecognized object" (#78)
+* added encoding parameter to read_r and list_objects to read strings without encoding mark in an encoding other than the one declared in the file, solves #49. Strings without encoding mark are now converted from the encoding declared in the file (e.g. CP1252), solves #64
 * added writing row names: a non-default pandas index is written as row names automatically, or any column with the new rownames_column argument of write_rdata and write_rds, fixes #68
 * errors at the end of writing (in librdata's rdata_end_table/rdata_end_file) are now raised instead of silently ignored
 * fixing writing data frames with zero rows (wrote an empty, invalid file) and zero columns (segmentation fault)
@@ -11,7 +11,7 @@
 * fixing column types when reading empty columns: character columns with zero rows were float64 in pandas; in polars all empty columns, and character columns with only missing values, had the Null type. They now get the type of the R vector
 * fixing reading factors: all R levels are now kept, in R order, including levels not present in the data (they were dropped and the categories were sorted alphabetically or by appearance). Breaking change for polars: factors are now read as pl.Enum with the R levels instead of pl.Categorical
 * added writing factors: pandas categories and polars Categorical/Enum with string categories are now written as R factors (they were written as character vectors). Levels are the categories in their order (pandas, polars Enum) or the sorted values present in the data (polars Categorical)
-* fixing segmentation fault reading factors with a NA level (addNA in R) and data frames with a NA column name. The NA level is dropped (pandas categories and polars Enum cannot have missing levels) and its values become missing
+* fixing segmentation fault reading factors with a NA level (addNA in R) and data frames with a NA column name. The NA level is dropped (pandas categories and polars Enum cannot have missing levels) and its values become missing (#51)
 * numeric missing values (polars null, pandas pd.NA and None in object columns) are now written as R's NA instead of NaN. NaN (including pandas np.nan in float columns) is still written as NaN
 * reading with polars: R's NaN in numeric columns is now read as NaN instead of null, only R's NA is null
 * fixing writing pandas pd.NA: nullable Float64, Int64 and string columns with missing values and object columns with pd.NA raised TypeError, object columns with numbers or dates and pd.NA were written as the string "<NA>"
@@ -21,11 +21,13 @@
 * faster writing (about 10x without compression, 3x with gzip): writes are buffered (librdata wrote every value with a separate system call) and the platform is checked once instead of for every value
 * fixing writing columns with only missing values: pandas object columns and polars Null columns are written as logical (as documented, they were character); pandas object columns with only NaN as numeric
 * clear error message for data frames with duplicate column names (was "df must be a pandas or polars DataFrame")
-* S4 objects are now skipped instead of raising an error (librdata update, WizardMac/librdata#16), so the other objects in a RData file are read. read_r warns if a file has no readable objects (e.g. only lists or S4 objects)
+* S4 objects are now skipped instead of raising an error (librdata update, WizardMac/librdata#16), so the other objects in a RData file are read (#51). read_r warns if a file has no readable objects (e.g. only lists or S4 objects)
 * fixing NameError (missing imports of warnings and sys) when a file path cannot be encoded with the file system encoding
 * fixing RuntimeWarning "invalid value encountered in cast" when reading dates with missing values into pandas
 * added read_metadata: reads only the file header and returns file type (RData/Rds), format version, compression, the R version that wrote the file and the minimal R version to read it
 * LibrdataError messages now include librdata's detailed error message when there is one (e.g. "The file contains an unrecognized object: Unhandled S-Expression: 30")
+* faster reading of numeric, integer and logical data into pandas (about 3x for typical data frames, about 9x for large numeric vectors): data is copied from librdata at once instead of value by value
+* added row_offset and row_limit to read_r to read only some rows, solves #74. Columns are still read completely by librdata (R stores data by column), but only the selected rows are kept: faster and much less memory
 * removing set_index(inplace=True) when reading row names, deprecated in pandas 3.1
 
 # 0.5.7 (github, pypi and conda: 2026.09.28)

@@ -47,7 +47,7 @@ def _parse(parser, path):
         parser.parse(filename_bytes)
 
 
-def read_r(path, use_objects=None, timezone=None, output_format="pandas", encoding=None):
+def read_r(path, use_objects=None, timezone=None, output_format="pandas", encoding=None, row_offset=0, row_limit=0):
     """
     Read an R RData or Rds file into pandas or polars data frames.
 
@@ -70,6 +70,12 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas", encodi
             It overrides the encoding declared in the file (version 3 files) or supplies it (version 2 files).
             Strings explicitly marked as UTF-8 or latin1 in the file are not affected. Set it if reading
             fails with a UnicodeDecodeError.
+        row_offset : int, optional
+            number of rows to skip at the beginning, 0 by default. Applies to every object read.
+        row_limit : int, optional
+            maximal number of rows to read, 0 (default) reads all rows. Applies to every object read. R stores
+            data by column, so the columns are still read completely from the file, but only the selected rows
+            are kept, which reduces the memory needed.
 
     Returns
     -------
@@ -81,6 +87,9 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas", encodi
         raise PyreadrError("output_format must be 'pandas' or 'polars'")
     if encoding is not None and not isinstance(encoding, str):
         raise PyreadrError("encoding must be a string")
+    for name, value in (("row_offset", row_offset), ("row_limit", row_limit)):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise PyreadrError("{0} must be a non-negative integer".format(name))
 
     parser = PyreadrParser()
     if use_objects:
@@ -90,7 +99,9 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas", encodi
     if encoding:
         parser.set_encoding(encoding)
     parser.set_output_format(output_format)
+    parser.set_rows(row_offset, row_limit)
     _parse(parser, path)
+    parser.finish_text_column()
 
     result = OrderedDict()
     for table_index, table in enumerate(parser.table_data):

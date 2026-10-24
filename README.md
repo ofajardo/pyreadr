@@ -40,6 +40,7 @@ dataframes, take a look at [pysummaries](https://github.com/Genentech/pysummarie
   * [Reading from file-like objects](#reading-from-file-like-objects)
   * [Reading files from internet (download to disk)](#reading-files-from-internet-download-to-disk)
   * [Reading selected objects](#reading-selected-objects)
+  * [Reading selected rows](#reading-selected-rows)
   * [List objects and column names](#list-objects-and-column-names)
   * [File metadata](#file-metadata)
   * [Reading timestamps and timezones](#reading-timestamps-and-timezones)
@@ -360,6 +361,22 @@ print(result.keys()) # let's check what objects we got, now only df1 is listed
 df1 = result["df1"] # extract the data frame for object df1
 ```
 
+### Reading selected rows
+
+With the arguments row_offset (rows to skip, 0 by default) and row_limit (maximal number of rows,
+0 by default meaning all) of read_r you can read only some rows. They apply to every object read
+(for matrices and arrays to the first dimension).
+
+```python
+import pyreadr
+
+# rows 100 to 199 (counting from 0)
+result = pyreadr.read_r('big_file.RData', row_offset=100, row_limit=100)
+```
+
+R stores data by column, so the columns are still read completely from the file, but only the
+selected rows are kept: this is faster and needs much less memory than reading everything.
+
 ### List objects and column names
 
 The function list_objects gives a dictionary with object names contained in the
@@ -584,7 +601,7 @@ as columns are not supported.
 * The whole data is read into memory. RData and Rds files are highly compressed: the data
 can easily occupy 40 or even more times in memory than the file on disk. Take it into
 account in case you get a "Unable to allocate memory" error (see [this](https://github.com/ofajardo/pyreadr/issues/3)).
-With use_objects you can read only some objects of a RData file.
+With use_objects you can read only some objects of a RData file, and with row_offset and row_limit only some rows.
 
 * Writing is supported only for pandas or polars data frames to R data frames. Other data
 types are not supported. Rds files hold a single data frame.

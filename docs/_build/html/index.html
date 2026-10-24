@@ -43,6 +43,7 @@
 <li><a class="reference internal" href="#">Welcome to pyreadr’s documentation!</a><ul>
 <li><a class="reference internal" href="#pyreadr.pyreadr.download_file"><code class="docutils literal notranslate"><span class="pre">download_file()</span></code></a></li>
 <li><a class="reference internal" href="#pyreadr.pyreadr.list_objects"><code class="docutils literal notranslate"><span class="pre">list_objects()</span></code></a></li>
+<li><a class="reference internal" href="#pyreadr.pyreadr.read_metadata"><code class="docutils literal notranslate"><span class="pre">read_metadata()</span></code></a></li>
 <li><a class="reference internal" href="#pyreadr.pyreadr.read_r"><code class="docutils literal notranslate"><span class="pre">read_r()</span></code></a></li>
 <li><a class="reference internal" href="#pyreadr.pyreadr.write_rdata"><code class="docutils literal notranslate"><span class="pre">write_rdata()</span></code></a></li>
 <li><a class="reference internal" href="#pyreadr.pyreadr.write_rds"><code class="docutils literal notranslate"><span class="pre">write_rds()</span></code></a></li>
@@ -125,8 +126,30 @@ columns with a list of columns.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="pyreadr.pyreadr.read_metadata">
+<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">read_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.read_metadata" title="Link to this definition">¶</a></dt>
+<dd><p>Read the header of an R RData or Rds file: file type, serialization format version, compression and R
+versions. Only the beginning of the file is read, the data is not.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> (<em>str</em><em>, </em><em>bytes</em><em>, </em><em>Path</em><em>, or </em><em>file-like object</em>) – path to the file, or a file-like object with read() and seek() methods (e.g. io.BytesIO).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>result</strong> – file_type: “RData” or “Rds”.
+format_version: serialization format version, 2 or 3 (R &gt;= 3.5 writes 3 by default).
+compression: “gzip”, “bzip2”, “xz” or None.
+writer_r_version: version of R that wrote the file, e.g. “4.3.3”.
+min_reader_r_version: minimal version of R needed to read the file.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="pyreadr.pyreadr.read_r">
-<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">read_r</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_objects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timezone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pandas'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.read_r" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">read_r</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_objects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timezone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pandas'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">row_offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">row_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.read_r" title="Link to this definition">¶</a></dt>
 <dd><p>Read an R RData or Rds file into pandas or polars data frames.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -143,6 +166,10 @@ therefore timestamps are displayed in UTC, unless this parameter is set.</p></li
 It overrides the encoding declared in the file (version 3 files) or supplies it (version 2 files).
 Strings explicitly marked as UTF-8 or latin1 in the file are not affected. Set it if reading
 fails with a UnicodeDecodeError.</p></li>
+<li><p><strong>row_offset</strong> (<em>int</em><em>, </em><em>optional</em>) – number of rows to skip at the beginning, 0 by default. Applies to every object read.</p></li>
+<li><p><strong>row_limit</strong> (<em>int</em><em>, </em><em>optional</em>) – maximal number of rows to read, 0 (default) reads all rows. Applies to every object read. R stores
+data by column, so the columns are still read completely from the file, but only the selected rows
+are kept, which reduces the memory needed.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>

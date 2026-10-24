@@ -69,6 +69,9 @@ class Table:
         self.dim_names = list()
         self.dim_names_ready = list()
         self.arraylike_data = None
+        # rows to read; data frames and vectors are sliced while parsing (PyreadrParser), matrices and arrays here
+        self.row_offset = 0
+        self.row_limit = 0
 
     def convert_to_dataframe(self):
         """
@@ -92,6 +95,25 @@ class Table:
         self._arraylike_convert()
         self._arraylike_buildf()
         self._handle_value_labels()
+        self._arraylike_select_rows()
+
+    def _arraylike_select_rows(self):
+        """
+        Select rows (first dimension) of matrices and arrays, they are stored by column so it cannot be done
+        while parsing.
+        """
+        if not (self.row_offset or self.row_limit):
+            return
+        end = self.row_offset + self.row_limit if self.row_limit else None
+        if xray_available and isinstance(self.df, xr.DataArray):
+            self.df = self.df.isel({self.df.dims[0]: slice(self.row_offset, end)})
+        elif self.output_format == "polars":
+            self.df = self.df.slice(self.row_offset, self.row_limit if self.row_limit else None)
+        else:
+            df = self.df.iloc[self.row_offset:end]
+            if isinstance(self.df.index, pd.RangeIndex):
+                df = df.reset_index(drop=True)
+            self.df = df
 
     def _arraylike_convert(self):
         """
@@ -444,9 +466,44 @@ class PyreadrParser(Parser):
         self.parse_current_table = True
         self.timezone = None
         self.output_format = "pandas"
+        self.row_offset = 0
+        self.row_limit = 0
+        # (table, column index) of the last character column: its values come one by one after handle_column
+        self.pending_text_column = None
 
     def set_use_objects(self, use_objects):
         self.use_objects = use_objects
+
+    def set_rows(self, row_offset, row_limit):
+        """
+        read only the rows row_offset to row_offset + row_limit (row_limit 0: until the end)
+        """
+        self.row_offset = row_offset
+        self.row_limit = row_limit
+
+    def _slicing_rows(self, table):
+        """
+        True if rows have to be selected while parsing. Not for matrices and arrays (R stores them by column),
+        Table selects their rows after building them.
+        """
+        return (self.row_offset or self.row_limit) and table.dim is None
+
+    def _slice_rows(self, values):
+        end = self.row_offset + self.row_limit if self.row_limit else None
+        values = values[self.row_offset:end]
+        # a numpy slice is a view, copy it so that the full array can be freed
+        return values.copy() if isinstance(values, np.ndarray) else values
+
+    def finish_text_column(self):
+        """
+        Select the rows of the last character column, once all its values (and its dim attribute, which comes
+        after them) were read. Called when the next column or table starts and at the end of the parse.
+        """
+        if self.pending_text_column is not None:
+            table, index = self.pending_text_column
+            if self._slicing_rows(table):
+                table.columns[index] = self._slice_rows(table.columns[index])
+            self.pending_text_column = None
 
     def set_timezone(self, timezone):
         self.timezone = timezone
@@ -460,6 +517,7 @@ class PyreadrParser(Parser):
         :param name: str: the name of the table
         """
 
+        self.finish_text_column()
         if (self.use_objects is None) or name in self.use_objects:
 
             self.parse_current_table = True
@@ -469,6 +527,8 @@ class PyreadrParser(Parser):
             table = Table()
             table.timezone = self.timezone
             table.output_format = self.output_format
+            table.row_offset = self.row_offset
+            table.row_limit = self.row_limit
             table.name = name
             self.table_data.append(table)
             self.current_table = table
@@ -484,14 +544,20 @@ class PyreadrParser(Parser):
         :param data: a numpy array representing the data in R vector, may be empty
         :param count: int: number of elements in the array
         """
+        self.finish_text_column()
         if self.parse_current_table:
             self.column_index += 1
             self.current_table.column_names[self.column_index] = name
             self.current_table.column_types[self.column_index] = data_type
             if data is not None:
+                # the dim attribute of numeric vectors is known here
+                if self._slicing_rows(self.current_table):
+                    data = self._slice_rows(data)
                 self.current_table.columns.append(data)
             else:
+                # character column: the values come with handle_text_value
                 self.current_table.columns.append(list())
+                self.pending_text_column = (self.current_table, self.column_index)
 
     def handle_column_name(self, name, index):
         """
@@ -530,7 +596,9 @@ class PyreadrParser(Parser):
         :param index: int: index of the row
         """
         if self.parse_current_table:
-            #self.current_table.row_names[index] = name
+            if self._slicing_rows(self.current_table):
+                if index < self.row_offset or (self.row_limit and index >= self.row_offset + self.row_limit):
+                    return
             self.current_table.row_names.append(name)
 
     def handle_text_value(self, name, index):

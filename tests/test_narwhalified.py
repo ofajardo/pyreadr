@@ -707,6 +707,61 @@ class TestNarwhalified(unittest.TestCase):
             self.assertListEqual(df['d'].isna().tolist(), [False, True, False, True])
 
     # ==========================================================================
+    # Read tests — row_offset and row_limit
+    # ==========================================================================
+
+    def _rows(self, expected, offset, limit):
+        """expected rows offset to offset + limit (limit 0: all), default pandas index restarting at 0"""
+        if self.backend == "polars":
+            return expected.slice(offset, limit if limit else None)
+        res = expected.iloc[offset:offset + limit] if limit else expected.iloc[offset:]
+        if isinstance(expected.index, pd.RangeIndex):
+            res = res.reset_index(drop=True)
+        return res
+
+    def test_read_rows_dataframe(self):
+        # rows 3 to 5 keep the missing values of every column, so pandas dtypes are the same as in the full frame
+        path = os.path.join(self.basic_data_folder, "two.RData")
+        res = pyreadr.read_r(path, output_format=self.backend, row_offset=3, row_limit=3)
+        self.assertFrameEqual(res['df1'], self._rows(self.df1, 3, 3))
+        self.assertFrameEqual(res['df2'], self._rows(self.df2, 3, 3))
+        # factors keep all levels
+        if self.backend == "polars":
+            self.assertEqual(res['df1']['fac'].dtype, pl.Enum(fac_levels))
+        else:
+            self.assertListEqual(res['df1']['fac'].cat.categories.tolist(), fac_levels)
+
+    def test_read_rows_offset_only(self):
+        path = os.path.join(self.basic_data_folder, "two.RData")
+        res = pyreadr.read_r(path, output_format=self.backend, row_offset=4, use_objects=['df1'])
+        self.assertFrameEqual(res['df1'], self._rows(self.df1, 4, 0))
+
+    def test_read_rows_rownames(self):
+        path = os.path.join(self.basic_data_folder, "two_rownames.RData")
+        res = pyreadr.read_r(path, output_format=self.backend, row_offset=3, row_limit=3)
+        self.assertFrameEqual(res['df1_rownames'], self._rows(self.df1_rownames, 3, 3))
+
+    def test_read_rows_matrix(self):
+        # matrices are stored by column in R: rows are selected after building the matrix
+        for f, expected in (("mat_simple.rds", self.mat_simple), ("mat_rownames.rds", self.mat_rownames),
+                            ("mat_str.rds", self.mat_str), ("mat_factor.rds", self.mat_cat)):
+            res = pyreadr.read_r(os.path.join(self.basic_data_folder, f), output_format=self.backend,
+                                 row_offset=1, row_limit=2)
+            self.assertFrameEqual(res[None], self._rows(expected, 1, 2))
+
+    def test_read_rows_beyond_end(self):
+        path = os.path.join(self.basic_data_folder, "two.RData")
+        res = pyreadr.read_r(path, output_format=self.backend, row_offset=10, use_objects=['df1'])
+        self.assertEqual(res['df1'].shape, (0, self.df1.shape[1]))
+        self.assertListEqual(list(res['df1'].columns), list(self.df1.columns))
+
+    def test_read_rows_invalid(self):
+        path = os.path.join(self.basic_data_folder, "two.RData")
+        for kwargs in ({"row_offset": -1}, {"row_limit": -1}, {"row_offset": 1.5}, {"row_limit": "3"}):
+            with self.assertRaises(pyreadr.PyreadrError, msg=repr(kwargs)):
+                pyreadr.read_r(path, output_format=self.backend, **kwargs)
+
+    # ==========================================================================
     # read_metadata
     # ==========================================================================
 
