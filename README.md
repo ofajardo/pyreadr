@@ -20,11 +20,11 @@ Detailed documentation on all available methods is in the
 [Module documentation](https://ofajardo.github.io/pyreadr/)
 
 If you would like to read SPSS, SAS or STATA files into python in an easy way,
-take a look to [pyreadstat](https://github.com/Roche/pyreadstat), a wrapper
+take a look at [pyreadstat](https://github.com/Roche/pyreadstat), a wrapper
 around the C library [ReadStat](https://github.com/WizardMac/ReadStat).
 
 If you would like to effortlessly produce beautiful summary tables from pandas 
-dataframes, take a look to [pysummaries](https://github.com/Genentech/pysummaries)
+dataframes, take a look at [pysummaries](https://github.com/Genentech/pysummaries)
 
 ## Table of Contents
 
@@ -34,8 +34,8 @@ dataframes, take a look to [pysummaries](https://github.com/Genentech/pysummarie
   * [Using conda](#using-conda)
   * [From the latest sources](#from-the-latest-sources)
 - [Usage](#usage)
-  * [Basic Usage: reading files](#basic-usage--reading-files)
-  * [Basic Usage: writing files](#basic-usage--writing-files)
+  * [Basic Usage: reading files](#basic-usage-reading-files)
+  * [Basic Usage: writing files](#basic-usage-writing-files)
   * [Differences between pandas and polars output](#differences-between-pandas-and-polars-output)
   * [Reading from file-like objects](#reading-from-file-like-objects)
   * [Reading files from internet (download to disk)](#reading-files-from-internet-download-to-disk)
@@ -60,10 +60,10 @@ If you are reading 3D arrays, you will need to install xarray manually. This is 
 won't need it.
 
 In order to compile from source, you will need a C compiler (see installation) and cython 
-(version >= 0.28).
+(version >= 3.0).
 
 librdata also depends on zlib, bzip2 and lzma; it was reported not to be installed on Lubuntu or docker base ubuntu
-images. If you face this problem intalling the libraries solves it.
+images. If you face this problem installing the libraries solves it.
 
 ## Installation
 
@@ -97,16 +97,16 @@ conda install -c conda-forge pyreadr
 
 ### From the latest sources
 
-Download or clone the repo, open a command window and type:
+Download or clone the repo, open a command window in the repo folder and type:
 
 ```
-python3 setup.py install
+pip install .
 ```
 
 If you don't have admin privileges to the machine do:
 
 ```
-python3 setup.py install --user
+pip install . --user
 ```
 
 You can also install from the github repo directly (without cloning). Use the flag --user if necessary.
@@ -121,13 +121,16 @@ On some Linux distros, iconv needs to be linked at compilation time, while in so
 be linked. Currently iconv linking happens automatically when building inside a conda/miniforge environment.
 You can force iconv linking with the env variable PYREADR_LINK_ICONV=1 (set to 0, false or no to disable).
 
-In order to run the tests:
+In order to run the tests against the installed package:
 
 ```
 python tests/test_basic.py
+python tests/test_narwhalified.py --backend=pandas
+python tests/test_narwhalified.py --backend=polars
+python tests/test_http_integration.py
 ``` 
 
-You can also install and test in place with:
+You can also build and test in place, adding --inplace to each of the test commands above:
 
 ```
 python setup.py build_ext --inplace
@@ -280,7 +283,8 @@ When using `output_format="polars"`, the output differs from pandas in several w
 | **Missing logical values** | `object` dtype with `NaN` | `Boolean` with `null` |
 | **Row names** | Set as DataFrame index | Added as a `rownames` string column |
 | **Unnamed columns** | `None` as column name | Empty string `""` as column name |
-| **Date columns** | Python `datetime` objects (`object` dtype) | Native `Date` dtype |
+| **Date columns** | Python `datetime.date` objects (`object` dtype) | Native `Date` dtype |
+| **Factors** | `category` with all R levels | `Enum` with all R levels |
 
 **Missing values:** R's `NA` maps to `NaN` in pandas and `null` in polars. This means
 you use `pd.isna()` to check for missing values in pandas, and `.is_null()` in polars.
@@ -400,7 +404,7 @@ information to read_r:
 import tzlocal
 import pyreadr
 
-my_timezone = tzlocal.get_localzone().zone
+my_timezone = tzlocal.get_localzone_name()
 result = pyreadr.read_r('test_data/basic/two.RData', timezone=my_timezone)
 
 ```
@@ -462,7 +466,7 @@ followed:
 | Python Type         | R Type    |
 | ------------------- | --------- |
 | np.int32 or lower   | integer   |
-| np.int64, np.float  | numeric   |
+| np.int64, float     | numeric   |
 | str                 | character |
 | bool                | logical   |
 | datetime, date      | character |
@@ -556,22 +560,20 @@ that depend on non base R packages, may not be readable either. The error in thi
 * Data frames with special values like arrays, matrices, lists and other data frames
 as columns are not supported.
 
-* librdata first de-compresses the file in memory and then extracts the
-data. That means you need more free RAM than the decompress file ocuppies
-in memory. RData and Rds files are highly compressed: they can occupy
-in memory easily 40 or even more times in memory as in disk. Take it into
-account in case you get a "Unable to allocate memory" error (see [this](https://github.com/ofajardo/pyreadr/issues/3) )
+* The whole data is read into memory. RData and Rds files are highly compressed: the data
+can easily occupy 40 or even more times in memory than the file on disk. Take it into
+account in case you get a "Unable to allocate memory" error (see [this](https://github.com/ofajardo/pyreadr/issues/3)).
+With use_objects you can read only some objects of a RData file.
 
 * Writing is supported only for pandas or polars data frames to R data frames. Other data
 types are not supported. Rds files hold a single data frame.
 
 * RData and Rds files produced by R are (by default) compressed. Files produced
 by pyreadr are not compressed by default and therefore pretty bulky in comparison. You
-can pass the option compress="gzip" to write_rds or write_rda in order to activate 
+can pass the option compress="gzip" to write_rds or write_rdata in order to activate 
 gzip compression.
 
-* Pyreadr writing is a relative slow operation
-compared to doint it in R.
+* Pyreadr writing is slower than doing it in R, especially for large data frames.
 
 * Data frames written by pyreadr have two extra attributes, "datalabel" (the object name) and
 "var.labels" (an empty string per column), added by librdata. They are harmless but visible in R
@@ -584,11 +586,11 @@ Most of these limitations come from the underlying C library librdata. Solutions
 
 ## Contributing
 
-Contributions are welcome! Please chech the document [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
+Contributions are welcome! Please check the document [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
 ## Change Log
 
-A log with the changes for each version can be found [here](https://github.com/ofajardo/pyreadr/blob/write_support/change_log.md)
+A log with the changes for each version can be found [here](https://github.com/ofajardo/pyreadr/blob/master/change_log.md)
 
 ## People
 
@@ -598,4 +600,4 @@ A log with the changes for each version can be found [here](https://github.com/o
 
 [deenes](https://github.com/deeenes) -  reading lzma compression
 
-[Daniel M. Sullivan](www.danielmsullivan.com) - added license information to setup.py
+[Daniel M. Sullivan](https://www.danielmsullivan.com) - added license information to setup.py

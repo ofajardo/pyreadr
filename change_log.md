@@ -23,6 +23,7 @@
 * clear error message for data frames with duplicate column names (was "df must be a pandas or polars DataFrame")
 * S4 objects are now skipped instead of raising an error (librdata update, WizardMac/librdata#16), so the other objects in a RData file are read. read_r warns if a file has no readable objects (e.g. only lists or S4 objects)
 * fixing NameError (missing imports of warnings and sys) when a file path cannot be encoded with the file system encoding
+* fixing RuntimeWarning "invalid value encountered in cast" when reading dates with missing values into pandas
 * removing set_index(inplace=True) when reading row names, deprecated in pandas 3.1
 
 # 0.5.7 (github, pypi and conda: 2026.09.28)

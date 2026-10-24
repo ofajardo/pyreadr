@@ -32,6 +32,18 @@ from .librdata import Parser
 from .custom_errors import PyreadrError
 
 
+def _r_dates_to_python(days):
+    """
+    R dates are doubles with days since 1970-01-01. Returns an object array of datetime.date, with None for NA,
+    NaN and Inf (cast only the finite values, casting NaN gives a RuntimeWarning).
+    """
+    days = np.asarray(days, dtype=np.float64)
+    dates = np.full(days.shape, np.datetime64("NaT"), dtype="datetime64[D]")
+    finite = np.isfinite(days)
+    dates[finite] = days[finite].astype("datetime64[D]")
+    return dates.astype(datetime)
+
+
 
 class Table:
     """
@@ -111,8 +123,7 @@ class Table:
             data[data == np.inf] = np.nan
             data = pd.to_datetime(data, unit='s').values
         elif dtype.name == "DATE":
-            data[data == np.inf] = np.nan
-            data = data.astype("datetime64[D]").astype(datetime)
+            data = _r_dates_to_python(data)
         elif dtype.name == "LOGICAL" or dtype.name == "INTEGER":
             na_index = data <= -2147483648
             if np.any(na_index):
@@ -347,8 +358,7 @@ class Table:
                     if self.timezone:
                         df[colname] = df[colname].dt.tz_localize('UTC').dt.tz_convert(self.timezone)
                 elif dtype.name == "DATE":
-                    df.loc[df[colname] == np.inf, colname] = np.nan
-                    df[colname] = df[colname].values.astype("datetime64[D]").astype(datetime)
+                    df[colname] = _r_dates_to_python(df[colname].values)
                 elif dtype.name == "LOGICAL" or dtype.name == "INTEGER":
                     na_index = df[colname] <= -2147483648
                     if np.any(na_index):

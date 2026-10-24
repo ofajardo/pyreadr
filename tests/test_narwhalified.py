@@ -705,6 +705,13 @@ class TestNarwhalified(unittest.TestCase):
             self.assertEqual(x[3], 4.0)
             self.assertListEqual(df['d'].isna().tolist(), [False, True, False, True])
 
+    def test_read_dates_na_no_warning(self):
+        # missing dates (data frame and matrix) must not raise a RuntimeWarning when converted
+        for f in ("dates.RData", "dates.rds", "mat_date.rds", "na_nan.rds"):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", category=RuntimeWarning)
+                pyreadr.read_r(os.path.join(self.basic_data_folder, f), output_format=self.backend)
+
     def test_read_s4_skipped(self):
         # librdata skips S4 objects, the other objects in the workspace are read
         path = os.path.join(self.basic_data_folder, "s4_and_df.RData")
