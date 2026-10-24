@@ -372,14 +372,15 @@ class Table:
                 self.df = self.df.with_columns(pl.Series("rownames", self.row_names))
             else:
                 self.df['rownames'] = self.row_names
-                self.df.set_index('rownames', inplace=True)
+                self.df = self.df.set_index('rownames')
 
     # methods for both dim and no dim
 
     def _handle_value_labels(self):
         """
-        R factors are represented as integer vectors, and their string equivalences are stored somewhere else. This
-        method replaces the integers by the correspondent strings and transforms the data into a categorical type.
+        R factors are represented as integer vectors (1-based codes), and their string equivalences (levels) are stored
+        somewhere else. This method transforms the codes into a categorical type (pandas) or Enum (polars) with all
+        the levels in R order, including the ones not present in the data.
         """
 
         if self.value_labels:
@@ -392,19 +393,19 @@ class Table:
                 indx_labels = [(x, self.value_labels[0]) for x in range(0, dim)]
             else:
                indx_labels = list(self.value_labels.items())
-            if self.output_format == "polars":
-                for colindx, labels in indx_labels:
-                    colname = colnames[colindx]
-                    int_to_str = {str(k): v for k, v in labels.items()}
+            for colindx, labels in indx_labels:
+                colname = colnames[colindx]
+                levels = [labels[k] for k in sorted(labels)]
+                if self.output_format == "polars":
+                    # NA codes are already null here
                     self.df = self.df.with_columns(
-                        pl.col(colname).cast(pl.String).replace_strict(int_to_str, default=pl.col(colname).cast(pl.String))
-                          .cast(pl.Categorical).alias(colname)
+                        (pl.col(colname) - 1).cast(pl.UInt32).cast(pl.Enum(levels)).alias(colname)
                     )
-            else:
-                for colindx, labels in indx_labels:
-                    colname = colnames[colindx]
-                    self.df = self.df.replace({colname: labels})
-                    self.df[colname] = self.df[colname].astype("category")
+                else:
+                    # columns with NA codes are object with NaN at this point
+                    codes = np.asarray(self.df[colname], dtype=np.float64)
+                    codes = np.where(np.isnan(codes), 0, codes).astype(np.int64) - 1
+                    self.df[colname] = pd.Categorical.from_codes(codes, categories=levels)
 
 
 class PyreadrParser(Parser):

@@ -20,9 +20,20 @@ from .custom_errors import PyreadrError
 pyreadr_to_librdata_types = {"INTEGER": "INTEGER", "NUMERIC": "NUMERIC",
                         "LOGICAL": "LOGICAL", "CHARACTER": "CHARACTER",
                         "OBJECT": "CHARACTER", "DATE": "CHARACTER",
-                        "DATETIME":"CHARACTER"}
+                        "DATETIME":"CHARACTER", "FACTOR": "INTEGER"}
 
 librdata_min_integer = -2147483648
+
+
+def get_factor_levels(nw_series):
+    """
+    From a narwhals categorical or enum series, get the list of levels to write as R factor levels.
+    """
+    # polars Categorical categories are global (shared by all categorical columns), take the levels from the data,
+    # sorted as R's factor() does. pandas categories and polars Enum are per column and keep their order.
+    if nw_series.dtype == nw.Categorical and nw_series.implementation.is_polars():
+        return sorted(nw_series.drop_nulls().unique().cast(nw.String).to_list())
+    return nw_series.cat.get_categories().to_list()
 
 
 def get_pyreadr_column_types(nw_df):
@@ -41,9 +52,14 @@ def get_pyreadr_column_types(nw_df):
         has_missing = bool(curseries.is_null().any())
         has_missing_values.append(has_missing)
 
-        # Categorical: unwrap to underlying categories dtype, then fall through
-        if col_type == nw.Categorical:
-            col_type = curseries.cat.get_categories().dtype
+        # Categorical and Enum: string categories become R factors, otherwise unwrap to the underlying categories
+        # dtype, then fall through
+        if col_type == nw.Categorical or isinstance(col_type, nw.Enum):
+            categories = curseries.cat.get_categories()
+            if categories.dtype == nw.String and len(get_factor_levels(curseries)) > 0:
+                result[col_name] = "FACTOR"
+                continue
+            col_type = categories.dtype
 
         if col_type in (nw.Int8, nw.Int16, nw.Int32, nw.UInt8, nw.UInt16):
             result[col_name] = "INTEGER"
@@ -57,7 +73,7 @@ def get_pyreadr_column_types(nw_df):
             result[col_name] = "DATETIME"
         elif col_type == nw.Date:
             result[col_name] = "DATE"
-        elif col_type == nw.Object or isinstance(col_type, nw.Enum):
+        elif col_type == nw.Object:
             lst = curseries.to_list()
             non_null = [x for x in lst if x is not None]
             if not non_null:
@@ -125,6 +141,11 @@ def transform_data(nw_series, dtype, has_missing, dateformat, datetimeformat):
 
     elif dtype == "CHARACTER":
         return nw_series.to_list()
+
+    elif dtype == "FACTOR":
+        # R factor codes are 1-based
+        codes = {level: i + 1 for i, level in enumerate(get_factor_levels(nw_series))}
+        return [codes.get(x, librdata_min_integer) for x in nw_series.to_list()]
 
     elif dtype == "OBJECT":
         lst = nw_series.to_list()
@@ -232,7 +253,9 @@ class PyreadrWriter(Writer):
         if row_names is not None:
             self.set_row_names(row_names)
         for col_name in col_names:
-            self.add_column(str(col_name), librdata_types[col_name])
+            column = self.add_column(str(col_name), librdata_types[col_name])
+            if pyreadr_types[col_name] == "FACTOR":
+                column.add_level_labels(get_factor_levels(nw_df[col_name]))
 
         for indx, col_name in enumerate(col_names):
             nw_series = nw_df[col_name]

@@ -33,6 +33,10 @@ is_pandas_3 = pandas_version[0] > 2
 # and datetime64[us] from pandas 3.1 on
 pandas3_dt_unit = 'datetime64[s]' if pandas_version < (3, 1) else 'datetime64[us]'
 
+# R factor levels (in R order) of the factor columns in the test files; polars reads factors as Enum
+fac_levels = ['amber', 'cecil', 'james', 'rob', 'zoe']
+fac2_levels = ['d', 'e', 'f']
+
 
 class TestNarwhalified(unittest.TestCase):
 
@@ -85,7 +89,7 @@ class TestNarwhalified(unittest.TestCase):
                   .alias('num')
             )
             df1 = nw.from_native(df1_native)
-            df1 = df1.with_columns(nw.col('int').cast(nw.Int32), nw.col('fac').cast(nw.Categorical))
+            df1 = df1.with_columns(nw.col('int').cast(nw.Int32), nw.col('fac').cast(nw.Enum(fac_levels)))
 
         self.df1 = df1.to_native()
 
@@ -109,7 +113,7 @@ class TestNarwhalified(unittest.TestCase):
                   .alias('num')
             )
             df1_tstamp = nw.from_native(df1t_native)
-            df1_tstamp = df1_tstamp.with_columns(nw.col('int').cast(nw.Int32), nw.col('fac').cast(nw.Categorical))
+            df1_tstamp = df1_tstamp.with_columns(nw.col('int').cast(nw.Int32), nw.col('fac').cast(nw.Enum(fac_levels)))
 
         self.df1_tstamp = df1_tstamp.to_native()
 
@@ -118,7 +122,7 @@ class TestNarwhalified(unittest.TestCase):
         df2 = df2.with_columns(
             nw.col("int2").cast(nw.Int32),
             nw.col("num2").cast(nw.Float64),
-            nw.col("fac2").cast(nw.Categorical),
+            nw.col("fac2").cast(nw.Enum(fac2_levels) if self.backend == "polars" else nw.Categorical),
         )
         self.df2 = df2.to_native()
 
@@ -242,8 +246,8 @@ class TestNarwhalified(unittest.TestCase):
             self.mat_date = pd.DataFrame(matdate)
             matstr = np.asarray(["james", "cecil", "zoe", "amber", np.nan, "rob"] * 2, dtype=object)
             self.mat_str = pd.DataFrame(np.reshape(matstr, (4, 3), order='F'))
-            mat_cat = self.mat_str.copy()
-            self.mat_cat = mat_cat.astype("category")
+            # a factor matrix has one set of levels for all columns
+            self.mat_cat = self.mat_str.apply(lambda c: pd.Categorical(c, categories=fac_levels))
         else:
             epoch = datetime.datetime(1970, 1, 1, 0, 0, 0)
             epoch_date = datetime.date(1970, 1, 1)
@@ -300,9 +304,9 @@ class TestNarwhalified(unittest.TestCase):
                 '2': ['zoe', 'amber', None, 'rob'],
             })
             self.mat_cat = pl.DataFrame({
-                '0': pl.Series('0', ['james', 'cecil', 'zoe', 'amber'], dtype=pl.Categorical),
-                '1': pl.Series('1', [None, 'rob', 'james', 'cecil'], dtype=pl.Categorical),
-                '2': pl.Series('2', ['zoe', 'amber', None, 'rob'], dtype=pl.Categorical),
+                '0': pl.Series('0', ['james', 'cecil', 'zoe', 'amber'], dtype=pl.Enum(fac_levels)),
+                '1': pl.Series('1', [None, 'rob', 'james', 'cecil'], dtype=pl.Enum(fac_levels)),
+                '2': pl.Series('2', ['zoe', 'amber', None, 'rob'], dtype=pl.Enum(fac_levels)),
             })
 
     def setUp(self):
@@ -504,7 +508,7 @@ class TestNarwhalified(unittest.TestCase):
         lv = "(±)-(E)-2-Octen-4-ol"
         if self.backend == "polars":
             expected = pl.DataFrame({
-                'name': pl.Series('name', [lv, 'plain', lv], dtype=pl.Categorical),
+                'name': pl.Series('name', [lv, 'plain', lv], dtype=pl.Enum([lv, 'plain'])),
                 'série': ['café', 'abc', None],
             })
         else:
@@ -631,6 +635,22 @@ class TestNarwhalified(unittest.TestCase):
         path = os.path.join(self.basic_data_folder, "mat_factor.rds")
         res = pyreadr.read_r(path, output_format=self.backend)
         self.assertFrameEqual(res[None], self.mat_cat)
+
+    def test_factor_unused_levels(self):
+        # levels c, b, a: not alphabetical and c is unused; both must be kept as in R
+        path = os.path.join(self.basic_data_folder, "factor_unused_levels.RData")
+        res = pyreadr.read_r(path, output_format=self.backend)
+        df = res['df']
+        levels = ['c', 'b', 'a']
+        if self.backend == "polars":
+            expected = pl.DataFrame({'f': pl.Series('f', ['b', 'a', None, 'b'], dtype=pl.Enum(levels))})
+            self.assertEqual(df['f'].dtype, pl.Enum(levels))
+        else:
+            expected = pd.DataFrame({'f': pd.Categorical(['b', 'a', np.nan, 'b'], categories=levels)})
+            # pandas equals ignores the order of categories, check it explicitly
+            self.assertListEqual(df['f'].cat.categories.tolist(), levels)
+            self.assertFalse(df['f'].cat.ordered)
+        self.assertFrameEqual(df, expected)
 
     # ==========================================================================
     # Write tests
@@ -822,6 +842,64 @@ class TestNarwhalified(unittest.TestCase):
         path = os.path.join(self.write_data_folder, "test_nw_rownames_multiindex.Rds")
         with self.assertRaises(pyreadr.PyreadrError):
             pyreadr.write_rds(path, df)
+
+    # ==========================================================================
+    # Write tests — factors
+    # ==========================================================================
+
+    def _write_read_factor(self, df, name):
+        """writes df as Rds and RData, reads both back and returns a list of (levels, values) of column f"""
+        out = []
+        for ext, writer, key in ((".Rds", pyreadr.write_rds, None), (".RData", pyreadr.write_rdata, "dataset")):
+            path = os.path.join(self.write_data_folder, name + ext)
+            if os.path.isfile(path):
+                os.remove(path)
+            writer(path, df)
+            col = pyreadr.read_r(path, output_format=self.backend)[key]['f']
+            if self.backend == "polars":
+                self.assertIsInstance(col.dtype, pl.Enum)
+                out.append((col.dtype.categories.to_list(), col.to_list()))
+            else:
+                self.assertEqual(col.dtype, 'category')
+                out.append((col.cat.categories.tolist(), [None if x != x else x for x in col.tolist()]))
+        return out
+
+    def test_write_factor(self):
+        # levels c, b, a: not alphabetical and c is unused; both must be written as in the input
+        levels = ['c', 'b', 'a']
+        values = ['b', 'a', None, 'b']
+        if self.backend == "polars":
+            df = pl.DataFrame({'f': pl.Series('f', values, dtype=pl.Enum(levels))})
+        else:
+            df = pd.DataFrame({'f': pd.Categorical(values, categories=levels)})
+        for res_levels, res_values in self._write_read_factor(df, "test_nw_factor"):
+            self.assertListEqual(res_levels, levels)
+            self.assertListEqual(res_values, values)
+
+    def test_write_factor_polars_categorical(self):
+        if self.backend != "polars":
+            self.skipTest("polars only")
+        # polars categories are global: strings of other columns must not become levels
+        pl.Series('other', ['zzz', 'yyy'], dtype=pl.Categorical)
+        values = ['b', 'a', None, 'b']
+        df = pl.DataFrame({'f': pl.Series('f', values, dtype=pl.Categorical)})
+        for res_levels, res_values in self._write_read_factor(df, "test_nw_factor_plcat"):
+            # as R's factor(): sorted unique values
+            self.assertListEqual(res_levels, ['a', 'b'])
+            self.assertListEqual(res_values, values)
+
+    def test_write_factor_non_string(self):
+        if self.backend != "pandas":
+            self.skipTest("polars categories are always strings")
+        # categories that are not strings are written with the type of the categories, not as factor
+        df = pd.DataFrame({'f': pd.Categorical([3, 1, None, 3], categories=[5, 3, 1])})
+        path = os.path.join(self.write_data_folder, "test_nw_factor_int.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, df)
+        col = pyreadr.read_r(path)[None]['f']
+        self.assertEqual(col.dtype, np.float64)
+        self.assertListEqual([None if x != x else x for x in col.tolist()], [3.0, 1.0, None, 3.0])
 
     # ==========================================================================
     # Error handling

@@ -152,8 +152,9 @@ class PyReadRBasic(unittest.TestCase):
         matstr = np.asarray(["james", "cecil","zoe", "amber", np.nan, "rob"]*2, dtype=object)
         self.mat_str = pd.DataFrame(np.reshape(matstr, (4,3), order='F'))
         # categories
-        mat_cat = self.mat_str.copy()
-        self.mat_cat = mat_cat.astype("category")
+        # a factor matrix has one set of levels for all columns
+        fac_levels = ['amber', 'cecil', 'james', 'rob', 'zoe']
+        self.mat_cat = self.mat_str.apply(lambda c: pd.Categorical(c, categories=fac_levels))
 
     def test_rdata_basic(self):
 
@@ -540,6 +541,31 @@ class PyReadRBasic(unittest.TestCase):
         res = pyreadr.read_r(path)
         df = res[None]
         self.assertTrue(df.equals(self.mat_cat))
+
+    def test_factor_unused_levels(self):
+        # levels c, b, a: not alphabetical and c is unused; both must be kept as in R
+        path = os.path.join(self.basic_data_folder, "factor_unused_levels.RData")
+        res = pyreadr.read_r(path)
+        df = res['df']
+        levels = ['c', 'b', 'a']
+        expected = pd.DataFrame({'f': pd.Categorical(['b', 'a', np.nan, 'b'], categories=levels)})
+        # pandas equals ignores the order of categories, check it explicitly
+        self.assertListEqual(df['f'].cat.categories.tolist(), levels)
+        self.assertFalse(df['f'].cat.ordered)
+        self.assertTrue(df.equals(expected))
+
+    def test_write_factor(self):
+        # levels c, b, a: not alphabetical and c is unused; both must be written as in the input
+        levels = ['c', 'b', 'a']
+        df = pd.DataFrame({'f': pd.Categorical(['b', 'a', None, 'b'], categories=levels)})
+        path = os.path.join(self.write_data_folder, "test_factor.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, df)
+        col = pyreadr.read_r(path)[None]['f']
+        self.assertEqual(col.dtype, 'category')
+        self.assertListEqual(col.cat.categories.tolist(), levels)
+        self.assertListEqual(col.cat.codes.tolist(), [1, 2, -1, 1])
 
  
 if __name__ == '__main__':

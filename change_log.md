@@ -9,6 +9,9 @@
 * fixing writing data frames with zero rows (wrote an empty, invalid file) and zero columns (segmentation fault)
 * fixing unsupported compression in write_rdata/write_rds: the error is now raised before writing, no temporary file is left behind
 * fixing column types when reading empty columns: character columns with zero rows were float64 in pandas; in polars all empty columns, and character columns with only missing values, had the Null type. They now get the type of the R vector
+* fixing reading factors: all R levels are now kept, in R order, including levels not present in the data (they were dropped and the categories were sorted alphabetically or by appearance). Breaking change for polars: factors are now read as pl.Enum with the R levels instead of pl.Categorical
+* added writing factors: pandas categories and polars Categorical/Enum with string categories are now written as R factors (they were written as character vectors). Levels are the categories in their order (pandas, polars Enum) or the sorted values present in the data (polars Categorical)
+* removing set_index(inplace=True) when reading row names, deprecated in pandas 3.1
 
 # 0.5.7 (github, pypi and conda: 2026.09.28)
 * Added support for polars via narwhals

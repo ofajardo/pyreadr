@@ -345,8 +345,11 @@ cdef class Column:
     cdef rdata_column_t *_this
 
     def add_level_labels(self, labels):
+        cdef rdata_error_t status
         for label in labels:
-            rdata_column_add_factor(self._this, label.encode('utf-8'))
+            status = rdata_column_add_factor(self._this, label.encode('utf-8'))
+            if status != RDATA_OK:
+                raise LibrdataError(rdata_error_message(status))
 
 
 cdef class Writer:

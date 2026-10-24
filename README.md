@@ -418,7 +418,9 @@ objects = pyreadr.list_objects('test_data/basic/latin1_unflagged.RData', encodin
 ### What objects can be read and written
 
 Data frames composed of character, numeric (double), integer, timestamp (POSIXct 
-and POSIXlt), date, logical atomic vectors. Factors are also supported.
+and POSIXlt), date, logical atomic vectors. Factors are also supported: they are read
+as pandas categories or polars Enum, keeping all the R levels in the R order (also levels
+not present in the data). Ordered factors are read as unordered categories.
 
 Tibbles are also supported.
 
@@ -451,7 +453,8 @@ followed:
 | str                 | character |
 | bool                | logical   |
 | datetime, date      | character |
-| category            | depends on the original dtype |
+| category / Enum with string categories | factor |
+| category with other categories | depends on the original dtype |
 | any other object    | character |
 | column all missing  | logical   |
 | column with mixed types | character |
@@ -464,12 +467,15 @@ but can be controlled with the arguments dateformat and datetimeformat
 for write_rdata and write_rds. Those arguments take python standard
 formatting strings.
 
-* Pandas/polars categories are NOT translated to R factors. Instead the original
-data type of the category is preserved and transformed according to the
-rules. This is because R factors are integers and levels are always
-strings, in pandas/polars categories can be any type and levels any type as well, therefore
-it is not always adequate to coerce everything to the integer/character system.
-On the other hand, category level information is lost in the process.
+* Pandas categories and polars Categorical/Enum with string categories are translated to
+R factors. For pandas categories and polars Enum the levels are the categories, in the same order,
+including the ones not present in the data. Polars Categorical do not have levels of their own
+(categories are shared by all columns), therefore the levels are the values present in the data,
+sorted, as R's factor() does. Ordered categories are written as unordered factors.
+
+* Pandas categories that are not strings are NOT translated to R factors, because R factor
+levels are always strings. Instead the original data type of the categories is preserved and
+transformed according to the rules; category level information is lost in the process.
 
 * Any other object is transformed to a character using the str representation
 of the object.
