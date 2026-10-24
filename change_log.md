@@ -18,6 +18,7 @@
 * added writing multiple data frames to a RData file: write_rdata accepts a dict (e.g. the output of read_r) with object names as keys and data frames as values; rownames_column can be a str or a dict per data frame. Possible since librdata fixed WizardMac/librdata#38
 * all data frames are validated before writing, errors no longer leave a partially written file; fixed a memory leak (the librdata writer was never freed)
 * fixing writing pandas object columns of integers, booleans, strings or dates with np.nan (for example R integer and logical columns with NA as read by pyreadr): they were written as character ("1", "nan", "True"), now they keep their type and NaN is written as NA. In object columns of floats NaN is still written as NaN
+* faster writing (about 10x without compression, 3x with gzip): writes are buffered (librdata wrote every value with a separate system call) and the platform is checked once instead of for every value
 * removing set_index(inplace=True) when reading row names, deprecated in pandas 3.1
 
 # 0.5.7 (github, pypi and conda: 2026.09.28)

@@ -7,8 +7,15 @@ import os.path
 from cython.operator cimport dereference as deref
 from libc.string cimport strlen, memcpy
 from libc.stdint cimport uint64_t
+from libc.stdlib cimport malloc, free
 
 from .custom_errors import PyreadrError, LibrdataError
+
+# checked once: the write callback runs for every value written
+cdef bint _is_windows = platform.system() == 'Windows'
+# librdata calls the write callback with a few bytes per value, the Writer collects them in a buffer of this size
+cdef enum:
+    WRITE_BUFFER_SIZE = 1048576
 
 
 class DataType(Enum):
@@ -23,7 +30,7 @@ class DataType(Enum):
 cdef int _os_open(path, mode) noexcept:
     cdef int flags
     cdef Py_ssize_t length
-    if platform.system() == 'Windows':
+    if _is_windows:
         if mode == 'r':
             flags = _O_RDONLY | _O_BINARY
             u16_path = PyUnicode_AsWideCharString(path, &length)
@@ -53,10 +60,27 @@ cdef inline bint _is_r_na_real(double value) noexcept:
 
 
 cdef int _os_close(int fd) noexcept:
-    if platform.system() == 'Windows':
+    if _is_windows:
         return _close(fd)
     else:
         return close(fd)
+
+
+cdef bint _os_write_all(int fd, const char *data, size_t len) noexcept:
+    """
+    writes len bytes, write may write less than asked. Returns False on error.
+    """
+    cdef ssize_t written
+    while len > 0:
+        if _is_windows:
+            written = _write(fd, data, len)
+        else:
+            written = write(fd, data, len)
+        if written <= 0:
+            return False
+        data += written
+        len -= written
+    return True
 
 
 cdef int _handle_open(const char* path, void* io_ctx) noexcept:
@@ -214,7 +238,7 @@ cdef class Parser:
                 rdata_parser_free(self._this)
                 raise LibrdataError(rdata_error_message(status))
 
-        if platform.system() == 'Windows':
+        if _is_windows:
             rdata_set_open_handler(self._this, _handle_open)
 
         rdata_set_table_handler(self._this, _handle_table)
@@ -364,14 +388,6 @@ cdef class Parser:
         self.handle_value_label(new_value, index)
 
 
-cdef ssize_t _handle_write(const void *data, size_t len, void *ctx) noexcept:
-    cdef int fd = deref(<int*>ctx)
-    if platform.system() == 'Windows':
-        return _write(fd, data, len)
-    else:
-        return write(fd, data, len)
-
-
 cdef class Column:
     cdef rdata_column_t *_this
 
@@ -403,13 +419,54 @@ cdef class Writer:
     cdef int _table_first_column
     cdef int _current_column_no
     cdef rdata_column_t* _current_column
+    # bytes from librdata's write callback waiting to be written to the file
+    cdef char *_buffer
+    cdef size_t _buffer_used
+    cdef bint _write_failed
+
+    def __cinit__(self):
+        self._buffer = NULL
 
     def __init__(self):
         self._writer = NULL
         self._fd = 0
         self._file_started = False
         self._table_first_column = 0
+        self._buffer_used = 0
+        self._write_failed = False
         self._reset_table()
+
+    def __dealloc__(self):
+        if self._buffer != NULL:
+            free(self._buffer)
+            self._buffer = NULL
+
+    cdef bint _flush(self) noexcept:
+        """
+        writes the buffer to the file. Returns False on error.
+        """
+        if self._buffer_used > 0:
+            if not _os_write_all(self._fd, self._buffer, self._buffer_used):
+                self._write_failed = True
+                return False
+            self._buffer_used = 0
+        return True
+
+    cdef ssize_t _buffered_write(self, const char *data, size_t len) noexcept:
+        """
+        called by librdata through _handle_write. Returns len, or -1 on error.
+        """
+        if self._buffer_used + len > WRITE_BUFFER_SIZE:
+            if not self._flush():
+                return -1
+        if len > WRITE_BUFFER_SIZE:
+            if not _os_write_all(self._fd, data, len):
+                self._write_failed = True
+                return -1
+            return len
+        memcpy(self._buffer + self._buffer_used, data, len)
+        self._buffer_used += len
+        return len
 
     cdef _reset_table(self):
         self._table_started = False
@@ -423,12 +480,12 @@ cdef class Writer:
     cdef _begin_table(self):
         """
         begins the file (first table only) and the current table. The file has to begin before anything is
-        written, as librdata's write callback receives the file descriptor there; the table only after all its
-        columns were added, as their number is written at the beginning.
+        written, as librdata's write callback receives its context (this Writer) there; the table only after all
+        its columns were added, as their number is written at the beginning.
         """
         cdef rdata_error_t status = RDATA_OK
         if not self._file_started:
-            status = rdata_begin_file(self._writer, &self._fd)
+            status = rdata_begin_file(self._writer, <void*>self)
             if status != RDATA_OK:
                 raise LibrdataError(rdata_error_message(status))
             self._file_started = True
@@ -447,6 +504,12 @@ cdef class Writer:
         else:
             raise PyreadrError('Unsupported format')
 
+        if self._buffer == NULL:
+            self._buffer = <char*>malloc(WRITE_BUFFER_SIZE)
+            if self._buffer == NULL:
+                raise MemoryError()
+        self._buffer_used = 0
+        self._write_failed = False
         self._writer = rdata_writer_init(_handle_write, fmt)
         self._fd = _os_open(path, 'w')
 
@@ -498,13 +561,16 @@ cdef class Writer:
             try:
                 if complete:
                     if not self._file_started:
-                        status = rdata_begin_file(self._writer, &self._fd)
+                        status = rdata_begin_file(self._writer, <void*>self)
                     if status == RDATA_OK:
                         status = rdata_end_file(self._writer)
+                    if status == RDATA_OK and not self._flush():
+                        status = RDATA_ERROR_WRITE
             finally:
                 _os_close(self._fd)
                 rdata_writer_free(self._writer)
                 self._writer = NULL
+                self._buffer_used = 0
             if status != RDATA_OK:
                 raise LibrdataError(rdata_error_message(status))
 
@@ -568,3 +634,9 @@ cdef class Writer:
         col._this = column
         return col
         
+
+
+cdef ssize_t _handle_write(const void *data, size_t len, void *ctx) noexcept:
+    # ctx is the Writer, see rdata_begin_file in Writer
+    cdef Writer writer = <Writer>ctx
+    return writer._buffered_write(<const char*>data, len)
