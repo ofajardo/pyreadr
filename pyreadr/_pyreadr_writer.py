@@ -50,6 +50,16 @@ def is_nan(value):
     return isinstance(value, float) and value != value
 
 
+def is_object_column(nw_series):
+    """
+    True for untyped columns whose type has to be decided from the values. pandas object columns count even if
+    narwhals infers another type for them (e.g. String for a column with only missing values).
+    """
+    if nw_series.dtype == nw.Object:
+        return True
+    return nw_series.implementation.is_pandas_like() and nw_series.to_native().dtype == object
+
+
 def get_factor_levels(nw_series):
     """
     From a narwhals categorical or enum series, get the list of levels to write as R factor levels.
@@ -76,6 +86,13 @@ def get_pyreadr_column_types(nw_df):
         col_type = curseries.dtype
         has_missing = bool(curseries.is_null().any())
         has_missing_values.append(has_missing)
+
+        # polars columns with only nulls have the Null type (narwhals Unknown): logical as in R
+        if is_object_column(curseries):
+            col_type = nw.Object
+        elif col_type == nw.Unknown and curseries.null_count() == len(curseries):
+            result[col_name] = "LOGICAL"
+            continue
 
         # Categorical and Enum: string categories become R factors, otherwise unwrap to the underlying categories
         # dtype, then fall through
@@ -154,7 +171,7 @@ def transform_data(nw_series, dtype, has_missing, dateformat, datetimeformat):
 
     # in non float columns NaN is missing (object columns, see get_pyreadr_column_types)
     if dtype == "INTEGER":
-        if nw_series.dtype == nw.Object:
+        if is_object_column(nw_series):
             lst = nw_series.to_list()
             return [librdata_min_integer if is_missing(x) or is_nan(x) else int(x) for x in lst]
         return nw_series.fill_null(librdata_min_integer).cast(nw.Int32).to_list()
@@ -165,7 +182,7 @@ def transform_data(nw_series, dtype, has_missing, dateformat, datetimeformat):
         return [r_na_real if is_missing(x) else x for x in lst]
 
     elif dtype == "LOGICAL":
-        if nw_series.dtype == nw.Object:
+        if is_object_column(nw_series) or nw_series.dtype == nw.Unknown:
             lst = nw_series.to_list()
             return [librdata_min_integer if is_missing(x) or is_nan(x) else int(x) for x in lst]
         return nw_series.cast(nw.Int32).fill_null(librdata_min_integer).to_list()
@@ -258,6 +275,11 @@ def get_frames_to_write(df, df_name, rownames_column, allow_multiple):
     for name, frame in frames:
         try:
             nw_frames.append(nw.from_native(frame, eager_only=True))
+        except nw.exceptions.DuplicateError:
+            # pandas allows duplicate column names, narwhals does not
+            columns = list(frame.columns)
+            duplicates = sorted({str(c) for c in columns if columns.count(c) > 1})
+            raise PyreadrError("duplicate column names are not supported: {0}".format(duplicates))
         except Exception:
             if isinstance(df, Mapping):
                 raise PyreadrError("{0} must be a pandas or polars DataFrame".format(name))

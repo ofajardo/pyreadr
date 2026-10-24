@@ -501,7 +501,9 @@ are correctly translated.
 promoted to numeric in order to fit.
 
 * A column containing only missing values is transformed to logical,
-following R's behavior.
+following R's behavior, if it has no declared type (pandas object column with None or pd.NA,
+polars column of type Null). Columns with a declared type keep it (e.g. a string column
+is written as character), and a pandas object column with only NaN as numeric NaN.
 
 * Numeric missing values: polars null, pandas pd.NA (nullable types such as Float64 or Int64)
 and None in object columns are written as R's NA. NaN is written as R's NaN, this includes the
@@ -570,6 +572,13 @@ gzip compression.
 
 * Pyreadr writing is a relative slow operation
 compared to doint it in R.
+
+* Data frames written by pyreadr have two extra attributes, "datalabel" (the object name) and
+"var.labels" (an empty string per column), added by librdata. They are harmless but visible in R
+with attributes() or str().
+
+* Data frames with duplicate column names cannot be written (R allows them, but pyreadr does not
+support them).
 
 Solutions to some of these limitations have been proposed in the upstream librdata [issues](https://github.com/WizardMac/librdata/issues) (points 1-4 are addressed by issue 12, point 5 by issue 16 and point 7 by issue 17). However there is no guarantee that these changes will be made and there are no timelines either. If you think it would be nice if these issues are solved, please express your support in the librdata issues.
 

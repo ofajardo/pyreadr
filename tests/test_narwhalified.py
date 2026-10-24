@@ -1076,9 +1076,51 @@ class TestNarwhalified(unittest.TestCase):
                                       'f': [1.5, None, 2.5], 'n': [None, None, None]})
         self.assertEqual(type(values['i'][0]), int)
         self.assertEqual(type(values['b'][0]), bool)
+        # the R types, checked with polars output (character would be String)
+        schema = pyreadr.read_r(path, output_format="polars")[None].schema
+        self.assertDictEqual({c: schema[c] for c in df.columns},
+                             {'i': pl.Int32, 'b': pl.Boolean, 's': pl.String, 'd': pl.String, 'm': pl.String,
+                              'f': pl.Float64, 'n': pl.Float64})
         kinds = self._write_read_na_kinds(df[['f', 'n']], "test_nw_object_nan_kinds")
         for k in kinds:
             self.assertDictEqual(k, {'f': ['value', 'NaN', 'value'], 'n': ['NaN', 'NaN', 'NaN']})
+
+    def test_write_all_missing(self):
+        # untyped columns with only missing values are logical in R (as c(NA, NA)); declared string columns stay
+        # character. Read back with polars: logical -> Boolean, character -> String, numeric -> Float64
+        if self.backend == "polars":
+            df = pl.DataFrame({
+                'null': pl.Series('null', [None, None]),
+                'str': pl.Series('str', [None, None], dtype=pl.String),
+            })
+            expected = {'null': pl.Boolean, 'str': pl.String}
+        else:
+            df = pd.DataFrame({
+                'none': pd.Series([None, None], dtype=object),
+                'nan': pd.Series([np.nan, np.nan], dtype=object),  # only NaN: numeric NaN
+                'str': pd.Series([None, None], dtype="str"),
+                'string': pd.Series([None, None], dtype="string"),
+            })
+            expected = {'none': pl.Boolean, 'nan': pl.Float64, 'str': pl.String, 'string': pl.String}
+        path = os.path.join(self.write_data_folder, "test_nw_all_missing.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, df)
+        res = pyreadr.read_r(path, output_format="polars")[None]
+        self.assertDictEqual({c: res.schema[c] for c in expected}, expected)
+        for c in expected:
+            if c == 'nan':
+                self.assertListEqual(res[c].is_nan().to_list(), [True, True])
+            else:
+                self.assertListEqual(res[c].to_list(), [None, None])
+
+    def test_write_duplicate_column_names(self):
+        if self.backend != "pandas":
+            self.skipTest("polars does not allow duplicate column names")
+        df = pd.DataFrame([[1.0, 2.0]], columns=['a', 'a'])
+        path = os.path.join(self.write_data_folder, "test_nw_dup_names.Rds")
+        with self.assertRaisesRegex(pyreadr.PyreadrError, "duplicate column names"):
+            pyreadr.write_rds(path, df)
 
     def test_write_pd_na(self):
         if self.backend != "pandas":

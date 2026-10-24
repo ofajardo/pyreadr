@@ -19,6 +19,8 @@
 * all data frames are validated before writing, errors no longer leave a partially written file; fixed a memory leak (the librdata writer was never freed)
 * fixing writing pandas object columns of integers, booleans, strings or dates with np.nan (for example R integer and logical columns with NA as read by pyreadr): they were written as character ("1", "nan", "True"), now they keep their type and NaN is written as NA. In object columns of floats NaN is still written as NaN
 * faster writing (about 10x without compression, 3x with gzip): writes are buffered (librdata wrote every value with a separate system call) and the platform is checked once instead of for every value
+* fixing writing columns with only missing values: pandas object columns and polars Null columns are written as logical (as documented, they were character); pandas object columns with only NaN as numeric
+* clear error message for data frames with duplicate column names (was "df must be a pandas or polars DataFrame")
 * removing set_index(inplace=True) when reading row names, deprecated in pandas 3.1
 
 # 0.5.7 (github, pypi and conda: 2026.09.28)

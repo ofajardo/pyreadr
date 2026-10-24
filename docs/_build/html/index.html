@@ -6,12 +6,12 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to pyreadr’s documentation! &mdash; pyreadr 0.5.7 documentation</title>
+  <title>Welcome to pyreadr’s documentation! &mdash; pyreadr 0.5.8 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
-      <script src="_static/documentation_options.js?v=d65efdcf"></script>
+      <script src="_static/documentation_options.js?v=3e445e0d"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -102,13 +102,17 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pyreadr.pyreadr.list_objects">
-<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">list_objects</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.list_objects" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">list_objects</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.list_objects" title="Link to this definition">¶</a></dt>
 <dd><p>Read an R RData or Rds file and lists objects and their column names.
 Not all objects are readable, and also it is not always possible to read the column names without parsing the
 whole file, in those cases this method will return Nones instead of column names.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</p></li>
+<li><p><strong>encoding</strong> (<em>str</em><em>, </em><em>optional</em>) – encoding of strings that have no encoding mark in the file, for example “latin1” or “WINDOWS-1252”.
+See read_r for details.</p></li>
+</ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>result</strong> – a list of dictionaries, where each dictionary has a key “object_name” with the name of the object and
@@ -122,7 +126,7 @@ columns with a list of columns.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pyreadr.pyreadr.read_r">
-<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">read_r</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_objects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timezone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pandas'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.read_r" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">read_r</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_objects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timezone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pandas'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.read_r" title="Link to this definition">¶</a></dt>
 <dd><p>Read an R RData or Rds file into pandas or polars data frames.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -135,6 +139,10 @@ R datetimes (POSIXct and POSIXlt) are stored as UTC, but converted to some timez
 user or implicitly to local zone) when displaying it in R. librdata cannot recover that timezone information
 therefore timestamps are displayed in UTC, unless this parameter is set.</p></li>
 <li><p><strong>output_format</strong> (<em>str</em><em>, </em><em>optional</em>) – format of the output data frames. “pandas” (default) or “polars”.</p></li>
+<li><p><strong>encoding</strong> (<em>str</em><em>, </em><em>optional</em>) – encoding of strings that have no encoding mark in the file, for example “latin1” or “WINDOWS-1252”.
+It overrides the encoding declared in the file (version 3 files) or supplies it (version 2 files).
+Strings explicitly marked as UTF-8 or latin1 in the file are not affected. Set it if reading
+fails with a UnicodeDecodeError.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -148,20 +156,25 @@ therefore timestamps are displayed in UTC, unless this parameter is set.</p></li
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pyreadr.pyreadr.write_rdata">
-<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">write_rdata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dataset'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dateformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datetimeformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compresslevel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">9</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rdata" title="Link to this definition">¶</a></dt>
-<dd><p>Write a single pandas or polars data frame to a RData file.</p>
+<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">write_rdata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dataset'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dateformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datetimeformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compresslevel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rownames_column</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rdata" title="Link to this definition">¶</a></dt>
+<dd><p>Write one or more pandas or polars data frames to a RData file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> (<em>str</em><em>, </em><em>bytes</em><em>, or </em><em>Path</em>) – path to the file. The string is assumed to be utf-8 encoded.</p></li>
-<li><p><strong>df</strong> (<em>pandas</em><em> or </em><em>polars DataFrame</em>) – the data frame to write.</p></li>
+<li><p><strong>df</strong> (<em>pandas</em><em> or </em><em>polars DataFrame</em><em>, or </em><em>dict</em>) – the data frame to write, or a dict (e.g. the OrderedDict returned by read_r) with object names as keys
+and data frames as values, to write several data frames to the same file.</p></li>
 <li><p><strong>df_name</strong> (<em>str</em>) – name for the R dataframe object, cannot be empty string. If
-not supplied will default to “dataset”.</p></li>
+not supplied will default to “dataset”. Ignored if df is a dict.</p></li>
 <li><p><strong>dateformat</strong> (<em>str</em>) – string to format datetime.date objects.
 By default “%Y-%m-%d”.</p></li>
 <li><p><strong>datetimeformat</strong> (<em>str</em>) – string to format datetime like objects. By default “%Y-%m-%d %H:%M:%S”.</p></li>
 <li><p><strong>compress</strong> (<em>str</em><em>, </em><em>optional</em>) – compression to use, defaults to no compression. Only “gzip” supported.</p></li>
 <li><p><strong>compresslevel</strong> (<em>int</em><em>, </em><em>optional</em>) – compression level for gzip (1-9), default 9.</p></li>
+<li><p><strong>rownames_column</strong> (<em>str</em><em> or </em><em>dict</em><em>, </em><em>optional</em>) – name of a column to write as R row names instead of as a regular column. If not set, the index of a
+pandas data frame is written as row names, unless it is the default RangeIndex. Row names are converted
+to strings and cannot contain missing values or duplicates. If df is a dict, a str applies to the data
+frames that have that column, and a dict with object names as keys sets the column per data frame.</p></li>
 </ul>
 </dd>
 </dl>
@@ -169,7 +182,7 @@ By default “%Y-%m-%d”.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pyreadr.pyreadr.write_rds">
-<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">write_rds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dateformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datetimeformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compresslevel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">9</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rds" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyreadr.pyreadr.</span></span><span class="sig-name descname"><span class="pre">write_rds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dateformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datetimeformat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%Y-%m-%d</span> <span class="pre">%H:%M:%S'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compresslevel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rownames_column</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyreadr.pyreadr.write_rds" title="Link to this definition">¶</a></dt>
 <dd><p>Write a single pandas or polars data frame to a Rds file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -181,6 +194,9 @@ By default “%Y-%m-%d”.</p></li>
 <li><p><strong>datetimeformat</strong> (<em>str</em>) – string to format datetime like objects. By default “%Y-%m-%d %H:%M:%S”.</p></li>
 <li><p><strong>compress</strong> (<em>str</em><em>, </em><em>optional</em>) – compression to use, defaults to no compression. Only “gzip” supported.</p></li>
 <li><p><strong>compresslevel</strong> (<em>int</em><em>, </em><em>optional</em>) – compression level for gzip (1-9), default 9.</p></li>
+<li><p><strong>rownames_column</strong> (<em>str</em><em>, </em><em>optional</em>) – name of a column to write as R row names instead of as a regular column. If not set, the index of a
+pandas data frame is written as row names, unless it is the default RangeIndex. Row names are converted
+to strings and cannot contain missing values or duplicates.</p></li>
 </ul>
 </dd>
 </dl>
