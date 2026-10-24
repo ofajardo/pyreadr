@@ -451,7 +451,7 @@ you are looking at the same array (see for example [here](https://rstudio.github
 Only pandas or polars data frames can be written into R data frames (one per object; several
 objects in a RData file).
 
-Lists and S4 objects (such as those coming from Bioconductor are not supported. Please read the Known limitations section for more
+Lists and S4 objects (such as those coming from Bioconductor) are not supported, they are skipped. Please read the Known limitations section for more
 information.
 
 ### More on writing files
@@ -544,17 +544,17 @@ therefore the display of the timestamps in R and in python may differ.
 * Librdata reads arrays with a maximum of 3 dimensions. If more dimensions are present
 you will get an error. Please submit an issue if this is the case. 
 
-* **Lists are not read**.
-
-* **S4 Objects and probably other kind of objects, including those that depend on non base R packages (Bioconductor for example) cannot be read.**
- The error code in this case is as follows:
+* **Lists and S4 objects (for example from Bioconductor) are not read.** They are skipped: from a
+RData file with other objects, these other objects are read. If nothing in the file can be read,
+read_r returns an empty dictionary and gives a warning. Other kind of objects, including those
+that depend on non base R packages, may not be readable either. The error in this case is:
 
 ```python
 "pyreadr.custom_errors.LibrdataError: The file contains an unrecognized object"
 ```
 
-* Data frames with special values like arrays, matrices and other data frames
-are not supported.
+* Data frames with special values like arrays, matrices, lists and other data frames
+as columns are not supported.
 
 * librdata first de-compresses the file in memory and then extracts the
 data. That means you need more free RAM than the decompress file ocuppies
@@ -580,7 +580,7 @@ with attributes() or str().
 * Data frames with duplicate column names cannot be written (R allows them, but pyreadr does not
 support them).
 
-Solutions to some of these limitations have been proposed in the upstream librdata [issues](https://github.com/WizardMac/librdata/issues) (points 1-4 are addressed by issue 12, point 5 by issue 16 and point 7 by issue 17). However there is no guarantee that these changes will be made and there are no timelines either. If you think it would be nice if these issues are solved, please express your support in the librdata issues.
+Most of these limitations come from the underlying C library librdata. Solutions to some of them have been proposed in the upstream librdata [issues](https://github.com/WizardMac/librdata/issues), for example reading time zones and other attributes in [issue 12](https://github.com/WizardMac/librdata/issues/12). However there is no guarantee that these changes will be made and there are no timelines either. If you think it would be nice if these issues are solved, please express your support in the librdata issues.
 
 ## Contributing
 

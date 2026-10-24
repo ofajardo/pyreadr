@@ -4,7 +4,9 @@
 from collections import OrderedDict
 from collections.abc import Mapping
 import os
+import sys
 from urllib.request import urlopen
+import warnings
 
 import narwhals.stable.v2 as nw
 
@@ -87,6 +89,12 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas", encodi
     result = OrderedDict()
     for table_index, table in enumerate(parser.table_data):
         result[table.name] = table.convert_to_dataframe()
+    if not result:
+        if use_objects:
+            msg = "no readable objects with the names in use_objects were found in the file."
+        else:
+            msg = "the file has no readable objects (data frames, vectors, matrices or arrays)."
+        warnings.warn(msg + " Lists, S4 objects and other unsupported objects are skipped.")
     return result
 
 

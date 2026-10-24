@@ -705,6 +705,22 @@ class TestNarwhalified(unittest.TestCase):
             self.assertEqual(x[3], 4.0)
             self.assertListEqual(df['d'].isna().tolist(), [False, True, False, True])
 
+    def test_read_s4_skipped(self):
+        # librdata skips S4 objects, the other objects in the workspace are read
+        path = os.path.join(self.basic_data_folder, "s4_and_df.RData")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            res = pyreadr.read_r(path, output_format=self.backend)
+        self.assertListEqual(list(res.keys()), ['df'])
+        self.assertListEqual(list(res['df']['x']), [1, 2, 3])
+
+    def test_read_nothing_readable_warns(self):
+        # a file with only a list: nothing can be read, read_r warns and returns an empty dict
+        path = os.path.join(self.basic_data_folder, "list.rds")
+        with self.assertWarnsRegex(UserWarning, "no readable objects"):
+            res = pyreadr.read_r(path, output_format=self.backend)
+        self.assertEqual(len(res), 0)
+
     def test_na_colname(self):
         # names(df)[1] <- NA in R: the column name is missing
         path = os.path.join(self.basic_data_folder, "na_colname.rds")
