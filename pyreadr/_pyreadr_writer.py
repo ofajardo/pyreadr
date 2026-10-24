@@ -53,11 +53,14 @@ def is_nan(value):
 def is_object_column(nw_series):
     """
     True for untyped columns whose type has to be decided from the values. pandas object columns count even if
-    narwhals infers another type for them (e.g. String for a column with only missing values).
+    narwhals infers another type for them (e.g. String for a column with only missing values), unless they have
+    no rows: then there are no values to decide from and the type inferred by narwhals is kept (in pandas 2
+    dtype=str gives object, an empty string column has to stay character).
     """
     if nw_series.dtype == nw.Object:
         return True
-    return nw_series.implementation.is_pandas_like() and nw_series.to_native().dtype == object
+    return (nw_series.implementation.is_pandas_like() and nw_series.to_native().dtype == object
+            and len(nw_series) > 0)
 
 
 def get_factor_levels(nw_series):

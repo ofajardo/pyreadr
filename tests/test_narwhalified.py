@@ -1234,7 +1234,9 @@ class TestNarwhalified(unittest.TestCase):
                 'str': pd.Series([None, None], dtype="str"),
                 'string': pd.Series([None, None], dtype="string"),
             })
-            expected = {'none': pl.Boolean, 'nan': pl.Float64, 'str': pl.String, 'string': pl.String}
+            # in pandas 2 dtype="str" is object (untyped): logical. From pandas 3 it is a string dtype: character
+            expected = {'none': pl.Boolean, 'nan': pl.Float64, 'str': pl.String if is_pandas_3 else pl.Boolean,
+                        'string': pl.String}
         path = os.path.join(self.write_data_folder, "test_nw_all_missing.Rds")
         if os.path.isfile(path):
             os.remove(path)
