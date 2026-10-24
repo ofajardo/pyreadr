@@ -554,6 +554,27 @@ class PyReadRBasic(unittest.TestCase):
         self.assertFalse(df['f'].cat.ordered)
         self.assertTrue(df.equals(expected))
 
+    def test_factor_na_level(self):
+        # addNA(): NA is a level in R (levels a, b, NA). pandas categories cannot have a missing level, the NA
+        # level is dropped and its values become missing
+        path = os.path.join(self.basic_data_folder, "factor_na_level.rds")
+        df = pyreadr.read_r(path)[None]
+        levels = ['a', 'b']
+        expected = pd.DataFrame({'f': pd.Categorical(['a', np.nan, 'b', 'a'], categories=levels),
+                                 'x': [1.0, 2.0, 3.0, 4.0]})
+        self.assertListEqual(df['f'].cat.categories.tolist(), levels)
+        self.assertTrue(df.equals(expected))
+
+    def test_na_colname(self):
+        # names(df)[1] <- NA in R: the column name is missing
+        path = os.path.join(self.basic_data_folder, "na_colname.rds")
+        df = pyreadr.read_r(path)[None]
+        expected = pd.DataFrame({None: np.array([1, 2], dtype=np.int32), 'b': np.array([3, 4], dtype=np.int32)})
+        self.assertTrue(df.equals(expected))
+        # missing name: None in pandas 2, NaN in pandas 3 (str Index)
+        self.assertTrue(pd.isna(df.columns[0]))
+        self.assertEqual(df.columns[1], 'b')
+
     def test_write_factor(self):
         # levels c, b, a: not alphabetical and c is unused; both must be written as in the input
         levels = ['c', 'b', 'a']

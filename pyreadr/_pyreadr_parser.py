@@ -380,7 +380,8 @@ class Table:
         """
         R factors are represented as integer vectors (1-based codes), and their string equivalences (levels) are stored
         somewhere else. This method transforms the codes into a categorical type (pandas) or Enum (polars) with all
-        the levels in R order, including the ones not present in the data.
+        the levels in R order, including the ones not present in the data. A NA level (addNA in R) is dropped, as
+        pandas categories and polars Enum cannot have missing levels, and its values become missing.
         """
 
         if self.value_labels:
@@ -396,15 +397,22 @@ class Table:
             for colindx, labels in indx_labels:
                 colname = colnames[colindx]
                 levels = [labels[k] for k in sorted(labels)]
+                # 0-based position of the NA level, R allows at most one
+                na_pos = levels.index(None) if None in levels else None
+                if na_pos is not None:
+                    levels.pop(na_pos)
                 if self.output_format == "polars":
                     # NA codes are already null here
-                    self.df = self.df.with_columns(
-                        (pl.col(colname) - 1).cast(pl.UInt32).cast(pl.Enum(levels)).alias(colname)
-                    )
+                    codes = pl.col(colname) - 1
+                    if na_pos is not None:
+                        codes = pl.when(codes == na_pos).then(None).when(codes > na_pos).then(codes - 1).otherwise(codes)
+                    self.df = self.df.with_columns(codes.cast(pl.UInt32).cast(pl.Enum(levels)).alias(colname))
                 else:
                     # columns with NA codes are object with NaN at this point
                     codes = np.asarray(self.df[colname], dtype=np.float64)
                     codes = np.where(np.isnan(codes), 0, codes).astype(np.int64) - 1
+                    if na_pos is not None:
+                        codes = np.where(codes == na_pos, -1, np.where(codes > na_pos, codes - 1, codes))
                     self.df[colname] = pd.Categorical.from_codes(codes, categories=levels)
 
 

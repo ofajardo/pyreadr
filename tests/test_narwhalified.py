@@ -652,6 +652,38 @@ class TestNarwhalified(unittest.TestCase):
             self.assertFalse(df['f'].cat.ordered)
         self.assertFrameEqual(df, expected)
 
+    def test_factor_na_level(self):
+        # addNA(): NA is a level in R (levels a, b, NA). pandas categories and polars Enum cannot have a missing
+        # level, the NA level is dropped and its values become missing
+        path = os.path.join(self.basic_data_folder, "factor_na_level.rds")
+        df = pyreadr.read_r(path, output_format=self.backend)[None]
+        levels = ['a', 'b']
+        if self.backend == "polars":
+            expected = pl.DataFrame({
+                'f': pl.Series('f', ['a', None, 'b', 'a'], dtype=pl.Enum(levels)),
+                'x': [1.0, 2.0, 3.0, 4.0],
+            })
+        else:
+            expected = pd.DataFrame({
+                'f': pd.Categorical(['a', np.nan, 'b', 'a'], categories=levels),
+                'x': [1.0, 2.0, 3.0, 4.0],
+            })
+            self.assertListEqual(df['f'].cat.categories.tolist(), levels)
+        self.assertFrameEqual(df, expected)
+
+    def test_na_colname(self):
+        # names(df)[1] <- NA in R: the column name is missing
+        path = os.path.join(self.basic_data_folder, "na_colname.rds")
+        df = pyreadr.read_r(path, output_format=self.backend)[None]
+        if self.backend == "polars":
+            expected = pl.DataFrame({
+                '': pl.Series('', [1, 2], dtype=pl.Int32),
+                'b': pl.Series('b', [3, 4], dtype=pl.Int32),
+            })
+        else:
+            expected = pd.DataFrame({None: np.array([1, 2], dtype=np.int32), 'b': np.array([3, 4], dtype=np.int32)})
+        self.assertFrameEqual(df, expected)
+
     # ==========================================================================
     # Write tests
     # ==========================================================================

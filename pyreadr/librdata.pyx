@@ -290,8 +290,13 @@ cdef class Parser:
         data_type = DataType(type)
         self.handle_column(new_name, data_type, array, count)
 
-    cdef __handle_column_name(self, const char *name, int index): 
-        self.handle_column_name(name, index)
+    cdef __handle_column_name(self, const char *name, int index):
+        # librdata passes NULL for NA names, converting NULL to str would segfault
+        if name == NULL:
+            new_name = None
+        else:
+            new_name = name
+        self.handle_column_name(new_name, index)
 
     cdef __handle_dim(self, const char *name, rdata_type_t datatype, void *data, long count):
         cdef int *ints = <int*>data
@@ -318,7 +323,11 @@ cdef class Parser:
         self.handle_dim_name(new_name, index)
 
     cdef __handle_row_name(self, const char *name, int index):
-        self.handle_row_name(name, index)
+        if name == NULL:
+            new_name = None
+        else:
+            new_name = name
+        self.handle_row_name(new_name, index)
 
     cdef __handle_text_value(self, const char *value, int index):
         if value != NULL:
@@ -330,7 +339,12 @@ cdef class Parser:
                 self.handle_text_value(np.nan, index)
 
     cdef __handle_value_label(self, const char *value, int index):
-        self.handle_value_label(value, index)
+        # NULL is a NA factor level (addNA in R)
+        if value == NULL:
+            new_value = None
+        else:
+            new_value = value
+        self.handle_value_label(new_value, index)
 
 
 cdef ssize_t _handle_write(const void *data, size_t len, void *ctx) noexcept:
