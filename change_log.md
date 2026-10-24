@@ -1,4 +1,4 @@
-# 0.5.8 (github, pypi and conda: 2026.xx.xx)
+# 0.5.8 (github, pypi and conda: 2026.10.24)
 * fixing list_objects raising AttributeError for data frames with row names (#120)
 * adding numpy to install_requires in setup.py (#121)
 * raising minimum narwhals version to 2.26.0 for polars 2 compatibility
