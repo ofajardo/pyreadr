@@ -388,6 +388,16 @@ class TestNarwhalified(unittest.TestCase):
         res = pyreadr.list_objects(rdata_path)
         self.assertListEqual(self.rdata_objects_description, res)
 
+    def test_list_objects_path_types(self):
+        # same path types as read_r: str, bytes, Path and file-like objects
+        rdata_path = os.path.join(self.basic_data_folder, "two.RData")
+        with open(rdata_path, "rb") as fh:
+            content = fh.read()
+        for path in (rdata_path, os.fsencode(rdata_path), Path(rdata_path), io.BytesIO(content)):
+            self.assertListEqual(self.rdata_objects_description, pyreadr.list_objects(path), repr(path))
+        with self.assertRaises(pyreadr.PyreadrError):
+            pyreadr.list_objects(os.path.join(self.basic_data_folder, "nope.RData"))
+
     def test_list_objects_rownames(self):
         rdata_path = os.path.join(self.basic_data_folder, "two_rownames.RData")
         res = pyreadr.list_objects(rdata_path)

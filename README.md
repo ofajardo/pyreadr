@@ -54,7 +54,7 @@ dataframes, take a look at [pysummaries](https://github.com/Genentech/pysummarie
 
 ## Dependencies
 
-The package depends on narwhals and numpy, which get installed automatically. You will also need either pandas or polars
+pyreadr requires Python 3.9 or newer. The package depends on narwhals and numpy, which get installed automatically. You will also need either pandas or polars
 (or both) installed. When using `output_format="polars"` in `read_r`, you get polars DataFrames back. You can also
 pass polars DataFrames directly to `write_rdata`/`write_rds`.
 

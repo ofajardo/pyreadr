@@ -28,6 +28,9 @@
 * LibrdataError messages now include librdata's detailed error message when there is one (e.g. "The file contains an unrecognized object: Unhandled S-Expression: 30")
 * faster reading of numeric, integer and logical data into pandas (about 3x for typical data frames, about 9x for large numeric vectors): data is copied from librdata at once instead of value by value
 * added row_offset and row_limit to read_r to read only some rows, solves #74. Columns are still read completely by librdata (R stores data by column), but only the selected rows are kept: faster and much less memory
+* list_objects accepts the same paths as read_r: bytes, pathlib.Path and file-like objects (e.g. io.BytesIO), not only str
+* fixing building from source in a virtualenv created from a conda python: iconv was not linked (import failed with undefined symbol libiconv)
+* setup.py declares python_requires >= 3.9 (required by narwhals), so pip does not install pyreadr on older python versions
 * removing set_index(inplace=True) when reading row names, deprecated in pandas 3.1
 
 # 0.5.7 (github, pypi and conda: 2026.09.28)

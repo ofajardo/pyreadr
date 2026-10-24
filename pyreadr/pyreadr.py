@@ -15,6 +15,18 @@ from ._pyreadr_writer import PyreadrWriter, get_frames_to_write
 from .custom_errors import PyreadrError
 
 
+def _encode_path(path):
+    """
+    File path (str, bytes or Path) as bytes for the C layer, with ~ expanded.
+    """
+    try:
+        filename_bytes = os.fsencode(path)
+    except UnicodeError:
+        warnings.warn("file path could not be encoded with %s which is set as your system encoding, trying to encode it as utf-8. Please set your system encoding correctly." % sys.getfilesystemencoding())
+        filename_bytes = os.fsdecode(path).encode("utf-8", "surrogateescape")
+    return os.path.expanduser(filename_bytes)
+
+
 def _parse(parser, path):
     """
     Parse a file path (str, bytes or Path) or a file-like object with read() and seek() methods.
@@ -22,26 +34,7 @@ def _parse(parser, path):
     if hasattr(path, 'read') and hasattr(path, 'seek'):
         parser.parse(b"", file_object=path)
     else:
-        if hasattr(os, 'fsencode'):
-            try:
-                filename_bytes = os.fsencode(path)
-            except UnicodeError:
-                warnings.warn("file path could not be encoded with %s which is set as your system encoding, trying to encode it as utf-8. Please set your system encoding correctly." % sys.getfilesystemencoding())
-                filename_bytes = os.fsdecode(path).encode("utf-8", "surrogateescape")
-        else:
-            if sys.version_info[0]>2:
-                if type(path) == str:
-                    filename_bytes = path.encode('utf-8')
-                elif type(path) == bytes:
-                    filename_bytes = path
-                else:
-                    raise PyreadstatError("path must be either str or bytes")
-            else:
-                if type(path) not in (str, bytes, unicode):
-                    raise PyreadstatError("path must be str, bytes or unicode")
-                filename_bytes = path.encode('utf-8')
-
-        filename_bytes = os.path.expanduser(filename_bytes)
+        filename_bytes = _encode_path(path)
         if not os.path.isfile(filename_bytes):
             raise PyreadrError("File {0} does not exist!".format(filename_bytes))
         parser.parse(filename_bytes)
@@ -147,8 +140,8 @@ def list_objects(path, encoding=None):
 
     Parameters
     ----------
-        path : str
-            path to the file. The string is assumed to be utf-8 encoded.
+        path : str, bytes, Path, or file-like object
+            path to the file, or a file-like object with read() and seek() methods (e.g. io.BytesIO).
         encoding : str, optional
             encoding of strings that have no encoding mark in the file, for example "latin1" or "WINDOWS-1252".
             See read_r for details.
@@ -161,17 +154,11 @@ def list_objects(path, encoding=None):
     """
 
     parser = ListObjectsParser()
-    if not isinstance(path, str):
-        raise PyreadrError("path must be a string!")
     if encoding is not None and not isinstance(encoding, str):
         raise PyreadrError("encoding must be a string")
     if encoding:
         parser.set_encoding(encoding)
-    path = os.path.expanduser(path)
-    if not os.path.isfile(path):
-        raise PyreadrError("File {0} does not exist!".format(path))
- 
-    parser.parse(path)
+    _parse(parser, path)
     return parser.object_list
     
     
@@ -215,26 +202,7 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
     file_format = "rdata"
     writer = PyreadrWriter()
 
-    if hasattr(os, 'fsencode'):
-        try:
-            filename_bytes = os.fsencode(path)
-        except UnicodeError:
-            warnings.warn("file path could not be encoded with %s which is set as your system encoding, trying to encode it as utf-8. Please set your system encoding correctly." % sys.getfilesystemencoding())
-            filename_bytes = os.fsdecode(path).encode("utf-8", "surrogateescape")
-    else:
-        if sys.version_info[0]>2:
-            if type(path) == str:
-                filename_bytes = path.encode('utf-8')
-            elif type(path) == bytes:
-                filename_bytes = path
-            else:
-                raise PyreadstatError("path must be either str or bytes")
-        else:
-            if type(path) not in (str, bytes, unicode):
-                raise PyreadstatError("path must be str, bytes or unicode")
-            filename_bytes = path.encode('utf-8')
-
-    filename_bytes = os.path.expanduser(filename_bytes)
+    filename_bytes = _encode_path(path)
 
     writer.write_r(filename_bytes, file_format, frames, dateformat, datetimeformat, compress, compresslevel)
 
@@ -270,26 +238,7 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
 
     file_format = "rds"
 
-    if hasattr(os, 'fsencode'):
-        try:
-            filename_bytes = os.fsencode(path)
-        except UnicodeError:
-            warnings.warn("file path could not be encoded with %s which is set as your system encoding, trying to encode it as utf-8. Please set your system encoding correctly." % sys.getfilesystemencoding())
-            filename_bytes = os.fsdecode(path).encode("utf-8", "surrogateescape")
-    else:
-        if sys.version_info[0]>2:
-            if type(path) == str:
-                filename_bytes = path.encode('utf-8')
-            elif type(path) == bytes:
-                filename_bytes = path
-            else:
-                raise PyreadstatError("path must be either str or bytes")
-        else:
-            if type(path) not in (str, bytes, unicode):
-                raise PyreadstatError("path must be str, bytes or unicode")
-            filename_bytes = path.encode('utf-8')
-
-    filename_bytes = os.path.expanduser(filename_bytes)
+    filename_bytes = _encode_path(path)
 
     writer = PyreadrWriter()
     writer.write_r(filename_bytes, file_format, frames, dateformat, datetimeformat, compress, compresslevel)
