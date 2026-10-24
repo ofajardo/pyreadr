@@ -575,6 +575,55 @@ class PyReadRBasic(unittest.TestCase):
         self.assertTrue(pd.isna(df.columns[0]))
         self.assertEqual(df.columns[1], 'b')
 
+    def test_write_rdata_multiple(self):
+        a = pd.DataFrame({'x': [1.5, 2.5]})
+        b = pd.DataFrame({'id': ['r1', 'r2', 'r3'], 's': ['p', None, 'q']})
+        path = os.path.join(self.write_data_folder, "test_multiple.RData")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rdata(path, {'a': a, 'b': b}, rownames_column={'b': 'id'})
+        res = pyreadr.read_r(path)
+        self.assertListEqual(list(res.keys()), ['a', 'b'])
+        self.assertListEqual(res['a']['x'].tolist(), [1.5, 2.5])
+        self.assertListEqual(list(res['b'].index), ['r1', 'r2', 'r3'])
+        self.assertListEqual(list(res['b'].columns), ['s'])
+
+    def test_write_object_nan_roundtrip(self):
+        # R integer and logical columns with NA are read as object with NaN; written back they must keep their
+        # type with NaN as NA (they were written as character "1", "nan", "True")
+        df1 = pyreadr.read_r(os.path.join(self.basic_data_folder, "two.RData"), use_objects=["df1"])["df1"]
+        path = os.path.join(self.write_data_folder, "test_object_nan.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, df1[['int', 'log']])
+        res = pyreadr.read_r(path)[None]
+        values = {c: [None if pd.isna(x) else x for x in res[c].tolist()] for c in res.columns}
+        self.assertDictEqual(values, {'int': [1, 2, 3, None, None, None],
+                                      'log': [True, True, False, True, False, None]})
+        self.assertTrue(all(type(x) == int for x in values['int'][:3]))
+        self.assertTrue(all(type(x) == bool for x in values['log'][:5]))
+
+    def test_write_na_nan(self):
+        # numpy float NaN stays NaN; pandas missing type pd.NA and None in object columns become R's NA
+        df = pd.DataFrame({
+            'f': pd.Series([1.0, np.nan, 3.0], dtype=np.float64),
+            'nf': pd.Series([1.0, None, 3.0], dtype="Float64"),
+            'o': pd.Series([1.0, None, np.nan], dtype=object),
+        })
+        path = os.path.join(self.write_data_folder, "test_na_nan.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, df)
+        res = pyreadr.read_r(path)[None]
+        # R's NA is a NaN with 1954 in the low word
+        kinds = {}
+        for col in res.columns:
+            arr = np.asarray(res[col], dtype=np.float64)
+            low = arr.view(np.uint64) & 0xFFFFFFFF
+            kinds[col] = ['value' if a == a else ('NA' if lw == 1954 else 'NaN') for a, lw in zip(arr, low)]
+        self.assertDictEqual(kinds, {'f': ['value', 'NaN', 'value'], 'nf': ['value', 'NA', 'value'],
+                                     'o': ['value', 'NA', 'NaN']})
+
     def test_write_factor(self):
         # levels c, b, a: not alphabetical and c is unused; both must be written as in the input
         levels = ['c', 'b', 'a']

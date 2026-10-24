@@ -188,9 +188,9 @@ You can also check the [Module documentation](https://ofajardo.github.io/pyreadr
 
 ### Basic Usage: writing files
 
-Pyreadr allows you to write a single pandas or polars data frame into a single R dataframe
-and store it into a RData or Rds file. Other python or R object types 
-are not supported. Writing more than one object is not supported.
+Pyreadr allows you to write pandas or polars data frames into R dataframes
+and store them into a RData (one or more data frames) or Rds (one data frame) file.
+Other python or R object types are not supported.
 
 
 ```python
@@ -220,6 +220,17 @@ import polars as pl
 df = pl.DataFrame({"A": ["a", "b"], "B": [1, 2]})
 pyreadr.write_rdata("test.RData", df, df_name="dataset")
 pyreadr.write_rds("test.Rds", df)
+```
+
+To write several data frames into one RData file, pass a dict with the object names as keys.
+The OrderedDict returned by read_r works as well, pandas and polars data frames can be mixed:
+
+```python
+pyreadr.write_rdata("test.RData", {"df1": df1, "df2": df2})
+
+# copy some objects from one file to another
+result = pyreadr.read_r("input.RData", use_objects=["df1", "df2"])
+pyreadr.write_rdata("output.RData", result)
 ```
 
 Now you can check the result in R:
@@ -264,7 +275,7 @@ When using `output_format="polars"`, the output differs from pandas in several w
 
 | Aspect | pandas | polars |
 | ------ | ------ | ------ |
-| **Missing numeric values** | `NaN` (float) | `null` |
+| **Missing numeric values** | `NaN` (float) | `null` (R's `NaN` stays `NaN`) |
 | **Missing integer values** | `object` dtype with `NaN` | `Int32` with `null` |
 | **Missing logical values** | `object` dtype with `NaN` | `Boolean` with `null` |
 | **Row names** | Set as DataFrame index | Added as a `rownames` string column |
@@ -273,8 +284,9 @@ When using `output_format="polars"`, the output differs from pandas in several w
 
 **Missing values:** R's `NA` maps to `NaN` in pandas and `null` in polars. This means
 you use `pd.isna()` to check for missing values in pandas, and `.is_null()` in polars.
-R's `NaN` in numeric data is also mapped to `null` in polars, since the distinction
-between `NA` and `NaN` is not preserved by the underlying C library.
+R's `NaN` in numeric data stays `NaN` in polars, so `NA` and `NaN` can be told apart
+(`.is_null()` vs `.is_nan()`); in pandas both are `NaN`. In date and datetime columns
+both are `null` in polars.
 
 **Row names:** R data frames can have row names. In pandas these become the DataFrame
 index. Since polars does not have an index, row names are added as a regular column
@@ -436,7 +448,8 @@ the only time that an object different from a data frame is returned by read_r.
 For 3D arrays, consider that python prints these in a different way as R does, but still
 you are looking at the same array (see for example [here](https://rstudio.github.io/reticulate/articles/arrays.html#displaying-arrays) for an explanation.)
 
-Only single pandas or polars data frames can be written into R data frames.
+Only pandas or polars data frames can be written into R data frames (one per object; several
+objects in a RData file).
 
 Lists and S4 objects (such as those coming from Bioconductor are not supported. Please read the Known limitations section for more
 information.
@@ -490,7 +503,9 @@ promoted to numeric in order to fit.
 * A column containing only missing values is transformed to logical,
 following R's behavior.
 
-* librdata writes Numeric missing values as NaN instead of NA.
+* Numeric missing values: polars null, pandas pd.NA (nullable types such as Float64 or Int64)
+and None in object columns are written as R's NA. NaN is written as R's NaN, this includes the
+np.nan of pandas float columns.
 
 * Row names: the index of a pandas data frame is written as R row names, unless it is the
 default RangeIndex (0, 1, 2 ...), in which case R gets its default row names (1, 2, 3 ...).
@@ -509,6 +524,13 @@ df = pd.DataFrame({"id": ["a", "b", "c"], "x": [1.0, 2.0, 3.0]})
 pyreadr.write_rds("test.rds", df.set_index("id"))
 # same, using a column (works for polars too)
 pyreadr.write_rds("test.rds", df, rownames_column="id")
+```
+
+When writing several data frames, rownames_column can be a string, applied to the data frames
+that have that column, or a dict with the object names as keys to set it per data frame:
+
+```python
+pyreadr.write_rdata("test.RData", {"df1": df1, "df2": df2}, rownames_column={"df2": "id"})
 ```
 
 ## Known limitations
@@ -538,12 +560,8 @@ in memory. RData and Rds files are highly compressed: they can occupy
 in memory easily 40 or even more times in memory as in disk. Take it into
 account in case you get a "Unable to allocate memory" error (see [this](https://github.com/ofajardo/pyreadr/issues/3) )
 
-* When writing numeric missing values are translated
-to NaN instead of NA.
-
-* Writing is supported only for a single pandas or polars data frame to a single
-R data frame. Other data types are not supported. Multiple data frames
-for rdata files are not supported.
+* Writing is supported only for pandas or polars data frames to R data frames. Other data
+types are not supported. Rds files hold a single data frame.
 
 * RData and Rds files produced by R are (by default) compressed. Files produced
 by pyreadr are not compressed by default and therefore pretty bulky in comparison. You

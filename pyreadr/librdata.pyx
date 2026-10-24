@@ -6,6 +6,7 @@ import numpy as np
 import os.path
 from cython.operator cimport dereference as deref
 from libc.string cimport strlen, memcpy
+from libc.stdint cimport uint64_t
 
 from .custom_errors import PyreadrError, LibrdataError
 
@@ -38,6 +39,17 @@ cdef int _os_open(path, mode) noexcept:
             flags = O_WRONLY | O_CREAT | O_TRUNC
         #return open(path.encode('utf-8'), flags, 0644)
         return open(path, flags, 0644)
+
+
+cdef inline bint _is_r_na_real(double value) noexcept:
+    """
+    R's NA for doubles (NA_real_) is a NaN with 1954 in the low word, any other NaN is a NaN in R.
+    """
+    cdef uint64_t bits
+    if value == value:
+        return False
+    memcpy(&bits, &value, sizeof(double))
+    return (bits & 0xFFFFFFFF) == 1954
 
 
 cdef int _os_close(int fd) noexcept:
@@ -268,7 +280,12 @@ cdef class Parser:
 
         if type in [rdata_type_t.RDATA_TYPE_REAL, rdata_type_t.RDATA_TYPE_TIMESTAMP, rdata_type_t.RDATA_TYPE_DATE]:
             if self.output_format == "polars":
-                array = [None if doubles[i] != doubles[i] else doubles[i] for i in range(count)]
+                if type == rdata_type_t.RDATA_TYPE_REAL:
+                    # NA is null, NaN stays NaN
+                    array = [None if _is_r_na_real(doubles[i]) else doubles[i] for i in range(count)]
+                else:
+                    # dates and timestamps cannot be NaN
+                    array = [None if doubles[i] != doubles[i] else doubles[i] for i in range(count)]
             else:
                 array = np.empty([count], dtype=np.float64)
                 for i in range(count):
@@ -367,42 +384,58 @@ cdef class Column:
 
 
 cdef class Writer:
+    """
+    Writes one or more tables (data frames) to a file: open, then for each table new_table, add_column for all
+    its columns, insert_value for all values (column by column) and end_table; finally close. A Rds file holds
+    one table.
+    """
 
-    cdef object _format
-    cdef object _row_count
     cdef rdata_writer_t *_writer
     cdef int _fd
-    cdef int _current_column_no
-    cdef rdata_column_t* _current_column
+    cdef bint _file_started
+    # current table
+    cdef bint _table_started
+    cdef object _row_count
     cdef bytes _table_name
     cdef object _row_names
     cdef int _column_count
-    cdef bint _started
+    # librdata numbers the columns of all tables consecutively, index of the first column of the current table
+    cdef int _table_first_column
+    cdef int _current_column_no
+    cdef rdata_column_t* _current_column
 
     def __init__(self):
-        self._format = None
-        self._row_count = 0
         self._writer = NULL
         self._fd = 0
-        self._current_column_no = -1
-        self._current_column = NULL
+        self._file_started = False
+        self._table_first_column = 0
+        self._reset_table()
+
+    cdef _reset_table(self):
+        self._table_started = False
+        self._row_count = 0
         self._table_name = b""
         self._row_names = None
         self._column_count = 0
-        self._started = False
+        self._current_column_no = -1
+        self._current_column = NULL
 
-    cdef _begin(self):
+    cdef _begin_table(self):
         """
-        begins the file and the table. Has to happen before anything is written, as librdata's write callback
-        receives the file descriptor here.
+        begins the file (first table only) and the current table. The file has to begin before anything is
+        written, as librdata's write callback receives the file descriptor there; the table only after all its
+        columns were added, as their number is written at the beginning.
         """
-        cdef rdata_error_t status
-        status = rdata_begin_file(self._writer, &self._fd)
-        if status == RDATA_OK:
-            status = rdata_begin_table(self._writer, self._table_name)
+        cdef rdata_error_t status = RDATA_OK
+        if not self._file_started:
+            status = rdata_begin_file(self._writer, &self._fd)
+            if status != RDATA_OK:
+                raise LibrdataError(rdata_error_message(status))
+            self._file_started = True
+        status = rdata_begin_table(self._writer, self._table_name)
         if status != RDATA_OK:
             raise LibrdataError(rdata_error_message(status))
-        self._started = True
+        self._table_started = True
 
     def open(self, path, format):
         cdef rdata_file_format_t fmt;
@@ -417,65 +450,82 @@ cdef class Writer:
         self._writer = rdata_writer_init(_handle_write, fmt)
         self._fd = _os_open(path, 'w')
 
-    def set_row_count(self, row_count):
-        self._row_count = row_count
-        
-    def set_table_name(self, name):
+    def new_table(self, name, row_count, row_names=None):
+        """
+        starts collecting a new table. name: str, row_count: int, row_names: list of str, one per row, or None
+        """
+        self._reset_table()
         self._table_name = name.encode("utf-8")
-
-    def set_row_names(self, row_names):
-        """
-        row_names: list of str, one per row
-        """
+        self._row_count = row_count
         self._row_names = row_names
 
-    def close(self):
+    def end_table(self):
         cdef rdata_error_t status = RDATA_OK
         cdef rdata_column_t* column
 
+        if not self._table_started:
+            self._begin_table()
+        if self._current_column_no != -1:
+            status = rdata_end_column(self._writer, self._current_column)
+        else:
+            # no values were inserted (zero rows): the columns still have to be written
+            for col_no in range(self._column_count):
+                column = rdata_get_column(self._writer, self._table_first_column + col_no)
+                status = rdata_begin_column(self._writer, column, self._row_count)
+                if status == RDATA_OK:
+                    status = rdata_end_column(self._writer, column)
+                if status != RDATA_OK:
+                    break
+        if status == RDATA_OK and self._row_names is not None:
+            for name in self._row_names:
+                status = rdata_append_row_name(self._writer, name.encode('utf-8'))
+                if status != RDATA_OK:
+                    break
+        if status == RDATA_OK:
+            status = rdata_end_table(self._writer, self._row_count, self._table_name)
+        if status != RDATA_OK:
+            raise LibrdataError(rdata_error_message(status))
+        self._table_first_column += self._column_count
+        self._reset_table()
+
+    def close(self, complete=True):
+        """
+        ends the file and closes it. complete=False only closes the file, after an error.
+        """
+        cdef rdata_error_t status = RDATA_OK
+
         if self._writer != NULL:
             try:
-                if not self._started:
-                    self._begin()
-                if self._current_column_no != -1:
-                    status = rdata_end_column(self._writer, self._current_column)
-                else:
-                    # no values were inserted (zero rows): the columns still have to be written
-                    for col_no in range(self._column_count):
-                        column = rdata_get_column(self._writer, col_no)
-                        status = rdata_begin_column(self._writer, column, self._row_count)
-                        if status == RDATA_OK:
-                            status = rdata_end_column(self._writer, column)
-                        if status != RDATA_OK:
-                            break
-                if status == RDATA_OK and self._row_names is not None:
-                    for name in self._row_names:
-                        status = rdata_append_row_name(self._writer, name.encode('utf-8'))
-                        if status != RDATA_OK:
-                            break
-                if status == RDATA_OK:
-                    status = rdata_end_table(self._writer, self._row_count, self._table_name)
-                if status == RDATA_OK:
-                    status = rdata_end_file(self._writer)
+                if complete:
+                    if not self._file_started:
+                        status = rdata_begin_file(self._writer, &self._fd)
+                    if status == RDATA_OK:
+                        status = rdata_end_file(self._writer)
             finally:
                 _os_close(self._fd)
+                rdata_writer_free(self._writer)
+                self._writer = NULL
             if status != RDATA_OK:
                 raise LibrdataError(rdata_error_message(status))
 
     def insert_value(self, row_no, col_no, value, dtype):
-        cdef rdata_error_t status;
+        """
+        col_no: index of the column in the current table
+        """
+        cdef rdata_error_t status = RDATA_OK
 
-        if not self._started:
-            self._begin()
+        if not self._table_started:
+            self._begin_table()
 
         if col_no != self._current_column_no:
             if self._current_column_no != -1:
-                rdata_end_column(self._writer, self._current_column)
-            self._current_column = rdata_get_column(self._writer, col_no)
-            rdata_begin_column(self._writer, self._current_column, self._row_count)
+                status = rdata_end_column(self._writer, self._current_column)
+            if status == RDATA_OK:
+                self._current_column = rdata_get_column(self._writer, self._table_first_column + col_no)
+                status = rdata_begin_column(self._writer, self._current_column, self._row_count)
+            if status != RDATA_OK:
+                raise LibrdataError(rdata_error_message(status))
             self._current_column_no = col_no
-
-        status = RDATA_OK
         
         if dtype == "NUMERIC":
             status = rdata_append_real_value(self._writer, value)

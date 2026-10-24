@@ -406,7 +406,9 @@ class Table:
                     codes = pl.col(colname) - 1
                     if na_pos is not None:
                         codes = pl.when(codes == na_pos).then(None).when(codes > na_pos).then(codes - 1).otherwise(codes)
-                    self.df = self.df.with_columns(codes.cast(pl.UInt32).cast(pl.Enum(levels)).alias(colname))
+                    # look the codes up in the levels (casting integers to Enum is not allowed from polars 2)
+                    enum_levels = pl.lit(pl.Series(levels, dtype=pl.Enum(levels)))
+                    self.df = self.df.with_columns(enum_levels.gather(codes).alias(colname))
                 else:
                     # columns with NA codes are object with NaN at this point
                     codes = np.asarray(self.df[colname], dtype=np.float64)

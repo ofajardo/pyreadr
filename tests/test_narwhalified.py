@@ -8,9 +8,11 @@ Usage: python tests/test_narwhalified.py --inplace --backend=pandas
 import unittest
 import os
 import datetime
+import math
 import warnings
 import shutil
 import urllib
+from collections import OrderedDict
 from string import ascii_uppercase
 
 import numpy as np
@@ -88,6 +90,10 @@ class TestNarwhalified(unittest.TestCase):
                   .otherwise(pl.col('num').cast(pl.Float64, strict=False))
                   .alias('num')
             )
+            # R's df1$num is c(1, 2, 3, Inf, NA, NaN): write.csv writes NaN as NA, polars keeps NaN apart from null
+            df1_native = df1_native.with_columns(
+                pl.when(pl.int_range(pl.len()) == 5).then(float('nan')).otherwise(pl.col('num')).alias('num')
+            )
             df1 = nw.from_native(df1_native)
             df1 = df1.with_columns(nw.col('int').cast(nw.Int32), nw.col('fac').cast(nw.Enum(fac_levels)))
 
@@ -111,6 +117,10 @@ class TestNarwhalified(unittest.TestCase):
                 pl.when(pl.col('num') == 'Inf').then(float('inf'))
                   .otherwise(pl.col('num').cast(pl.Float64, strict=False))
                   .alias('num')
+            )
+            # NaN in the last row, see df1
+            df1t_native = df1t_native.with_columns(
+                pl.when(pl.int_range(pl.len()) == 5).then(float('nan')).otherwise(pl.col('num')).alias('num')
             )
             df1_tstamp = nw.from_native(df1t_native)
             df1_tstamp = df1_tstamp.with_columns(nw.col('int').cast(nw.Int32), nw.col('fac').cast(nw.Enum(fac_levels)))
@@ -671,6 +681,30 @@ class TestNarwhalified(unittest.TestCase):
             self.assertListEqual(df['f'].cat.categories.tolist(), levels)
         self.assertFrameEqual(df, expected)
 
+    def test_read_na_nan(self):
+        # R: x = c(1.5, NA, NaN, 4), d = as.Date(c("2020-01-01", NA, "2020-01-03", NA))
+        path = os.path.join(self.basic_data_folder, "na_nan.rds")
+        df = pyreadr.read_r(path, output_format=self.backend)[None]
+        if self.backend == "polars":
+            # NA is null, NaN stays NaN
+            x = df['x'].to_list()
+            self.assertEqual(x[0], 1.5)
+            self.assertIsNone(x[1])
+            self.assertTrue(math.isnan(x[2]))
+            self.assertEqual(x[3], 4.0)
+            self.assertListEqual(df['x'].is_null().to_list(), [False, True, False, False])
+            self.assertListEqual(df['x'].is_nan().to_list(), [False, None, True, False])
+            self.assertListEqual(df['d'].to_list(),
+                                 [datetime.date(2020, 1, 1), None, datetime.date(2020, 1, 3), None])
+        else:
+            # pandas has only NaN for both
+            x = df['x'].tolist()
+            self.assertEqual(x[0], 1.5)
+            self.assertTrue(math.isnan(x[1]))
+            self.assertTrue(math.isnan(x[2]))
+            self.assertEqual(x[3], 4.0)
+            self.assertListEqual(df['d'].isna().tolist(), [False, True, False, True])
+
     def test_na_colname(self):
         # names(df)[1] <- NA in R: the column name is missing
         path = os.path.join(self.basic_data_folder, "na_colname.rds")
@@ -874,6 +908,197 @@ class TestNarwhalified(unittest.TestCase):
         path = os.path.join(self.write_data_folder, "test_nw_rownames_multiindex.Rds")
         with self.assertRaises(pyreadr.PyreadrError):
             pyreadr.write_rds(path, df)
+
+    # ==========================================================================
+    # Write tests — multiple data frames in one RData file
+    # ==========================================================================
+
+    def _multiple_frames(self):
+        """two data frames with different columns and number of rows, frame b has a column id for row names"""
+        if self.backend == "polars":
+            a = pl.DataFrame({'x': [1.5, 2.5], 'g': pl.Series('g', ['u', 'v'], dtype=pl.Enum(['v', 'u']))})
+            b = pl.DataFrame({'id': ['r1', 'r2', 'r3'], 's': ['p', None, 'q']})
+        else:
+            a = pd.DataFrame({'x': [1.5, 2.5], 'g': pd.Categorical(['u', 'v'], categories=['v', 'u'])})
+            b = pd.DataFrame({'id': ['r1', 'r2', 'r3'], 's': ['p', None, 'q']})
+        return a, b
+
+    def _rownames_values(self, df):
+        """returns (row names, dict column -> values with None for missing) of a data frame read by pyreadr"""
+        if self.backend == "polars":
+            rownames = df['rownames'].to_list()
+            values = {c: df[c].to_list() for c in df.columns if c != 'rownames'}
+        else:
+            rownames = list(df.index)
+            values = {c: [None if pd.isna(x) else x for x in df[c].tolist()] for c in df.columns}
+        return rownames, values
+
+    def _write_read_multiple(self, frames, name, **kwargs):
+        path = os.path.join(self.write_data_folder, name + ".RData")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rdata(path, frames, **kwargs)
+        return pyreadr.read_r(path, output_format=self.backend)
+
+    def test_write_rdata_multiple(self):
+        a, b = self._multiple_frames()
+        res = self._write_read_multiple({'a': a, 'b': b}, "test_nw_multiple")
+        self.assertListEqual(list(res.keys()), ['a', 'b'])
+        self.assertTupleEqual(self._rownames_values(res['a']), (['1', '2'], {'x': [1.5, 2.5], 'g': ['u', 'v']}))
+        self.assertTupleEqual(self._rownames_values(res['b']),
+                              (['1', '2', '3'], {'id': ['r1', 'r2', 'r3'], 's': ['p', None, 'q']}))
+        # factor levels of the first frame are kept
+        if self.backend == "polars":
+            self.assertEqual(res['a']['g'].dtype, pl.Enum(['v', 'u']))
+        else:
+            self.assertListEqual(res['a']['g'].cat.categories.tolist(), ['v', 'u'])
+
+    def test_write_rdata_multiple_ordereddict(self):
+        # the output of read_r can be written back
+        a, b = self._multiple_frames()
+        res = self._write_read_multiple(OrderedDict([('b', b), ('a', a)]), "test_nw_multiple_od")
+        self.assertListEqual(list(res.keys()), ['b', 'a'])
+
+    def test_write_rdata_multiple_rownames_str(self):
+        # a str applies to the frames that have that column, the others get default row names
+        a, b = self._multiple_frames()
+        res = self._write_read_multiple({'a': a, 'b': b}, "test_nw_multiple_rn_str", rownames_column='id')
+        self.assertTupleEqual(self._rownames_values(res['a']), (['1', '2'], {'x': [1.5, 2.5], 'g': ['u', 'v']}))
+        self.assertTupleEqual(self._rownames_values(res['b']), (['r1', 'r2', 'r3'], {'s': ['p', None, 'q']}))
+
+    def test_write_rdata_multiple_rownames_dict(self):
+        a, b = self._multiple_frames()
+        res = self._write_read_multiple({'a': a, 'b': b}, "test_nw_multiple_rn_dict", rownames_column={'b': 'id'})
+        self.assertTupleEqual(self._rownames_values(res['a']), (['1', '2'], {'x': [1.5, 2.5], 'g': ['u', 'v']}))
+        self.assertTupleEqual(self._rownames_values(res['b']), (['r1', 'r2', 'r3'], {'s': ['p', None, 'q']}))
+        # row names are validated per frame: s has a missing value
+        with self.assertRaises(pyreadr.PyreadrError):
+            self._write_read_multiple({'a': a, 'b': b}, "test_nw_multiple_rn_dict_err", rownames_column={'b': 's'})
+
+    def test_write_rdata_multiple_errors(self):
+        a, b = self._multiple_frames()
+        path = os.path.join(self.write_data_folder, "test_nw_multiple_err.RData")
+        cases = [
+            ({}, {}),                                           # no data frames
+            ({'': a}, {}),                                      # empty name
+            ({1: a}, {}),                                       # name not a str
+            ({'a': a, 'b': [1, 2]}, {}),                        # not a data frame
+            ({'a': a, 'b': b}, {'rownames_column': 'nope'}),    # column in none of the frames
+            ({'a': a, 'b': b}, {'rownames_column': {'c': 'id'}}),  # frame not in the dict
+            (a, {'rownames_column': {'dataset': 'x'}}),         # dict rownames_column needs a dict of frames
+        ]
+        for frames, kwargs in cases:
+            with self.assertRaises(pyreadr.PyreadrError, msg=repr((frames if isinstance(frames, dict) else 'df', kwargs))):
+                pyreadr.write_rdata(path, frames, **kwargs)
+
+    def test_write_rds_multiple_error(self):
+        # a Rds file holds one object
+        a, b = self._multiple_frames()
+        path = os.path.join(self.write_data_folder, "test_nw_multiple_err.Rds")
+        with self.assertRaises(pyreadr.PyreadrError):
+            pyreadr.write_rds(path, {'a': a, 'b': b})
+
+    # ==========================================================================
+    # Write tests — NA vs NaN in numeric columns
+    # ==========================================================================
+
+    def _write_read_na_kinds(self, df, name):
+        """
+        writes df as Rds and RData, reads both back and returns a list of dicts column -> list of 'value', 'NA' or
+        'NaN' for each row. R's NA is a NaN with 1954 in the low word; pandas output keeps the raw doubles.
+        """
+        out = []
+        for ext, writer, key in ((".Rds", pyreadr.write_rds, None), (".RData", pyreadr.write_rdata, "dataset")):
+            path = os.path.join(self.write_data_folder, name + ext)
+            if os.path.isfile(path):
+                os.remove(path)
+            writer(path, df)
+            res = pyreadr.read_r(path, output_format="pandas")[key]
+            kinds = {}
+            for col in res.columns:
+                arr = np.asarray(res[col], dtype=np.float64)
+                low = arr.view(np.uint64) & 0xFFFFFFFF
+                kinds[col] = ['value' if a == a else ('NA' if lw == 1954 else 'NaN') for a, lw in zip(arr, low)]
+            out.append(kinds)
+        return out
+
+    def test_write_na_nan(self):
+        if self.backend == "polars":
+            # null is missing (NA), NaN is NaN
+            df = pl.DataFrame({
+                'f': pl.Series('f', [1.0, None, float('nan')], dtype=pl.Float64),
+                'i': pl.Series('i', [1, None, 3], dtype=pl.Int64),
+            })
+            expected = {'f': ['value', 'NA', 'NaN'], 'i': ['value', 'NA', 'value']}
+        else:
+            df = pd.DataFrame({
+                # numpy float: NaN stays NaN
+                'f': pd.Series([1.0, np.nan, None], dtype=np.float64),
+                # pandas missing type pd.NA is NA
+                'nf': pd.Series([1.0, None, 3.0], dtype="Float64"),
+                'ni': pd.Series([1, None, 3], dtype="Int64"),
+                # object: None is missing (NA), NaN is NaN
+                'o': pd.Series([1.0, None, np.nan], dtype=object),
+            })
+            expected = {'f': ['value', 'NaN', 'NaN'], 'nf': ['value', 'NA', 'value'], 'ni': ['value', 'NA', 'value'],
+                        'o': ['value', 'NA', 'NaN']}
+        for kinds in self._write_read_na_kinds(df, "test_nw_na_nan"):
+            self.assertDictEqual(kinds, expected)
+
+    def test_write_na_nan_object_pd_na(self):
+        if self.backend != "pandas":
+            self.skipTest("pandas only")
+        df = pd.DataFrame({'o': pd.Series([1.0, pd.NA, np.nan], dtype=object)})
+        for kinds in self._write_read_na_kinds(df, "test_nw_na_nan_pdna"):
+            self.assertDictEqual(kinds, {'o': ['value', 'NA', 'NaN']})
+
+    def test_write_object_nan(self):
+        if self.backend != "pandas":
+            self.skipTest("pandas only")
+        # in object columns np.nan is missing (NA) unless the other values are floats
+        df = pd.DataFrame({
+            'i': pd.Series([1, np.nan, 3], dtype=object),
+            'b': pd.Series([True, np.nan, False], dtype=object),
+            's': pd.Series(['x', np.nan, 'z'], dtype=object),
+            'd': pd.Series([datetime.date(2020, 1, 2), np.nan, datetime.date(2020, 1, 3)], dtype=object),
+            'm': pd.Series([1, 'a', np.nan], dtype=object),   # mixed: character
+            'f': pd.Series([1.5, np.nan, 2.5], dtype=object),  # floats: NaN stays NaN
+            'n': pd.Series([np.nan, np.nan, np.nan], dtype=object),
+        })
+        path = os.path.join(self.write_data_folder, "test_nw_object_nan.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, df)
+        res = pyreadr.read_r(path)[None]
+        values = {c: [None if pd.isna(x) else x for x in res[c].tolist()] for c in res.columns}
+        self.assertDictEqual(values, {'i': [1, None, 3], 'b': [True, None, False], 's': ['x', None, 'z'],
+                                      'd': ['2020-01-02', None, '2020-01-03'], 'm': ['1', 'a', None],
+                                      'f': [1.5, None, 2.5], 'n': [None, None, None]})
+        self.assertEqual(type(values['i'][0]), int)
+        self.assertEqual(type(values['b'][0]), bool)
+        kinds = self._write_read_na_kinds(df[['f', 'n']], "test_nw_object_nan_kinds")
+        for k in kinds:
+            self.assertDictEqual(k, {'f': ['value', 'NaN', 'value'], 'n': ['NaN', 'NaN', 'NaN']})
+
+    def test_write_pd_na(self):
+        if self.backend != "pandas":
+            self.skipTest("pandas only")
+        # pd.NA is missing for every type
+        df = pd.DataFrame({
+            'nf': pd.Series([1.5, None], dtype="Float64"),
+            'ni': pd.Series([1, None], dtype="Int64"),
+            'ns': pd.Series(['a', None], dtype="string"),
+            'os': pd.Series(['a', pd.NA], dtype=object),
+            'od': pd.Series([datetime.date(2020, 1, 2), pd.NA], dtype=object),
+        })
+        path = os.path.join(self.write_data_folder, "test_nw_pd_na.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, df)
+        res = pyreadr.read_r(path)[None]
+        values = {col: [None if pd.isna(x) else x for x in res[col].tolist()] for col in res.columns}
+        self.assertDictEqual(values, {'nf': [1.5, None], 'ni': [1.0, None], 'ns': ['a', None], 'os': ['a', None],
+                                      'od': ['2020-01-02', None]})
 
     # ==========================================================================
     # Write tests — factors

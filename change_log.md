@@ -12,6 +12,12 @@
 * fixing reading factors: all R levels are now kept, in R order, including levels not present in the data (they were dropped and the categories were sorted alphabetically or by appearance). Breaking change for polars: factors are now read as pl.Enum with the R levels instead of pl.Categorical
 * added writing factors: pandas categories and polars Categorical/Enum with string categories are now written as R factors (they were written as character vectors). Levels are the categories in their order (pandas, polars Enum) or the sorted values present in the data (polars Categorical)
 * fixing segmentation fault reading factors with a NA level (addNA in R) and data frames with a NA column name. The NA level is dropped (pandas categories and polars Enum cannot have missing levels) and its values become missing
+* numeric missing values (polars null, pandas pd.NA and None in object columns) are now written as R's NA instead of NaN. NaN (including pandas np.nan in float columns) is still written as NaN
+* reading with polars: R's NaN in numeric columns is now read as NaN instead of null, only R's NA is null
+* fixing writing pandas pd.NA: nullable Float64, Int64 and string columns with missing values and object columns with pd.NA raised TypeError, object columns with numbers or dates and pd.NA were written as the string "<NA>"
+* added writing multiple data frames to a RData file: write_rdata accepts a dict (e.g. the output of read_r) with object names as keys and data frames as values; rownames_column can be a str or a dict per data frame. Possible since librdata fixed WizardMac/librdata#38
+* all data frames are validated before writing, errors no longer leave a partially written file; fixed a memory leak (the librdata writer was never freed)
+* fixing writing pandas object columns of integers, booleans, strings or dates with np.nan (for example R integer and logical columns with NA as read by pyreadr): they were written as character ("1", "nan", "True"), now they keep their type and NaN is written as NA. In object columns of floats NaN is still written as NaN
 * removing set_index(inplace=True) when reading row names, deprecated in pandas 3.1
 
 # 0.5.7 (github, pypi and conda: 2026.09.28)

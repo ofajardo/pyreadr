@@ -2,13 +2,14 @@
 @author: Otto Fajardo
 """
 from collections import OrderedDict
+from collections.abc import Mapping
 import os
 from urllib.request import urlopen
 
 import narwhals.stable.v2 as nw
 
 from ._pyreadr_parser import PyreadrParser, ListObjectsParser
-from ._pyreadr_writer import PyreadrWriter
+from ._pyreadr_writer import PyreadrWriter, get_frames_to_write
 from .custom_errors import PyreadrError
 
 
@@ -128,17 +129,18 @@ def list_objects(path, encoding=None):
 def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9,
                 rownames_column=None):
     """
-    Write a single pandas or polars data frame to a RData file.
+    Write one or more pandas or polars data frames to a RData file.
 
     Parameters
     ----------
         path : str, bytes, or Path
             path to the file. The string is assumed to be utf-8 encoded.
-        df : pandas or polars DataFrame
-            the data frame to write.
+        df : pandas or polars DataFrame, or dict
+            the data frame to write, or a dict (e.g. the OrderedDict returned by read_r) with object names as keys
+            and data frames as values, to write several data frames to the same file.
         df_name : str
             name for the R dataframe object, cannot be empty string. If
-            not supplied will default to "dataset".
+            not supplied will default to "dataset". Ignored if df is a dict.
         dateformat : str
             string to format datetime.date objects.
             By default "%Y-%m-%d".
@@ -148,21 +150,19 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
             compression to use, defaults to no compression. Only "gzip" supported.
         compresslevel : int, optional
             compression level for gzip (1-9), default 9.
-        rownames_column : str, optional
+        rownames_column : str or dict, optional
             name of a column to write as R row names instead of as a regular column. If not set, the index of a
             pandas data frame is written as row names, unless it is the default RangeIndex. Row names are converted
-            to strings and cannot contain missing values or duplicates.
+            to strings and cannot contain missing values or duplicates. If df is a dict, a str applies to the data
+            frames that have that column, and a dict with object names as keys sets the column per data frame.
     """
 
-    if not df_name:
+    if not isinstance(df, Mapping) and not df_name:
         msg = "df_name must be a valid string"
         raise PyreadrError(msg)
 
-    try:
-        nw.from_native(df, eager_only=True)
-    except Exception:
-        raise PyreadrError("df must be a pandas or polars DataFrame")
-    
+    frames = get_frames_to_write(df, df_name, rownames_column, allow_multiple=True)
+
     file_format = "rdata"
     writer = PyreadrWriter()
 
@@ -187,8 +187,7 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
 
     filename_bytes = os.path.expanduser(filename_bytes)
 
-    writer.write_r(filename_bytes, file_format, df, df_name, dateformat, datetimeformat, compress, compresslevel,
-                   rownames_column)
+    writer.write_r(filename_bytes, file_format, frames, dateformat, datetimeformat, compress, compresslevel)
 
 
 def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9,
@@ -217,14 +216,11 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
             to strings and cannot contain missing values or duplicates.
     """
 
-    try:
-        nw.from_native(df, eager_only=True)
-    except Exception:
-        raise PyreadrError("df must be a pandas or polars DataFrame")
+    df_name = ""   # this is irrelevant in this case, but we need to pass something
+    frames = get_frames_to_write(df, df_name, rownames_column, allow_multiple=False)
 
     file_format = "rds"
-    df_name = ""   # this is irrelevant in this case, but we need to pass something
-    
+
     if hasattr(os, 'fsencode'):
         try:
             filename_bytes = os.fsencode(path)
@@ -247,8 +243,7 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
     filename_bytes = os.path.expanduser(filename_bytes)
 
     writer = PyreadrWriter()
-    writer.write_r(filename_bytes, file_format, df, df_name, dateformat, datetimeformat, compress, compresslevel,
-                   rownames_column)
+    writer.write_r(filename_bytes, file_format, frames, dateformat, datetimeformat, compress, compresslevel)
 
 def download_file(url, destination_path):
     """
