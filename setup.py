@@ -22,7 +22,9 @@ def is_conda():
     """Check if running in a conda/miniforge environment."""
     if os.environ.get('CONDA_BUILD'):
         return False
-    if not os.path.exists(os.path.join(sys.prefix, 'conda-meta')):
+    # in a venv created from a conda python, sys.prefix is the venv, but the headers (conda's iconv.h) still come
+    # from the conda python in sys.base_prefix
+    if not any(os.path.exists(os.path.join(prefix, 'conda-meta')) for prefix in {sys.prefix, sys.base_prefix}):
         return False
     return (3, 11) <= sys.version_info[:2] <= (3, 13)
 
@@ -93,18 +95,21 @@ Please visit out project home page for more information:<br>
 https://github.com/ofajardo/pyreadr
 """
 
-short_description = "Reads/writes R RData and Rds files into/from pandas data frames."
+short_description = "Reads/writes R RData and Rds files into/from pandas or polars data frames."
 setup(
     name='pyreadr',
-    version='0.5.7',
+    version='0.5.8',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=include_package_data,
     exclude_package_data=exclude_package_data,
-    install_requires=['narwhals>=2.10.1'],
+    install_requires=['narwhals>=2.26.0', 'numpy'],
+    # narwhals requires python 3.9
+    python_requires=">=3.9",
     license="AGPL-3.0-or-later",
     classifiers=[
         "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
         "Programming Language :: Cython",
         "Programming Language :: C",
         "Intended Audience :: Science/Research",

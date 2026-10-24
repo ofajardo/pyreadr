@@ -2,17 +2,45 @@
 @author: Otto Fajardo
 """
 from collections import OrderedDict
+from collections.abc import Mapping
 import os
+import sys
 from urllib.request import urlopen
+import warnings
 
 import narwhals.stable.v2 as nw
 
-from ._pyreadr_parser import PyreadrParser, ListObjectsParser
-from ._pyreadr_writer import PyreadrWriter
+from ._pyreadr_parser import PyreadrParser, ListObjectsParser, MetadataParser
+from ._pyreadr_writer import PyreadrWriter, get_frames_to_write
 from .custom_errors import PyreadrError
 
 
-def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
+def _encode_path(path):
+    """
+    File path (str, bytes or Path) as bytes for the C layer, with ~ expanded.
+    """
+    try:
+        filename_bytes = os.fsencode(path)
+    except UnicodeError:
+        warnings.warn("file path could not be encoded with %s which is set as your system encoding, trying to encode it as utf-8. Please set your system encoding correctly." % sys.getfilesystemencoding())
+        filename_bytes = os.fsdecode(path).encode("utf-8", "surrogateescape")
+    return os.path.expanduser(filename_bytes)
+
+
+def _parse(parser, path):
+    """
+    Parse a file path (str, bytes or Path) or a file-like object with read() and seek() methods.
+    """
+    if hasattr(path, 'read') and hasattr(path, 'seek'):
+        parser.parse(b"", file_object=path)
+    else:
+        filename_bytes = _encode_path(path)
+        if not os.path.isfile(filename_bytes):
+            raise PyreadrError("File {0} does not exist!".format(filename_bytes))
+        parser.parse(filename_bytes)
+
+
+def read_r(path, use_objects=None, timezone=None, output_format="pandas", encoding=None, row_offset=0, row_limit=0):
     """
     Read an R RData or Rds file into pandas or polars data frames.
 
@@ -30,6 +58,17 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
             therefore timestamps are displayed in UTC, unless this parameter is set.
         output_format : str, optional
             format of the output data frames. "pandas" (default) or "polars".
+        encoding : str, optional
+            encoding of strings that have no encoding mark in the file, for example "latin1" or "WINDOWS-1252".
+            It overrides the encoding declared in the file (version 3 files) or supplies it (version 2 files).
+            Strings explicitly marked as UTF-8 or latin1 in the file are not affected. Set it if reading
+            fails with a UnicodeDecodeError.
+        row_offset : int, optional
+            number of rows to skip at the beginning, 0 by default. Applies to every object read.
+        row_limit : int, optional
+            maximal number of rows to read, 0 (default) reads all rows. Applies to every object read. R stores
+            data by column, so the columns are still read completely from the file, but only the selected rows
+            are kept, which reduces the memory needed.
 
     Returns
     -------
@@ -39,48 +78,61 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas"):
 
     if output_format not in ("pandas", "polars"):
         raise PyreadrError("output_format must be 'pandas' or 'polars'")
+    if encoding is not None and not isinstance(encoding, str):
+        raise PyreadrError("encoding must be a string")
+    for name, value in (("row_offset", row_offset), ("row_limit", row_limit)):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise PyreadrError("{0} must be a non-negative integer".format(name))
 
     parser = PyreadrParser()
     if use_objects:
         parser.set_use_objects(use_objects)
     if timezone:
         parser.set_timezone(timezone)
+    if encoding:
+        parser.set_encoding(encoding)
     parser.set_output_format(output_format)
-
-    if hasattr(path, 'read') and hasattr(path, 'seek'):
-        parser.parse(b"", file_object=path)
-    else:
-        if hasattr(os, 'fsencode'):
-            try:
-                filename_bytes = os.fsencode(path)
-            except UnicodeError:
-                warnings.warn("file path could not be encoded with %s which is set as your system encoding, trying to encode it as utf-8. Please set your system encoding correctly." % sys.getfilesystemencoding())
-                filename_bytes = os.fsdecode(path).encode("utf-8", "surrogateescape")
-        else:
-            if sys.version_info[0]>2:
-                if type(path) == str:
-                    filename_bytes = path.encode('utf-8')
-                elif type(path) == bytes:
-                    filename_bytes = path
-                else:
-                    raise PyreadstatError("path must be either str or bytes")
-            else:
-                if type(path) not in (str, bytes, unicode):
-                    raise PyreadstatError("path must be str, bytes or unicode")
-                filename_bytes = path.encode('utf-8')
-
-        filename_bytes = os.path.expanduser(filename_bytes)
-        if not os.path.isfile(filename_bytes):
-            raise PyreadrError("File {0} does not exist!".format(filename_bytes))
-        parser.parse(filename_bytes)
+    parser.set_rows(row_offset, row_limit)
+    _parse(parser, path)
+    parser.finish_text_column()
 
     result = OrderedDict()
     for table_index, table in enumerate(parser.table_data):
         result[table.name] = table.convert_to_dataframe()
+    if not result:
+        if use_objects:
+            msg = "no readable objects with the names in use_objects were found in the file."
+        else:
+            msg = "the file has no readable objects (data frames, vectors, matrices or arrays)."
+        warnings.warn(msg + " Lists, S4 objects and other unsupported objects are skipped.")
     return result
 
 
-def list_objects(path):
+def read_metadata(path):
+    """
+    Read the header of an R RData or Rds file: file type, serialization format version, compression and R
+    versions. Only the beginning of the file is read, the data is not.
+
+    Parameters
+    ----------
+        path : str, bytes, Path, or file-like object
+            path to the file, or a file-like object with read() and seek() methods (e.g. io.BytesIO).
+
+    Returns
+    -------
+        result : dict
+            file_type: "RData" or "Rds".
+            format_version: serialization format version, 2 or 3 (R >= 3.5 writes 3 by default).
+            compression: "gzip", "bzip2", "xz" or None.
+            writer_r_version: version of R that wrote the file, e.g. "4.3.3".
+            min_reader_r_version: minimal version of R needed to read the file.
+    """
+    parser = MetadataParser()
+    _parse(parser, path)
+    return parser.metadata
+
+
+def list_objects(path, encoding=None):
     """
     Read an R RData or Rds file and lists objects and their column names.
     Not all objects are readable, and also it is not always possible to read the column names without parsing the
@@ -88,8 +140,11 @@ def list_objects(path):
 
     Parameters
     ----------
-        path : str
-            path to the file. The string is assumed to be utf-8 encoded.
+        path : str, bytes, Path, or file-like object
+            path to the file, or a file-like object with read() and seek() methods (e.g. io.BytesIO).
+        encoding : str, optional
+            encoding of strings that have no encoding mark in the file, for example "latin1" or "WINDOWS-1252".
+            See read_r for details.
 
     Returns
     -------
@@ -99,29 +154,29 @@ def list_objects(path):
     """
 
     parser = ListObjectsParser()
-    if not isinstance(path, str):
-        raise PyreadrError("path must be a string!")
-    path = os.path.expanduser(path)
-    if not os.path.isfile(path):
-        raise PyreadrError("File {0} does not exist!".format(path))
- 
-    parser.parse(path)
+    if encoding is not None and not isinstance(encoding, str):
+        raise PyreadrError("encoding must be a string")
+    if encoding:
+        parser.set_encoding(encoding)
+    _parse(parser, path)
     return parser.object_list
     
     
-def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9):
+def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9,
+                rownames_column=None):
     """
-    Write a single pandas or polars data frame to a RData file.
+    Write one or more pandas or polars data frames to a RData file.
 
     Parameters
     ----------
         path : str, bytes, or Path
             path to the file. The string is assumed to be utf-8 encoded.
-        df : pandas or polars DataFrame
-            the data frame to write.
+        df : pandas or polars DataFrame, or dict
+            the data frame to write, or a dict (e.g. the OrderedDict returned by read_r) with object names as keys
+            and data frames as values, to write several data frames to the same file.
         df_name : str
             name for the R dataframe object, cannot be empty string. If
-            not supplied will default to "dataset".
+            not supplied will default to "dataset". Ignored if df is a dict.
         dateformat : str
             string to format datetime.date objects.
             By default "%Y-%m-%d".
@@ -131,45 +186,29 @@ def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeform
             compression to use, defaults to no compression. Only "gzip" supported.
         compresslevel : int, optional
             compression level for gzip (1-9), default 9.
+        rownames_column : str or dict, optional
+            name of a column to write as R row names instead of as a regular column. If not set, the index of a
+            pandas data frame is written as row names, unless it is the default RangeIndex. Row names are converted
+            to strings and cannot contain missing values or duplicates. If df is a dict, a str applies to the data
+            frames that have that column, and a dict with object names as keys sets the column per data frame.
     """
-    
-    if not df_name:
+
+    if not isinstance(df, Mapping) and not df_name:
         msg = "df_name must be a valid string"
         raise PyreadrError(msg)
 
-    try:
-        nw.from_native(df, eager_only=True)
-    except Exception:
-        raise PyreadrError("df must be a pandas or polars DataFrame")
-    
+    frames = get_frames_to_write(df, df_name, rownames_column, allow_multiple=True)
+
     file_format = "rdata"
     writer = PyreadrWriter()
 
-    if hasattr(os, 'fsencode'):
-        try:
-            filename_bytes = os.fsencode(path)
-        except UnicodeError:
-            warnings.warn("file path could not be encoded with %s which is set as your system encoding, trying to encode it as utf-8. Please set your system encoding correctly." % sys.getfilesystemencoding())
-            filename_bytes = os.fsdecode(path).encode("utf-8", "surrogateescape")
-    else:
-        if sys.version_info[0]>2:
-            if type(path) == str:
-                filename_bytes = path.encode('utf-8')
-            elif type(path) == bytes:
-                filename_bytes = path
-            else:
-                raise PyreadstatError("path must be either str or bytes")
-        else:
-            if type(path) not in (str, bytes, unicode):
-                raise PyreadstatError("path must be str, bytes or unicode")
-            filename_bytes = path.encode('utf-8')
+    filename_bytes = _encode_path(path)
 
-    filename_bytes = os.path.expanduser(filename_bytes)
-
-    writer.write_r(filename_bytes, file_format, df, df_name, dateformat, datetimeformat, compress, compresslevel)
+    writer.write_r(filename_bytes, file_format, frames, dateformat, datetimeformat, compress, compresslevel)
 
 
-def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9):
+def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9,
+              rownames_column=None):
     """
     Write a single pandas or polars data frame to a Rds file.
 
@@ -188,39 +227,21 @@ def write_rds(path, df, dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S
             compression to use, defaults to no compression. Only "gzip" supported.
         compresslevel : int, optional
             compression level for gzip (1-9), default 9.
+        rownames_column : str, optional
+            name of a column to write as R row names instead of as a regular column. If not set, the index of a
+            pandas data frame is written as row names, unless it is the default RangeIndex. Row names are converted
+            to strings and cannot contain missing values or duplicates.
     """
-    
-    try:
-        nw.from_native(df, eager_only=True)
-    except Exception:
-        raise PyreadrError("df must be a pandas or polars DataFrame")
+
+    df_name = ""   # this is irrelevant in this case, but we need to pass something
+    frames = get_frames_to_write(df, df_name, rownames_column, allow_multiple=False)
 
     file_format = "rds"
-    df_name = ""   # this is irrelevant in this case, but we need to pass something
-    
-    if hasattr(os, 'fsencode'):
-        try:
-            filename_bytes = os.fsencode(path)
-        except UnicodeError:
-            warnings.warn("file path could not be encoded with %s which is set as your system encoding, trying to encode it as utf-8. Please set your system encoding correctly." % sys.getfilesystemencoding())
-            filename_bytes = os.fsdecode(path).encode("utf-8", "surrogateescape")
-    else:
-        if sys.version_info[0]>2:
-            if type(path) == str:
-                filename_bytes = path.encode('utf-8')
-            elif type(path) == bytes:
-                filename_bytes = path
-            else:
-                raise PyreadstatError("path must be either str or bytes")
-        else:
-            if type(path) not in (str, bytes, unicode):
-                raise PyreadstatError("path must be str, bytes or unicode")
-            filename_bytes = path.encode('utf-8')
 
-    filename_bytes = os.path.expanduser(filename_bytes)
+    filename_bytes = _encode_path(path)
 
     writer = PyreadrWriter()
-    writer.write_r(filename_bytes, file_format, df, df_name, dateformat, datetimeformat, compress, compresslevel)
+    writer.write_r(filename_bytes, file_format, frames, dateformat, datetimeformat, compress, compresslevel)
 
 def download_file(url, destination_path):
     """

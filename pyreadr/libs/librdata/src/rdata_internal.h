@@ -6,13 +6,6 @@
 
 #pragma pack(push, 1)
 
-typedef struct rdata_v2_header_s {
-    char       header[2];
-    uint32_t   format_version;
-    uint32_t   writer_version;
-    uint32_t   reader_version;
-} rdata_v2_header_t;
-
 typedef struct rdata_sexptype_header_s {
     unsigned int   type:8;
     unsigned int   object:1;
@@ -78,3 +71,13 @@ typedef struct rdata_sexptype_info_s {
 #define RDATA_SEXPTYPE_LANGUAGE_OBJECT_ATTR    240
 #define RDATA_SEXPTYPE_PAIRLIST_ATTR           239
 #define RDATA_PSEUDO_SXP_ALTREP                238
+
+/* we read this many characters from the beginning of the file to determine file format */
+#define RDATA_HEADER_LENGTH 5
+
+/* Encoding flags stored in the "gp" (LEVELS) bits of a CHARSXP header.
+ * See R's Defn.h and R-ints "Encodings for CHARSXPs". */
+#define RDATA_CHARSXP_BYTES   (1<<1)
+#define RDATA_CHARSXP_LATIN1  (1<<2)
+#define RDATA_CHARSXP_UTF8    (1<<3)
+#define RDATA_CHARSXP_ASCII   (1<<6)

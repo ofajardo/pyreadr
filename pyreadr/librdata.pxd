@@ -1,7 +1,7 @@
 # cython: c_string_type=str, c_string_encoding=utf8, language_level=3
 
 from libc.time cimport time_t, tm
-from libc.stdint cimport int32_t
+from libc.stdint cimport int32_t, uint32_t
 from libc.stddef cimport wchar_t
 
 
@@ -48,6 +48,22 @@ cdef extern from 'libs/librdata/src/rdata.h':
     ctypedef void (*rdata_error_handler)(const char *error_message, void *ctx);
     ctypedef int (*rdata_progress_handler)(double progress, void *ctx);
 
+    ctypedef enum rdata_compression_t:
+        RDATA_COMPRESSION_NONE
+        RDATA_COMPRESSION_GZIP
+        RDATA_COMPRESSION_BZIP2
+        RDATA_COMPRESSION_LZMA
+
+    ctypedef struct rdata_header_t:
+        char header[2]
+        uint32_t format_version
+        uint32_t writer_version
+        uint32_t reader_version
+
+    # header_line: first 5 bytes of the file, not null terminated
+    ctypedef int (*rdata_header_handler)(rdata_compression_t compression, const char *header_line,
+            const rdata_header_t *header, void *ctx);
+
     #IF UNAME_SYSNAME == 'Windows':
     #    ctypedef _off64_t rdata_off_t;
     #ELSE:
@@ -83,12 +99,14 @@ cdef extern from 'libs/librdata/src/rdata.h':
     rdata_error_t rdata_set_dim_handler(rdata_parser_t *parser, rdata_column_handler dim_handler);
     rdata_error_t rdata_set_dim_name_handler(rdata_parser_t *parser, rdata_text_value_handler dim_name_handler);
     rdata_error_t rdata_set_error_handler(rdata_parser_t *parser, rdata_error_handler error_handler);
+    rdata_error_t rdata_set_header_handler(rdata_parser_t *parser, rdata_header_handler header_handler);
     rdata_error_t rdata_set_open_handler(rdata_parser_t *parser, rdata_open_handler open_handler);
     rdata_error_t rdata_set_close_handler(rdata_parser_t *parser, rdata_close_handler close_handler);
     rdata_error_t rdata_set_seek_handler(rdata_parser_t *parser, rdata_seek_handler seek_handler);
     rdata_error_t rdata_set_read_handler(rdata_parser_t *parser, rdata_read_handler read_handler);
     rdata_error_t rdata_set_update_handler(rdata_parser_t *parser, rdata_update_handler update_handler);
     rdata_error_t rdata_set_io_ctx(rdata_parser_t *parser, void *io_ctx);
+    rdata_error_t rdata_set_file_character_encoding(rdata_parser_t *parser, const char *encoding);
     # /* rdata_parse works on RData and RDS. The table handler will be called once
     #  * per data frame in RData files, and zero times on RDS files. */
     rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *user_ctx);
@@ -125,6 +143,7 @@ cdef extern from 'libs/librdata/src/rdata.h':
     rdata_error_t rdata_append_string_value(rdata_writer_t *writer, const char *value);
 
     rdata_error_t rdata_end_column(rdata_writer_t *writer, rdata_column_t *column);
+    rdata_error_t rdata_append_row_name(rdata_writer_t *writer, const char *name);
     rdata_error_t rdata_end_table(rdata_writer_t *writer, int32_t row_count, const char *datalabel);
     rdata_error_t rdata_end_file(rdata_writer_t *writer);
 

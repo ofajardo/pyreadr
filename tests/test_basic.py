@@ -20,7 +20,11 @@ try:
 except:
     pass
 
-is_pandas_3 = int(pd.__version__.split(".")[0]) > 2
+pandas_version = tuple(int(x) for x in pd.__version__.split(".")[:2])
+is_pandas_3 = pandas_version[0] > 2
+# pd.to_datetime(..., unit='s') on whole seconds infers datetime64[s] in pandas 3.0
+# and datetime64[us] from pandas 3.1 on
+pandas3_dt_unit = 'datetime64[s]' if pandas_version < (3, 1) else 'datetime64[us]'
 
 
 class PyReadRBasic(unittest.TestCase):
@@ -59,13 +63,13 @@ class PyReadRBasic(unittest.TestCase):
 
         df3 = pd.read_csv(os.path.join(self.basic_data_folder, "df3.csv"), parse_dates=[0, 1])
 
-        # pandas 3.0: pd.to_datetime(..., unit='s') returns datetime64[s],
+        # pandas 3: pd.to_datetime(..., unit='s') returns datetime64[s] (3.0) or [us] (3.1+),
         # but read_csv parse_dates returns datetime64[ns]. Normalize to match parser output.
         if is_pandas_3:
             for col in df1.select_dtypes(include=['datetime64']).columns:
-                df1[col] = df1[col].astype('datetime64[s]')
+                df1[col] = df1[col].astype(pandas3_dt_unit)
             for col in df3.select_dtypes(include=['datetime64']).columns:
-                df3[col] = df3[col].astype('datetime64[s]')
+                df3[col] = df3[col].astype(pandas3_dt_unit)
 
         self.df1 = df1
         self.df1_tstamp = df1_tstamp
@@ -148,8 +152,9 @@ class PyReadRBasic(unittest.TestCase):
         matstr = np.asarray(["james", "cecil","zoe", "amber", np.nan, "rob"]*2, dtype=object)
         self.mat_str = pd.DataFrame(np.reshape(matstr, (4,3), order='F'))
         # categories
-        mat_cat = self.mat_str.copy()
-        self.mat_cat = mat_cat.astype("category")
+        # a factor matrix has one set of levels for all columns
+        fac_levels = ['amber', 'cecil', 'james', 'rob', 'zoe']
+        self.mat_cat = self.mat_str.apply(lambda c: pd.Categorical(c, categories=fac_levels))
 
     def test_rdata_basic(self):
 
@@ -218,6 +223,18 @@ class PyReadRBasic(unittest.TestCase):
         rdata_path = os.path.join(self.basic_data_folder, "two.RData")
         res = pyreadr.list_objects(rdata_path)
         self.assertListEqual(self.rdata_objects_description, res)
+
+    def test_list_objects_rownames(self):
+
+        rdata_path = os.path.join(self.basic_data_folder, "two_rownames.RData")
+        res = pyreadr.list_objects(rdata_path)
+        expected = [dict(self.rdata_objects_description[0], object_name="df1_rownames")] + self.rdata_objects_description[1:]
+        self.assertListEqual(expected, res)
+
+        rds_path = os.path.join(self.basic_data_folder, "one_rownames.Rds")
+        res = pyreadr.list_objects(rds_path)
+        expected = [dict(self.rdata_objects_description[0], object_name=None)]
+        self.assertListEqual(expected, res)
 
     def test_rdata_use_objects(self):
 
@@ -524,6 +541,101 @@ class PyReadRBasic(unittest.TestCase):
         res = pyreadr.read_r(path)
         df = res[None]
         self.assertTrue(df.equals(self.mat_cat))
+
+    def test_factor_unused_levels(self):
+        # levels c, b, a: not alphabetical and c is unused; both must be kept as in R
+        path = os.path.join(self.basic_data_folder, "factor_unused_levels.RData")
+        res = pyreadr.read_r(path)
+        df = res['df']
+        levels = ['c', 'b', 'a']
+        expected = pd.DataFrame({'f': pd.Categorical(['b', 'a', np.nan, 'b'], categories=levels)})
+        # pandas equals ignores the order of categories, check it explicitly
+        self.assertListEqual(df['f'].cat.categories.tolist(), levels)
+        self.assertFalse(df['f'].cat.ordered)
+        self.assertTrue(df.equals(expected))
+
+    def test_factor_na_level(self):
+        # addNA(): NA is a level in R (levels a, b, NA). pandas categories cannot have a missing level, the NA
+        # level is dropped and its values become missing
+        path = os.path.join(self.basic_data_folder, "factor_na_level.rds")
+        df = pyreadr.read_r(path)[None]
+        levels = ['a', 'b']
+        expected = pd.DataFrame({'f': pd.Categorical(['a', np.nan, 'b', 'a'], categories=levels),
+                                 'x': [1.0, 2.0, 3.0, 4.0]})
+        self.assertListEqual(df['f'].cat.categories.tolist(), levels)
+        self.assertTrue(df.equals(expected))
+
+    def test_na_colname(self):
+        # names(df)[1] <- NA in R: the column name is missing
+        path = os.path.join(self.basic_data_folder, "na_colname.rds")
+        df = pyreadr.read_r(path)[None]
+        expected = pd.DataFrame({None: np.array([1, 2], dtype=np.int32), 'b': np.array([3, 4], dtype=np.int32)})
+        self.assertTrue(df.equals(expected))
+        # missing name: None in pandas 2, NaN in pandas 3 (str Index)
+        self.assertTrue(pd.isna(df.columns[0]))
+        self.assertEqual(df.columns[1], 'b')
+
+    def test_write_rdata_multiple(self):
+        a = pd.DataFrame({'x': [1.5, 2.5]})
+        b = pd.DataFrame({'id': ['r1', 'r2', 'r3'], 's': ['p', None, 'q']})
+        path = os.path.join(self.write_data_folder, "test_multiple.RData")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rdata(path, {'a': a, 'b': b}, rownames_column={'b': 'id'})
+        res = pyreadr.read_r(path)
+        self.assertListEqual(list(res.keys()), ['a', 'b'])
+        self.assertListEqual(res['a']['x'].tolist(), [1.5, 2.5])
+        self.assertListEqual(list(res['b'].index), ['r1', 'r2', 'r3'])
+        self.assertListEqual(list(res['b'].columns), ['s'])
+
+    def test_write_object_nan_roundtrip(self):
+        # R integer and logical columns with NA are read as object with NaN; written back they must keep their
+        # type with NaN as NA (they were written as character "1", "nan", "True")
+        df1 = pyreadr.read_r(os.path.join(self.basic_data_folder, "two.RData"), use_objects=["df1"])["df1"]
+        path = os.path.join(self.write_data_folder, "test_object_nan.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, df1[['int', 'log']])
+        res = pyreadr.read_r(path)[None]
+        values = {c: [None if pd.isna(x) else x for x in res[c].tolist()] for c in res.columns}
+        self.assertDictEqual(values, {'int': [1, 2, 3, None, None, None],
+                                      'log': [True, True, False, True, False, None]})
+        self.assertTrue(all(type(x) == int for x in values['int'][:3]))
+        self.assertTrue(all(type(x) == bool for x in values['log'][:5]))
+
+    def test_write_na_nan(self):
+        # numpy float NaN stays NaN; pandas missing type pd.NA and None in object columns become R's NA
+        df = pd.DataFrame({
+            'f': pd.Series([1.0, np.nan, 3.0], dtype=np.float64),
+            'nf': pd.Series([1.0, None, 3.0], dtype="Float64"),
+            'o': pd.Series([1.0, None, np.nan], dtype=object),
+        })
+        path = os.path.join(self.write_data_folder, "test_na_nan.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, df)
+        res = pyreadr.read_r(path)[None]
+        # R's NA is a NaN with 1954 in the low word
+        kinds = {}
+        for col in res.columns:
+            arr = np.asarray(res[col], dtype=np.float64)
+            low = arr.view(np.uint64) & 0xFFFFFFFF
+            kinds[col] = ['value' if a == a else ('NA' if lw == 1954 else 'NaN') for a, lw in zip(arr, low)]
+        self.assertDictEqual(kinds, {'f': ['value', 'NaN', 'value'], 'nf': ['value', 'NA', 'value'],
+                                     'o': ['value', 'NA', 'NaN']})
+
+    def test_write_factor(self):
+        # levels c, b, a: not alphabetical and c is unused; both must be written as in the input
+        levels = ['c', 'b', 'a']
+        df = pd.DataFrame({'f': pd.Categorical(['b', 'a', None, 'b'], categories=levels)})
+        path = os.path.join(self.write_data_folder, "test_factor.Rds")
+        if os.path.isfile(path):
+            os.remove(path)
+        pyreadr.write_rds(path, df)
+        col = pyreadr.read_r(path)[None]['f']
+        self.assertEqual(col.dtype, 'category')
+        self.assertListEqual(col.cat.categories.tolist(), levels)
+        self.assertListEqual(col.cat.codes.tolist(), [1, 2, -1, 1])
 
  
 if __name__ == '__main__':
