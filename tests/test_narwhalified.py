@@ -6,6 +6,7 @@ Usage: python tests/test_narwhalified.py --inplace --backend=pandas
 @author: Otto Fajardo
 """
 import unittest
+import io
 import os
 import datetime
 import math
@@ -704,6 +705,50 @@ class TestNarwhalified(unittest.TestCase):
             self.assertTrue(math.isnan(x[2]))
             self.assertEqual(x[3], 4.0)
             self.assertListEqual(df['d'].isna().tolist(), [False, True, False, True])
+
+    # ==========================================================================
+    # read_metadata
+    # ==========================================================================
+
+    def test_read_metadata(self):
+        # files written by R 4.3.3 with different formats and compressions
+        cases = {
+            "meta_v3_xz.RData": {"file_type": "RData", "format_version": 3, "compression": "xz",
+                                 "writer_r_version": "4.3.3", "min_reader_r_version": "3.5.0"},
+            "meta_v3_gzip.RData": {"file_type": "RData", "format_version": 3, "compression": "gzip",
+                                   "writer_r_version": "4.3.3", "min_reader_r_version": "3.5.0"},
+            "meta_v2_bzip2.rds": {"file_type": "Rds", "format_version": 2, "compression": "bzip2",
+                                  "writer_r_version": "4.3.3", "min_reader_r_version": "2.3.0"},
+            "meta_v3_none.rds": {"file_type": "Rds", "format_version": 3, "compression": None,
+                                 "writer_r_version": "4.3.3", "min_reader_r_version": "3.5.0"},
+        }
+        for f, expected in cases.items():
+            self.assertDictEqual(pyreadr.read_metadata(os.path.join(self.basic_data_folder, f)), expected, f)
+
+    def test_read_metadata_file_object(self):
+        with open(os.path.join(self.basic_data_folder, "meta_v3_xz.RData"), "rb") as fh:
+            meta = pyreadr.read_metadata(io.BytesIO(fh.read()))
+        self.assertEqual(meta["file_type"], "RData")
+        self.assertEqual(meta["compression"], "xz")
+
+    def test_read_metadata_written_by_pyreadr(self):
+        path = os.path.join(self.write_data_folder, "test_nw_metadata.RData")
+        pyreadr.write_rdata(path, self.df_out, compress="gzip")
+        self.assertDictEqual(pyreadr.read_metadata(path),
+                             {"file_type": "RData", "format_version": 2, "compression": "gzip",
+                              "writer_r_version": "2.3.0", "min_reader_r_version": "2.3.0"})
+
+    def test_read_metadata_not_found(self):
+        with self.assertRaises(pyreadr.PyreadrError):
+            pyreadr.read_metadata(os.path.join(self.basic_data_folder, "nope.RData"))
+
+    def test_read_error_details(self):
+        # a list whose element has the unknown S-expression type 30 (as from a newer R version, or a damaged
+        # file): librdata's detailed message is part of the error
+        path = os.path.join(self.basic_data_folder, "unknown_sexp.rds")
+        with self.assertRaisesRegex(pyreadr.LibrdataError,
+                                    "^The file contains an unrecognized object: Unhandled S-Expression: 30$"):
+            pyreadr.read_r(path, output_format=self.backend)
 
     def test_read_dates_na_no_warning(self):
         # missing dates (data frame and matrix) must not raise a RuntimeWarning when converted

@@ -590,3 +590,18 @@ class ListObjectsParser(Parser):
         :param index: int: index of the column
         """
         self.object_list[self.current_table]["columns"].append(name)
+
+
+class MetadataParser(Parser):
+    """
+    Specialized parser to only read the file header (file type, format version, compression, R versions).
+    """
+
+    # stop the parse after the header, see librdata.pyx
+    stop_after_header = True
+
+    def __init__(self):
+        self.metadata = None
+
+    def handle_header(self, metadata):
+        self.metadata = metadata

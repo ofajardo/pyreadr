@@ -41,6 +41,7 @@ dataframes, take a look at [pysummaries](https://github.com/Genentech/pysummarie
   * [Reading files from internet (download to disk)](#reading-files-from-internet-download-to-disk)
   * [Reading selected objects](#reading-selected-objects)
   * [List objects and column names](#list-objects-and-column-names)
+  * [File metadata](#file-metadata)
   * [Reading timestamps and timezones](#reading-timestamps-and-timezones)
   * [Reading files with strings in other encodings](#reading-files-with-strings-in-other-encodings)
   * [What objects can be read](#what-objects-can-be-read-and-written)
@@ -185,6 +186,7 @@ You can also check the [Module documentation](https://ofajardo.github.io/pyreadr
 | ------------------- | ----------- |
 | read_r        | reads RData and Rds files |
 | list_objects  | list objects and column names contained in RData or Rds file |
+| read_metadata | file type, format version, compression and R versions of a RData or Rds file |
 | download_file | download file from internet |
 | write_rdata   | writes RData files |
 | write_rds     | writes Rds files   |
@@ -375,6 +377,25 @@ object_list = pyreadr.list_objects('test_data/basic/two.RData')
 print(object_list) # let's check what objects we got and what columns those have
 
 ```
+
+### File metadata
+
+The function read_metadata reads only the header of a RData or Rds file (the data is not read,
+so it is fast also for big files) and returns a dictionary with the file type, the
+serialization format version, the compression and the version of R that wrote the file
+as well as the minimal R version needed to read it back. It accepts paths and
+file-like objects, as read_r.
+
+```python
+import pyreadr
+
+meta = pyreadr.read_metadata('test_data/basic/meta_v3_xz.RData')
+print(meta)
+# {'file_type': 'RData', 'format_version': 3, 'compression': 'xz',
+#  'writer_r_version': '4.3.3', 'min_reader_r_version': '3.5.0'}
+```
+
+Files written by pyreadr have format version 2, which can be read by any R version since 2.3.0.
 
 ### Reading timestamps and timezones
 

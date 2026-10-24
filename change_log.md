@@ -24,6 +24,8 @@
 * S4 objects are now skipped instead of raising an error (librdata update, WizardMac/librdata#16), so the other objects in a RData file are read. read_r warns if a file has no readable objects (e.g. only lists or S4 objects)
 * fixing NameError (missing imports of warnings and sys) when a file path cannot be encoded with the file system encoding
 * fixing RuntimeWarning "invalid value encountered in cast" when reading dates with missing values into pandas
+* added read_metadata: reads only the file header and returns file type (RData/Rds), format version, compression, the R version that wrote the file and the minimal R version to read it
+* LibrdataError messages now include librdata's detailed error message when there is one (e.g. "The file contains an unrecognized object: Unhandled S-Expression: 30")
 * removing set_index(inplace=True) when reading row names, deprecated in pandas 3.1
 
 # 0.5.7 (github, pypi and conda: 2026.09.28)

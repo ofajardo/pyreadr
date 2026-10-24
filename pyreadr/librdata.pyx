@@ -5,8 +5,8 @@ from enum import Enum
 import numpy as np
 import os.path
 from cython.operator cimport dereference as deref
-from libc.string cimport strlen, memcpy
-from libc.stdint cimport uint64_t
+from libc.string cimport strlen, memcpy, memcmp
+from libc.stdint cimport uint64_t, uint32_t
 from libc.stdlib cimport malloc, free
 
 from .custom_errors import PyreadrError, LibrdataError
@@ -173,6 +173,37 @@ cdef int _handle_value_label(const char *value, int index, void *ctx) noexcept:
         return rdata_error_t.RDATA_ERROR_USER_ABORT
 
 
+cdef void _handle_error(const char *message, void *ctx) noexcept:
+    # detailed error messages from librdata, added to the LibrdataError raised if the parse fails
+    parser = <Parser>ctx
+    try:
+        if message != NULL:
+            text = message
+            parser._error_messages.append(text.strip())
+    except Exception:
+        pass
+
+
+cdef int _handle_header(rdata_compression_t compression, const char *header_line, const rdata_header_t *header,
+                        void *ctx) noexcept:
+    parser = <Parser>ctx
+    try:
+        Parser.__handle_header(parser, compression, header_line, header)
+        if parser.stop_after_header:
+            # nothing else needed: abort the parse, Parser.parse does not raise for this
+            parser._stopped_after_header = True
+            return 1
+        return 0
+    except Exception as e:
+        parser._error = e
+        return 1
+
+
+cdef str _r_version(uint32_t version):
+    # R encodes versions as major * 65536 + minor * 256 + patch
+    return "%d.%d.%d" % (version >> 16, (version >> 8) & 255, version & 255)
+
+
 cdef object _file_object_ctx = None
 
 cdef int _handle_open_file_object(const char *path, void *io_ctx) noexcept:
@@ -217,6 +248,8 @@ cdef class Parser:
     parse_current_table = True
     output_format = "pandas"
     encoding = None
+    # True to read only the file header (handle_header), see _handle_header
+    stop_after_header = False
 
     def set_encoding(self, encoding):
         self.encoding = encoding
@@ -229,6 +262,8 @@ cdef class Parser:
         self._this = rdata_parser_init();
         self._fd = 0
         self._error = None
+        self._error_messages = []
+        self._stopped_after_header = False
 
         # encoding for strings without encoding mark, overrides the one declared in the file
         if self.encoding is not None:
@@ -249,6 +284,8 @@ cdef class Parser:
         rdata_set_row_name_handler(self._this, _handle_row_name)
         rdata_set_text_value_handler(self._this, _handle_text_value)
         rdata_set_value_label_handler(self._this, _handle_value_label)
+        rdata_set_error_handler(self._this, _handle_error)
+        rdata_set_header_handler(self._this, _handle_header)
 
         if file_object is not None:
             _file_object_ctx = file_object
@@ -264,9 +301,19 @@ cdef class Parser:
         if status != RDATA_OK:
             if self._error is not None:
                 raise self._error
-            else:
-                message = rdata_error_message(status)
-                raise LibrdataError(message)
+            if status == RDATA_ERROR_USER_ABORT and self._stopped_after_header:
+                return
+            message = rdata_error_message(status)
+            if self._error_messages:
+                message = "%s: %s" % (message, "; ".join(self._error_messages))
+            raise LibrdataError(message)
+
+    def handle_header(self, metadata):
+        """
+        metadata: dict with file_type ("RData" or "Rds"), format_version, compression ("gzip", "bzip2", "xz"
+        or None), writer_r_version and min_reader_r_version
+        """
+        pass
 
     def handle_table(self, name):
         pass
@@ -291,6 +338,26 @@ cdef class Parser:
 
     def handle_value_label(self, name, index):
         pass
+
+    cdef __handle_header(self, rdata_compression_t compression, const char *header_line,
+                         const rdata_header_t *header):
+        # RData files start with RDX2 or RDX3, Rds files directly with the serialization format
+        file_type = "RData" if memcmp(header_line, b"RDX", 3) == 0 else "Rds"
+        if compression == RDATA_COMPRESSION_GZIP:
+            compression_name = "gzip"
+        elif compression == RDATA_COMPRESSION_BZIP2:
+            compression_name = "bzip2"
+        elif compression == RDATA_COMPRESSION_LZMA:
+            compression_name = "xz"
+        else:
+            compression_name = None
+        self.handle_header({
+            "file_type": file_type,
+            "format_version": header.format_version,
+            "compression": compression_name,
+            "writer_r_version": _r_version(header.writer_version),
+            "min_reader_r_version": _r_version(header.reader_version),
+        })
 
     cdef __handle_table(self, const char* name):
         if name == NULL:

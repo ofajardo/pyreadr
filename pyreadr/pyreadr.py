@@ -10,9 +10,41 @@ import warnings
 
 import narwhals.stable.v2 as nw
 
-from ._pyreadr_parser import PyreadrParser, ListObjectsParser
+from ._pyreadr_parser import PyreadrParser, ListObjectsParser, MetadataParser
 from ._pyreadr_writer import PyreadrWriter, get_frames_to_write
 from .custom_errors import PyreadrError
+
+
+def _parse(parser, path):
+    """
+    Parse a file path (str, bytes or Path) or a file-like object with read() and seek() methods.
+    """
+    if hasattr(path, 'read') and hasattr(path, 'seek'):
+        parser.parse(b"", file_object=path)
+    else:
+        if hasattr(os, 'fsencode'):
+            try:
+                filename_bytes = os.fsencode(path)
+            except UnicodeError:
+                warnings.warn("file path could not be encoded with %s which is set as your system encoding, trying to encode it as utf-8. Please set your system encoding correctly." % sys.getfilesystemencoding())
+                filename_bytes = os.fsdecode(path).encode("utf-8", "surrogateescape")
+        else:
+            if sys.version_info[0]>2:
+                if type(path) == str:
+                    filename_bytes = path.encode('utf-8')
+                elif type(path) == bytes:
+                    filename_bytes = path
+                else:
+                    raise PyreadstatError("path must be either str or bytes")
+            else:
+                if type(path) not in (str, bytes, unicode):
+                    raise PyreadstatError("path must be str, bytes or unicode")
+                filename_bytes = path.encode('utf-8')
+
+        filename_bytes = os.path.expanduser(filename_bytes)
+        if not os.path.isfile(filename_bytes):
+            raise PyreadrError("File {0} does not exist!".format(filename_bytes))
+        parser.parse(filename_bytes)
 
 
 def read_r(path, use_objects=None, timezone=None, output_format="pandas", encoding=None):
@@ -58,33 +90,7 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas", encodi
     if encoding:
         parser.set_encoding(encoding)
     parser.set_output_format(output_format)
-
-    if hasattr(path, 'read') and hasattr(path, 'seek'):
-        parser.parse(b"", file_object=path)
-    else:
-        if hasattr(os, 'fsencode'):
-            try:
-                filename_bytes = os.fsencode(path)
-            except UnicodeError:
-                warnings.warn("file path could not be encoded with %s which is set as your system encoding, trying to encode it as utf-8. Please set your system encoding correctly." % sys.getfilesystemencoding())
-                filename_bytes = os.fsdecode(path).encode("utf-8", "surrogateescape")
-        else:
-            if sys.version_info[0]>2:
-                if type(path) == str:
-                    filename_bytes = path.encode('utf-8')
-                elif type(path) == bytes:
-                    filename_bytes = path
-                else:
-                    raise PyreadstatError("path must be either str or bytes")
-            else:
-                if type(path) not in (str, bytes, unicode):
-                    raise PyreadstatError("path must be str, bytes or unicode")
-                filename_bytes = path.encode('utf-8')
-
-        filename_bytes = os.path.expanduser(filename_bytes)
-        if not os.path.isfile(filename_bytes):
-            raise PyreadrError("File {0} does not exist!".format(filename_bytes))
-        parser.parse(filename_bytes)
+    _parse(parser, path)
 
     result = OrderedDict()
     for table_index, table in enumerate(parser.table_data):
@@ -96,6 +102,30 @@ def read_r(path, use_objects=None, timezone=None, output_format="pandas", encodi
             msg = "the file has no readable objects (data frames, vectors, matrices or arrays)."
         warnings.warn(msg + " Lists, S4 objects and other unsupported objects are skipped.")
     return result
+
+
+def read_metadata(path):
+    """
+    Read the header of an R RData or Rds file: file type, serialization format version, compression and R
+    versions. Only the beginning of the file is read, the data is not.
+
+    Parameters
+    ----------
+        path : str, bytes, Path, or file-like object
+            path to the file, or a file-like object with read() and seek() methods (e.g. io.BytesIO).
+
+    Returns
+    -------
+        result : dict
+            file_type: "RData" or "Rds".
+            format_version: serialization format version, 2 or 3 (R >= 3.5 writes 3 by default).
+            compression: "gzip", "bzip2", "xz" or None.
+            writer_r_version: version of R that wrote the file, e.g. "4.3.3".
+            min_reader_r_version: minimal version of R needed to read the file.
+    """
+    parser = MetadataParser()
+    _parse(parser, path)
+    return parser.metadata
 
 
 def list_objects(path, encoding=None):
