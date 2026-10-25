@@ -48,16 +48,6 @@ cdef int _os_open(path, mode) noexcept:
         return open(path, flags, 0644)
 
 
-cdef list _list_with_none(array, missing):
-    """
-    numpy array to a list (data for polars) with None where missing (boolean array) is True
-    """
-    values = array.tolist()
-    for i in np.flatnonzero(missing).tolist():
-        values[i] = None
-    return values
-
-
 cdef int _os_close(int fd) noexcept:
     if _is_windows:
         return _close(fd)
@@ -368,27 +358,19 @@ cdef class Parser:
         cdef double[::1] doubles_view
         cdef int32_t[::1] ints_view
 
-        # copy the whole C array into numpy at once (assigning element by element goes through Python)
+        # copy the whole C array into numpy at once (assigning element by element goes through Python). Both
+        # backends get numpy, R's NA stays as its bit pattern (doubles) or INT32_MIN (integers, logicals): pandas
+        # and polars handle it in Table (polars: null masks, much faster than building python lists)
         if type in [rdata_type_t.RDATA_TYPE_REAL, rdata_type_t.RDATA_TYPE_TIMESTAMP, rdata_type_t.RDATA_TYPE_DATE]:
             array = np.empty([count], dtype=np.float64)
             if count > 0:
                 doubles_view = array
                 memcpy(&doubles_view[0], data, count * sizeof(double))
-            if self.output_format == "polars":
-                if type == rdata_type_t.RDATA_TYPE_REAL:
-                    # R's NA is a NaN with 1954 in the low word: null. Any other NaN stays NaN
-                    missing = np.isnan(array) & ((array.view(np.uint64) & 0xFFFFFFFF) == 1954)
-                else:
-                    # dates and timestamps cannot be NaN
-                    missing = np.isnan(array)
-                array = _list_with_none(array, missing)
         elif type == rdata_type_t.RDATA_TYPE_INT32 or type == rdata_type_t.RDATA_TYPE_LOGICAL:
             array = np.empty([count], dtype=np.int32)
             if count > 0:
                 ints_view = array
                 memcpy(&ints_view[0], data, count * sizeof(int32_t))
-            if self.output_format == "polars":
-                array = _list_with_none(array, array <= -2147483648)
         else:
             array = None
 

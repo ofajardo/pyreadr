@@ -44,6 +44,36 @@ def _r_dates_to_python(days):
     return dates.astype(datetime)
 
 
+def _r_missing_mask(values, dtype_name):
+    """
+    Boolean array, True where values (numpy array from librdata) is R's NA.
+    """
+    if dtype_name == "NUMERIC":
+        # R's NA is a NaN with 1954 in the low word, any other NaN is R's NaN and stays NaN
+        return np.isnan(values) & ((values.view(np.uint64) & 0xFFFFFFFF) == 1954)
+    if dtype_name in ("TIMESTAMP", "DATE"):
+        # dates and timestamps cannot be NaN
+        return np.isnan(values)
+    if dtype_name in ("INTEGER", "LOGICAL"):
+        return values <= -2147483648
+    raise PyreadrError("unexpected data type %s" % dtype_name)
+
+
+def _polars_series(name, values, dtype_name):
+    """
+    polars Series from the data of one R vector: numeric data comes as numpy array with R's NA markers, which
+    become nulls (much faster than building python lists, as librdata gives whole columns); character data comes
+    as a list with None for NA.
+    """
+    if dtype_name == "CHARACTER":
+        return pl.Series(name, values, dtype=pl.String)
+    series = pl.Series(name, values)
+    missing = _r_missing_mask(values, dtype_name)
+    if missing.any():
+        series = series.set(pl.Series(missing), None)
+    return series
+
+
 
 class Table:
     """
@@ -125,12 +155,12 @@ class Table:
         dtype = self.column_types[0]
 
         if self.output_format == "polars":
-            data = np.asarray(self.columns[0], dtype=object)
-            if dtype.name == "LOGICAL":
-                for i in range(len(data)):
-                    if data[i] is not None:
-                        data[i] = bool(data[i])
-            self.arraylike_data = data
+            # numeric data stays numpy with R's NA markers, _arraylike_buildf makes each column a polars Series
+            # with _polars_series. Character data is a list
+            if dtype.name == "CHARACTER":
+                self.arraylike_data = np.asarray(self.columns[0], dtype=object)
+            else:
+                self.arraylike_data = np.asarray(self.columns[0])
             return
 
         if dtype.name == "CHARACTER":
@@ -195,17 +225,21 @@ class Table:
                 return
 
         if self.output_format == "polars":
-            cols = {}
-            if data.ndim == 1:
-                cols['0'] = data.tolist()
-            elif colnames:
-                for c in range(data.shape[1]):
-                    cols[colnames[c]] = data[:, c].tolist()
-            else:
-                for c in range(data.shape[1]):
-                    cols[str(c)] = data[:, c].tolist()
-            df = pl.DataFrame(cols)
             dtype = self.column_types[0]
+            if data.ndim == 1:
+                columns = {'0': data}
+            elif colnames:
+                columns = {colnames[c]: data[:, c] for c in range(data.shape[1])}
+            else:
+                columns = {str(c): data[:, c] for c in range(data.shape[1])}
+            cols = {}
+            for name, values in columns.items():
+                if dtype.name == "CHARACTER":
+                    values = values.tolist()
+                cols[name] = _polars_series(name, values, dtype.name)
+            df = pl.DataFrame(cols)
+            if dtype.name == "LOGICAL":
+                df = df.with_columns(pl.col(c).cast(pl.Boolean) for c in cols)
             if dtype.name == "TIMESTAMP" or dtype.name == "DATE":
                 float_cols = list(cols.keys())
                 df = df.with_columns(
@@ -300,31 +334,27 @@ class Table:
         Converts the data to a data frame, which still needs some further processing.
         """
 
+        if self.output_format == "polars":
+            # numeric columns are numpy arrays (they keep their type also if empty or all missing), character
+            # columns lists, typed as String in _polars_series. TIMESTAMP and DATE are converted in _covert_data.
+            # A dict as for pandas: a repeated name keeps the last column
+            series = OrderedDict()
+            for indx, column in enumerate(self.columns):
+                colname = self.final_names[indx]
+                if colname is None:
+                    colname = ""
+                series[colname] = _polars_series(colname, column, self.column_types[indx].name)
+            # a dict, not a list of Series: polars renames a Series named "" to column_0
+            self.df = pl.DataFrame(series)
+            return
+
         # normal data frames
         data = OrderedDict()
         for indx, column in enumerate(self.columns):
             colname = self.final_names[indx]
-            if colname is None and self.output_format == "polars":
-                colname = ""
             data[colname] = column
 
-        # data for polars are python lists, set the type explicitly, otherwise empty columns or columns with only
-        # missing values get the polars Null type. TIMESTAMP and DATE are converted later in _covert_data
-        schema = None
-        if self.output_format == "polars":
-            schema = {}
-            for colindx, dtype in self.column_types.items():
-                colname = self.final_names[colindx]
-                if colname is None:
-                    colname = ""
-                if dtype.name == "INTEGER" or dtype.name == "LOGICAL":
-                    schema[colname] = nw.Int32
-                elif dtype.name == "CHARACTER":
-                    schema[colname] = nw.String
-                else:
-                    schema[colname] = nw.Float64
-
-        df = nw.from_dict(data, backend=self.output_format, schema=schema).to_native()
+        df = nw.from_dict(data, backend=self.output_format).to_native()
 
         # pandas infers float64 for an empty character column (an empty list), use pandas string type instead
         if self.output_format == "pandas" and len(df) == 0:

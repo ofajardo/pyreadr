@@ -98,7 +98,7 @@ https://github.com/ofajardo/pyreadr
 short_description = "Reads/writes R RData and Rds files into/from pandas or polars data frames."
 setup(
     name='pyreadr',
-    version='0.5.8',
+    version='0.5.9',
     ext_modules=cythonize([librdata], force=True),
     packages=["pyreadr"],
     include_package_data=include_package_data,
