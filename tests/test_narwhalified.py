@@ -327,6 +327,8 @@ class TestNarwhalified(unittest.TestCase):
         if self.backend == "polars":
             self.assertIsInstance(result, pl.DataFrame,
                                  "Expected polars DataFrame but got %s" % type(result).__name__)
+            # polars equals does not compare numeric dtypes (Int32 equals Int64 and Float64)
+            self.assertEqual(dict(result.schema), dict(expected.schema))
         else:
             self.assertIsInstance(result, pd.DataFrame,
                                  "Expected pandas DataFrame but got %s" % type(result).__name__)
