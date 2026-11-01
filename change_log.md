@@ -1,4 +1,4 @@
-# 0.5.9 (github, pypi and conda: 2026.xx.xx)
+# 0.5.9 (github, pypi and conda: 2026.11.01)
 * faster reading into polars (about 4-10x for numeric, integer, logical, date and factor data) with 2-3x less memory: polars columns are built from the data as given by librdata instead of from python lists
 * reading with polars: integer matrices, arrays and tables are Int32 (were Int64), as integer columns of data frames
 
