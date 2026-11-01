@@ -6,12 +6,12 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to pyreadr’s documentation! &mdash; pyreadr 0.5.8 documentation</title>
+  <title>Welcome to pyreadr’s documentation! &mdash; pyreadr 0.5.9 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
-      <script src="_static/documentation_options.js?v=3e445e0d"></script>
+      <script src="_static/documentation_options.js?v=9a3cda14"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -110,7 +110,7 @@ whole file, in those cases this method will return Nones instead of column names
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>path</strong> (<em>str</em>) – path to the file. The string is assumed to be utf-8 encoded.</p></li>
+<li><p><strong>path</strong> (<em>str</em><em>, </em><em>bytes</em><em>, </em><em>Path</em><em>, or </em><em>file-like object</em>) – path to the file, or a file-like object with read() and seek() methods (e.g. io.BytesIO).</p></li>
 <li><p><strong>encoding</strong> (<em>str</em><em>, </em><em>optional</em>) – encoding of strings that have no encoding mark in the file, for example “latin1” or “WINDOWS-1252”.
 See read_r for details.</p></li>
 </ul>
