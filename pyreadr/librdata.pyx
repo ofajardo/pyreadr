@@ -4,8 +4,7 @@ import platform
 from enum import Enum
 import numpy as np
 import os.path
-from cython.operator cimport dereference as deref
-from libc.string cimport strlen, memcpy, memcmp
+from libc.string cimport memcpy, memcmp
 from libc.stdint cimport int32_t, uint32_t
 from libc.stdlib cimport malloc, free
 

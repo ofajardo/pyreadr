@@ -282,11 +282,11 @@ def get_frames_to_write(df, df_name, rownames_column, allow_multiple):
             # pandas allows duplicate column names, narwhals does not
             columns = list(frame.columns)
             duplicates = sorted({str(c) for c in columns if columns.count(c) > 1})
-            raise PyreadrError("duplicate column names are not supported: {0}".format(duplicates))
-        except Exception:
+            raise PyreadrError("duplicate column names are not supported: {0}".format(duplicates)) from None
+        except Exception as e:
             if isinstance(df, Mapping):
-                raise PyreadrError("{0} must be a pandas or polars DataFrame".format(name))
-            raise PyreadrError("df must be a pandas or polars DataFrame")
+                raise PyreadrError("{0} must be a pandas or polars DataFrame".format(name)) from e
+            raise PyreadrError("df must be a pandas or polars DataFrame") from e
 
     if isinstance(rownames_column, Mapping):
         unknown = [name for name in rownames_column if name not in df]

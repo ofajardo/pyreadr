@@ -3,9 +3,9 @@
 
 """
 
-import setuptools
 import sys
 import os
+import re
 
 import platform
 import glob
@@ -19,17 +19,28 @@ if cyver < 3:
     raise Exception("cython 3.0.0 or newer is required")
 
 def is_conda():
-    """Check if running in a conda/miniforge environment."""
+    """
+    Check if running in a conda/miniforge environment with GNU libiconv installed.
+    The libiconv iconv.h renames iconv_open/iconv/iconv_close to libiconv_open/libiconv/libiconv_close,
+    so when that header is picked up, libiconv must be linked. Without it, glibc's iconv is used.
+    """
     if os.environ.get('CONDA_BUILD'):
         return False
     # in a venv created from a conda python, sys.prefix is the venv, but the headers (conda's iconv.h) still come
     # from the conda python in sys.base_prefix
-    if not any(os.path.exists(os.path.join(prefix, 'conda-meta')) for prefix in {sys.prefix, sys.base_prefix}):
-        return False
-    return (3, 11) <= sys.version_info[:2] <= (3, 13)
+    for prefix in {sys.prefix, sys.base_prefix}:
+        if not os.path.exists(os.path.join(prefix, 'conda-meta')):
+            continue
+        header = os.path.join(prefix, 'include', 'iconv.h')
+        if not os.path.isfile(header):
+            continue
+        with open(header, encoding='utf-8', errors='replace') as f:
+            if re.search(r'^\s*#\s*define\s+iconv\s+libiconv\b', f.read(), re.MULTILINE):
+                return True
+    return False
 
 librdata_source_files = []
-librdata_source_files += glob.glob('pyreadr/libs/librdata/src/*.c')
+librdata_source_files += sorted(glob.glob('pyreadr/libs/librdata/src/*.c'))
 librdata_source_files += ['pyreadr/librdata.pyx']
 
 library_dirs = []
@@ -37,7 +48,6 @@ libraries = []
 include_dirs = []
 extra_link_args = []
 extra_compile_args = ['-DHAVE_ZLIB', '-DHAVE_BZIP2', '-DHAVE_LZMA']
-package_data ={'pryeadr': ["*.c", "*.pyx", "*.pxd"]}
 exclude_package_data = {'pyreadr': ["*.dll", "*.lib"]}
 include_package_data=True
 
@@ -56,20 +66,17 @@ elif platform.system() == 'Windows':
     include_dirs.append('pyreadr/libs/librdata')
     include_dirs.append('pyreadr/libs/iconv')
     library_dirs.append('pyreadr/libs/librdata')
-    package_data ={'pryeadr': ["*.c", "*.pyx", "*.pxd", "*.dll", "*.lib"]}
     exclude_package_data = {}
-    include_package_data=True
     library_dirs.append("pyreadr")
     libraries.append('z')
     libraries.append('iconv')
     libraries.append('bz2')
     libraries.append('lzma')
-    
+
 elif platform.system() == 'Linux':
     libraries.append('z')
     libraries.append('bz2')
     libraries.append('lzma')
-    #extra_compile_args.append("--std=gnu99")
     PYREADR_LINK_ICONV = os.environ.get('PYREADR_LINK_ICONV', '').lower() not in ('', '0', 'false', 'no')
     if PYREADR_LINK_ICONV or is_conda():
         libraries.append('iconv')
@@ -86,12 +93,14 @@ librdata = Extension(
     extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args)
 
-long_description = """ A Python package to read and write R RData and Rds files
-into/from pandas data frames. It does not need to have R or other external
+long_description = """A Python package to read and write R RData and Rds files
+into/from pandas or polars data frames. It does not need R or other external
 dependencies installed.
-It is based on the C library librdata and
-a modified version of the cython wrapper jamovi-readstat.<br>
-Please visit out project home page for more information:<br>
+
+It is based on the C library [librdata](https://github.com/WizardMac/librdata) and
+a modified version of the Cython wrapper jamovi-readstat.
+
+Please visit our project home page for more information:
 https://github.com/ofajardo/pyreadr
 """
 

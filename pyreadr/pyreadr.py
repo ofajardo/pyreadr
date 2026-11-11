@@ -8,8 +8,6 @@ import sys
 from urllib.request import urlopen
 import warnings
 
-import narwhals.stable.v2 as nw
-
 from ._pyreadr_parser import PyreadrParser, ListObjectsParser, MetadataParser
 from ._pyreadr_writer import PyreadrWriter, get_frames_to_write
 from .custom_errors import PyreadrError
@@ -160,8 +158,8 @@ def list_objects(path, encoding=None):
         parser.set_encoding(encoding)
     _parse(parser, path)
     return parser.object_list
-    
-    
+
+
 def write_rdata(path, df, df_name="dataset", dateformat="%Y-%m-%d", datetimeformat="%Y-%m-%d %H:%M:%S", compress=None, compresslevel=9,
                 rownames_column=None):
     """

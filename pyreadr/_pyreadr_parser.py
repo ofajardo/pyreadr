@@ -11,21 +11,21 @@ pandas_available = False
 try:
     import pandas as pd
     pandas_available = True
-except:
+except Exception:
     pass
 # xray is needed for 3d arrays only
 xray_available = False
 try:
     import xarray as xr
     xray_available = True
-except:
+except Exception:
     pass
 # polars is optional, needed only for output_format="polars"
 polars_available = False
 try:
     import polars as pl
     polars_available = True
-except:
+except Exception:
     pass
 
 from .librdata import Parser
@@ -118,7 +118,7 @@ class Table:
     # methods for arraylike: array, matrix, table
     def _arraylike_todf(self):
         """
-        Method to convert objects with the dim attribute set: matrices, 
+        Method to convert objects with the dim attribute set: matrices,
         arrays and tables; also vectors if the user set the dim attribute
         explicitly.
         """
@@ -274,7 +274,7 @@ class Table:
         """
         Dimenion names are captured as a flat array, transform to a nested array for
         easier handling.
-        """ 
+        """
         if self.dim_names:
             dimtuple = tuple(self.dim.tolist())
             dim_names = list()
